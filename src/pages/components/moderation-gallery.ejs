@@ -50,10 +50,13 @@ const modTriggerTabId = typeof triggerTabId !== 'undefined' ? triggerTabId : '';
     </div>
     <div class="col-6 col-md-2 col-lg-1">
       <label for="moderationGallery-size" class="form-label mb-1">Tiles</label>
+      <%# Two fewer columns per row than the previous M (200px gave 6 on Jaume's
+          screen, 300px gives 4). S and L keep the old 0.75 / 1 / 1.4 ratio, so
+          the earlier density is still one click away. %>
       <select id="moderationGallery-size" class="form-select form-select-sm">
-        <option value="150">S</option>
-        <option value="200" selected>M</option>
-        <option value="280">L</option>
+        <option value="225">S</option>
+        <option value="300" selected>M</option>
+        <option value="420">L</option>
       </select>
     </div>
     <div class="col-6 col-md-2 col-lg-1">
@@ -64,6 +67,9 @@ const modTriggerTabId = typeof triggerTabId !== 'undefined' ? triggerTabId : '';
   <div class="d-flex flex-wrap align-items-center gap-3 mt-3">
     <button id="moderationGallery-select-all" class="btn btn-outline-secondary btn-sm" type="button">Select all loaded</button>
     <button id="moderationGallery-select-none" class="btn btn-outline-secondary btn-sm" type="button">Clear selection</button>
+    <%# Compaction is never automatic and never happens under the cursor: the
+        operator asks for it when they are ready. %>
+    <button id="moderationGallery-clear-spent" class="btn btn-outline-secondary btn-sm d-none" type="button" title="Remove the processed cards from the grid. Nothing moves until you press this.">Clear processed</button>
     <div class="form-check form-switch mb-0">
       <input class="form-check-input" type="checkbox" role="switch" id="moderationGallery-autoplay" checked>
       <label class="form-check-label small" for="moderationGallery-autoplay" title="Plays the videos in view, muted and looping. Files over 15 MB never autoplay, open them in the viewer instead.">Autoplay video</label>
@@ -103,7 +109,7 @@ const modTriggerTabId = typeof triggerTabId !== 'undefined' ? triggerTabId : '';
 <style>
   .mod-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(var(--mod-tile, 200px), 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(var(--mod-tile, 300px), 1fr));
     gap: 6px;
   }
   .mod-tile {
@@ -113,14 +119,29 @@ const modTriggerTabId = typeof triggerTabId !== 'undefined' ? triggerTabId : '';
     border: 2px solid transparent;
     border-radius: 6px;
     background: #1a1a1a;
-    cursor: zoom-in;
+    /* The card selects; the zoom button opens it. */
+    cursor: pointer;
     transition: opacity 0.25s ease;
   }
+  .mod-tile .mod-btn-zoom { cursor: zoom-in; }
   .mod-tile.is-pending  { border-color: #ffc107; }
   .mod-tile.is-checked  { border-color: #198754; }
   .mod-tile.is-nsfw     { border-color: #d63384; }
   .mod-tile.is-banned   { border-color: #dc3545; }
+  /* Selection has to be countable across a screenful, so it is not just an
+     outline: a real tint sits over the thumbnail. An inset shadow would not do,
+     the media element paints on top of it. The overlay stays under the badges and
+     the action bar and ignores the pointer. */
   .mod-tile.is-selected { outline: 3px solid #a575ff; outline-offset: -3px; }
+  .mod-tile.is-selected::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(165, 117, 255, 0.3);
+    z-index: 3;
+    pointer-events: none;
+  }
+  .mod-tile.is-selected .mod-check { transform: scale(1.15); }
   .mod-tile.is-leaving  { opacity: 0; }
   /* Busy dims, never blurs: a blur left behind by a hung request would hide the
      very thing the operator is judging. */
@@ -254,10 +275,69 @@ const modTriggerTabId = typeof triggerTabId !== 'undefined' ? triggerTabId : '';
     background: rgba(0,0,0,0.55);
     z-index: 4;
   }
+  /* Big enough to hit without aiming. Four buttons at 36px plus gaps fit inside
+     the smallest tile (225px) with room to spare, and the bar stays an overlay so
+     it only covers the bottom strip of the thumbnail. */
   .mod-actions .btn {
-    --bs-btn-padding-y: 0.05rem;
-    --bs-btn-padding-x: 0.25rem;
+    --bs-btn-padding-y: 0.3rem;
+    --bs-btn-padding-x: 0.5rem;
+    --bs-btn-font-size: 0.8rem;
+    min-width: 36px;
+    min-height: 32px;
+  }
+
+  /* checked asks twice: it is the one button whose consequence (the file leaves
+     the queue) is invisible until it is too late, and the only one with no
+     friction of its own. Ban already demands a reason. */
+  /* 52px keeps the armed button inside the smallest tile: 52 + 4x36 + gaps + the
+     bar padding is 214px against the 221px of usable width at S, so the row never
+     wraps mid-decision. */
+  .mod-actions .mod-btn-checked.is-confirming {
     --bs-btn-font-size: 0.7rem;
+    --bs-btn-padding-x: 0.35rem;
+    background: #0a58ca;
+    border-color: #0a58ca;
+    color: #fff;
+    min-width: 52px;
+  }
+
+  /* A processed card keeps its cell. Nothing below it moves, so the next click
+     lands where the operator aimed. */
+  .mod-tile.is-spent {
+    border-color: rgba(128,128,128,0.35);
+    cursor: default;
+  }
+  .mod-tile.is-spent .mod-media,
+  .mod-tile.is-spent .mod-fallback,
+  .mod-tile.is-spent .mod-play,
+  .mod-tile.is-spent .mod-badges,
+  .mod-tile.is-spent .mod-actions,
+  .mod-tile.is-spent .mod-check { display: none; }
+
+  .mod-spent {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px;
+    text-align: center;
+    background: rgba(33,37,41,0.92);
+    color: #dee2e6;
+    z-index: 7;
+  }
+  .mod-spent-what {
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+  .mod-spent-name {
+    font-size: 0.62rem;
+    opacity: 0.7;
+    word-break: break-all;
+    max-width: 100%;
   }
   .mod-btn-nsfw {
     background: #d63384;
@@ -338,6 +418,7 @@ document.addEventListener('DOMContentLoaded', () => {
         aborter: null,
         rows: new Map(),        // id -> row data
         selected: new Set(),    // ids
+        spent: new Map(),       // id -> {field, previous} for the processed slots
         videosInView: new Set(),
         videosPlaying: new Set(),
         videoObserver: null,
@@ -355,6 +436,7 @@ document.addEventListener('DOMContentLoaded', () => {
         refresh: document.getElementById('moderationGallery-refresh'),
         selectAll: document.getElementById('moderationGallery-select-all'),
         selectNone: document.getElementById('moderationGallery-select-none'),
+        clearSpent: document.getElementById('moderationGallery-clear-spent'),
         autoplay: document.getElementById('moderationGallery-autoplay'),
         safetyBlur: document.getElementById('moderationGallery-safetyblur'),
         counter: document.getElementById('moderationGallery-counter'),
@@ -791,6 +873,15 @@ document.addEventListener('DOMContentLoaded', () => {
         banButton.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i>';
         actions.appendChild(banButton);
 
+        // Always on the bar, never hover-only: a control that appears on hover
+        // doesn't exist on a touch screen and gets found by accident on a mouse.
+        const zoomButton = document.createElement('button');
+        zoomButton.type = 'button';
+        zoomButton.className = 'btn btn-dark mod-btn-zoom';
+        zoomButton.title = 'Open the file in the viewer (moderate and step through with the keyboard)';
+        zoomButton.innerHTML = '<i class="fa-solid fa-magnifying-glass-plus"></i>';
+        actions.appendChild(zoomButton);
+
         const retryButton = document.createElement('button');
         retryButton.type = 'button';
         retryButton.className = 'btn btn-info mod-btn-retry d-none';
@@ -816,8 +907,14 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const refreshCounter = () => {
-        const loaded = state.rows.size;
-        el.counter.textContent = `${loaded} loaded of ${state.total} ${state.status === 'all' ? 'files' : state.status}`;
+        const processed = state.spent.size;
+        const loaded = state.rows.size - processed;
+        const bucket = state.status === 'all' ? 'files' : state.status;
+        el.counter.textContent = processed > 0
+                                    ? `${loaded} loaded of ${state.total} ${bucket} · ${processed} processed`
+                                    : `${loaded} loaded of ${state.total} ${bucket}`;
+        el.clearSpent.classList.toggle('d-none', processed === 0);
+        el.clearSpent.textContent = `Clear processed (${processed})`;
     };
 
     const setSelected = (id, selected) => {
@@ -833,6 +930,20 @@ document.addEventListener('DOMContentLoaded', () => {
             if (checkbox) checkbox.checked = selected;
         }
         refreshBulkbar();
+    };
+
+    // Anchor for Shift+click. Selecting a few hundred files one card at a time is
+    // the difference between one gesture and two hundred.
+    let lastSelectedId = null;
+
+    const selectRange = (fromId, toId) => {
+        const order = [...state.rows.keys()].filter(id => !isSpent(id));
+        const from = order.indexOf(fromId);
+        const to = order.indexOf(toId);
+        if (from === -1 || to === -1) return;
+        const [start, end] = from <= to ? [from, to] : [to, from];
+        for (let i = start; i <= end; i++) setSelected(order[i], true);
+        lastSelectedId = toId;
     };
 
     const clearSelection = () => {
@@ -857,6 +968,9 @@ document.addEventListener('DOMContentLoaded', () => {
         state.needFacets = needFacets === true;
         state.rows.clear();
         state.selected.clear();
+        // Changing filter or reloading is the other moment the grid is allowed to
+        // rebuild: the processed slots go with it.
+        state.spent.clear();
         stopAllVideos();
         state.videosInView.clear();
         state.videoObserver?.disconnect();
@@ -888,21 +1002,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let payload;
         try {
-            const response = await fetch(`/api/v2/admin/mediamoderation?${params}`, {
+            // fetchJSON turns a proxy error page into a readable status instead of
+            // a JSON parse error, and marks whether the server is unavailable or
+            // the session is gone.
+            payload = await fetchJSON(`/api/v2/admin/mediamoderation?${params}`, {
                 method: 'GET',
                 credentials: 'include',
                 signal: state.aborter.signal,
             });
-            payload = await response.json().catch(() => null);
-            if (!response.ok || !payload || payload.status !== 'success') {
-                throw new Error(payload?.message || `HTTP ${response.status}`);
+            if (!payload || payload.status !== 'success') {
+                throw new Error(payload?.message || 'unexpected answer from the server');
             }
         } catch (err) {
             if (err.name === 'AbortError') return;
             console.error('moderation gallery - fetch failed', err);
             state.loading = false;
             el.spinner.classList.add('d-none');
-            showError(`Could not load the moderation queue: ${err.message}`);
+            // Never reload or redirect on a server failure, only say what happened.
+            const detail = err.serverUnavailable
+                            ? `${err.message}. The queue is untouched, try again in a moment.`
+                            : err.sessionLost
+                                ? `${err.message}. Your session may have expired: open the dashboard again in another tab to check before reloading this one.`
+                                : err.message;
+            showError(`Could not load the moderation queue: ${detail}`);
             el.more.classList.toggle('d-none', state.rows.size === 0);
             return;
         }
@@ -982,15 +1104,128 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ---------------------------------------------------------------- actions
 
-    const dropTile = (id) => {
+    // What each action is called once it has been applied, and which fields it
+    // touched (so undo can put them back).
+    const spentLabels = {
+        checked:  'marked checked',
+        nsfw:     'marked NSFW',
+        banned:   'banned',
+        active:   'deactivated',
+        visibility: 'visibility changed',
+    };
+
+    // A processed card does not leave the grid. It stays in its own cell showing
+    // what was done and offering to undo it.
+    //
+    // Removing it would reflow every card after it, and on a screen where the
+    // next click bans a file, a grid that shifts under the cursor is how the wrong
+    // file gets banned. The slot is also a safety net: a misclick is visible right
+    // where it happened instead of having to be hunted down in another filter.
+    const markSpent = (id, field, previous) => {
+
+        const row = state.rows.get(id);
         const tile = tileOf(id);
-        state.rows.delete(id);
+        if (!row || !tile) return;
+
+        state.spent.set(id, { field, previous });
         state.selected.delete(id);
-        if (state.total > 0) state.total--;
-        if (!tile) return;
         releaseTileVideo(tile);
-        tile.classList.add('is-leaving');
-        setTimeout(() => tile.remove(), 250);
+
+        tile.classList.add('is-spent');
+        tile.querySelector('.mod-spent')?.remove();
+
+        const panel = document.createElement('div');
+        panel.className = 'mod-spent';
+
+        const what = document.createElement('div');
+        what.className = 'mod-spent-what';
+        // Static vocabulary, not database text.
+        what.textContent = spentLabels[field] || 'processed';
+        panel.appendChild(what);
+
+        const name = document.createElement('div');
+        name.className = 'mod-spent-name';
+        // textContent: the filename comes from the database.
+        name.textContent = String(row.filename || '');
+        panel.appendChild(name);
+
+        const undo = document.createElement('button');
+        undo.type = 'button';
+        undo.className = 'btn btn-outline-light btn-sm mod-btn-undo';
+        undo.innerHTML = '<i class="fa-solid fa-rotate-left me-1"></i>Undo';
+        undo.title = 'Put this file back the way it was';
+        panel.appendChild(undo);
+
+        tile.appendChild(panel);
+        refreshBulkbar();
+        refreshCounter();
+    };
+
+    const isSpent = (id) => state.spent.has(id);
+
+    // Restores the fields the action changed, in an order that survives the
+    // nsfw rule: nsfw always forces checked = 1 on the way in, so checked is
+    // restored last or it would be overwritten.
+    const undoSpent = async (id) => {
+
+        const record = state.spent.get(id);
+        const row = state.rows.get(id);
+        if (!record || !row) return;
+
+        const previous = record.previous || {};
+        const order = ['nsfw', 'banned', 'active', 'visibility', 'checked'];
+        const steps = order.filter(field => previous[field] !== undefined);
+        if (steps.length === 0) return;
+
+        setBusy([id], true);
+        let failed = false;
+        let lastError = '';
+
+        for (const field of steps) {
+            const { processed, failed: rejected, lastError: error } = await postBulk(tableKey, [id], field, previous[field]);
+            if (processed === 0 || rejected.has(id)) {
+                failed = true;
+                lastError = error;
+                break;
+            }
+            row[field] = Number(previous[field]);
+        }
+
+        setBusy([id], false);
+
+        if (failed) {
+            toast(`Could not undo this file${lastError ? ': ' + lastError : ''}`, 'alert-danger');
+            return;
+        }
+
+        // Back to a normal card, in the same cell it never left.
+        state.spent.delete(id);
+        const tile = tileOf(id);
+        if (tile) {
+            tile.classList.remove('is-spent');
+            tile.querySelector('.mod-spent')?.remove();
+            applyTileState(tile, row);
+        }
+        if (matchesStatus(row)) state.total++;
+        refreshCounter();
+        reconcileVideos();
+        toast('File restored', 'alert-success');
+    };
+
+    // Only ever runs when the operator presses the button, so it can never move
+    // the grid while they are aiming at something.
+    const clearSpent = () => {
+        for (const id of [...state.spent.keys()]) {
+            const tile = tileOf(id);
+            if (tile) {
+                releaseTileVideo(tile);
+                tile.remove();
+            }
+            state.spent.delete(id);
+            state.rows.delete(id);
+        }
+        refreshCounter();
+        reconcileVideos();
     };
 
     const setBusy = (ids, busy) => {
@@ -1050,6 +1285,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (ids.length === 0) return;
 
+        // Snapshot before the write so a spent slot knows what to restore.
+        const before = new Map();
+        for (const id of ids) {
+            const row = state.rows.get(id);
+            if (!row) continue;
+            before.set(id, field === 'nsfw'
+                            ? { nsfw: Number(row.nsfw) || 0, checked: Number(row.checked) || 0 }
+                            : { [field]: Number(row[field]) || 0 });
+        }
+
         setBusy(ids, true);
         const { processed, failed, lastError } = await postBulk(tableKey, ids, field, value, reason);
         setBusy(ids, false);
@@ -1069,7 +1314,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 row[field] = Number(value);
             }
             if (!matchesStatus(row)) {
-                dropTile(id);
+                if (state.total > 0) state.total--;
+                markSpent(id, field, before.get(id));
                 continue;
             }
             const tile = tileOf(id);
@@ -1093,16 +1339,19 @@ document.addEventListener('DOMContentLoaded', () => {
         return await initConfirmModal('#moderationGallery', ids, actionText, 'file', askReason ? '' : null, askReason === true);
     };
 
+    // Returns whether the ban was actually applied, so the viewer can sync its own
+    // switches when the ban was triggered from inside it.
     const banFiles = async (ids) => {
-        if (ids.length === 0) return;
+        if (ids.length === 0) return false;
         const modal = await confirmAction(ids, 'ban', true);
-        if (modal.result !== true) return;
+        if (modal.result !== true) return false;
         const reason = (modal.value || '').trim();
         if (reason === '') {
             toast('A ban needs a reason', 'alert-warning');
-            return;
+            return false;
         }
         await applyAction(ids, 'banned', 1, reason);
+        return true;
     };
 
     // Puts the notice of each file back to pending so the sweep takes it again.
@@ -1134,6 +1383,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ----------------------------------------------------------------- events
 
+    // The confirmation lives on the button itself. It reverts on its own so an
+    // armed button never waits around to be pressed by accident later, and only
+    // one is ever armed at a time.
+    const checkedConfirmMs = 3000;
+    let armedChecked = null;
+    let armedCheckedTimer = null;
+
+    const disarmCheckedConfirm = (button) => {
+        if (!button) return;
+        clearTimeout(armedCheckedTimer);
+        button.dataset.confirming = '0';
+        button.classList.remove('is-confirming');
+        button.innerHTML = '<i class="fa-solid fa-check"></i>';
+        if (armedChecked === button) armedChecked = null;
+    };
+
+    const armCheckedConfirm = (button) => {
+        if (armedChecked && armedChecked !== button) disarmCheckedConfirm(armedChecked);
+        armedChecked = button;
+        button.dataset.confirming = '1';
+        button.classList.add('is-confirming');
+        button.textContent = 'sure?';
+        clearTimeout(armedCheckedTimer);
+        armedCheckedTimer = setTimeout(() => disarmCheckedConfirm(button), checkedConfirmMs);
+    };
+
     el.grid.addEventListener('click', async (event) => {
 
         const tile = event.target.closest('.mod-tile');
@@ -1142,12 +1417,34 @@ document.addEventListener('DOMContentLoaded', () => {
         const row = state.rows.get(id);
         if (!row) return;
 
-        if (event.target.closest('.mod-check')) {
-            setSelected(id, event.target.checked);
+        if (event.target.closest('.mod-btn-undo')) {
+            await undoSpent(id);
             return;
         }
 
-        if (event.target.closest('.mod-btn-checked')) {
+        // A processed slot is inert apart from its undo button.
+        if (isSpent(id)) return;
+
+        // The checkbox stays as an indicator and still works as a control; with
+        // the whole card selectable it is no longer the only place to click.
+        if (event.target.closest('.mod-check')) {
+            setSelected(id, event.target.checked);
+            lastSelectedId = id;
+            return;
+        }
+
+        const checkedButton = event.target.closest('.mod-btn-checked');
+        if (checkedButton) {
+            // Two presses, no dialog. With a six figure queue a confirmation
+            // modal per file would make the screen unusable, so the button turns
+            // into its own confirmation and gives up after a few seconds. The
+            // other three keep a single press: ban already demands a reason, and
+            // active and NSFW are visible and reversible in place.
+            if (checkedButton.dataset.confirming !== '1') {
+                armCheckedConfirm(checkedButton);
+                return;
+            }
+            disarmCheckedConfirm(checkedButton);
             await applyAction([id], 'checked', isFlagOn(row.checked) ? 0 : 1);
             return;
         }
@@ -1172,15 +1469,85 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Tile body: open the file in the shared media modal (read only, the
-        // buttons on the card are the ones that write). Grid playback stops while
-        // the viewer holds the screen.
+        // Tile body: selection. It is the constant gesture in batch triage, so it
+        // gets the whole surface; opening the viewer is the occasional one and has
+        // its own button.
+        if (!event.target.closest('.mod-btn-zoom')) {
+            if (event.shiftKey && lastSelectedId !== null && lastSelectedId !== id) {
+                selectRange(lastSelectedId, id);
+                return;
+            }
+            setSelected(id, !state.selected.has(id));
+            lastSelectedId = id;
+            return;
+        }
+
+        // Zoom: the shared viewer with the same four controls and the same
+        // shortcuts as the Hosted files triage, so looking closer never means
+        // closing the popup to act. Arrows walk the grid in the order it is
+        // filtered, and every change lands back on the card behind.
         if (typeof initMediaModal === 'function') {
             stopAllVideos();
-            await initMediaModal(`${row.pubkey}/${row.filename}`, row.checked, row.visibility, false, row);
+            const order = [...state.rows.keys()].filter(rowId => !isSpent(rowId));
+            const rows = order.map(rowId => state.rows.get(rowId));
+            await initMediaModal(`${row.pubkey}/${row.filename}`, row.checked, row.visibility, true, row, {
+                rows: rows,
+                index: Math.max(order.indexOf(id), 0),
+                // Pulls the next page through the grid itself, so the modal and the
+                // grid never walk different lists.
+                loadMore: async () => {
+                    const knownBefore = state.rows.size;
+                    await loadPage();
+                    if (state.rows.size === knownBefore) return [];
+                    return [...state.rows.keys()].slice(knownBefore).map(rowId => state.rows.get(rowId));
+                },
+                // One behaviour, two entry points: a change made inside the popup
+                // leaves exactly the same informative slot as its card button.
+                onPersist: (changedRow, field, value, previous) => {
+                    applyModalChange(Number(changedRow.id), field, value, previous);
+                },
+                onBan: async (targetRow) => {
+                    const banned = await banFiles([Number(targetRow.id)]);
+                    return banned === true;
+                },
+            });
             reconcileVideos();
         }
     });
+
+    // Applies to the grid what the viewer just wrote, using the same rules the
+    // card buttons use.
+    const applyModalChange = (id, field, value, previous) => {
+
+        const row = state.rows.get(id);
+        if (!row) return;
+
+        if (field === 'nsfw') {
+            row.nsfw = Number(value);
+            row.checked = 1;
+        } else if (field === 'banned') {
+            row.banned = Number(value);
+        } else {
+            row[field] = Number(value);
+        }
+
+        if (isSpent(id)) {
+            // Already processed and being changed again from the viewer: keep the
+            // slot, just retitle it.
+            markSpent(id, field, state.spent.get(id).previous);
+            return;
+        }
+
+        if (!matchesStatus(row)) {
+            if (state.total > 0) state.total--;
+            markSpent(id, field, previous);
+            return;
+        }
+
+        const tile = tileOf(id);
+        if (tile) applyTileState(tile, row);
+        refreshCounter();
+    };
 
     el.status.addEventListener('change', () => {
         state.status = el.status.value;
@@ -1262,6 +1629,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     el.selectNone.addEventListener('click', clearSelection);
+    el.clearSpent.addEventListener('click', clearSpent);
     document.getElementById('moderationGallery-bulk-close').addEventListener('click', clearSelection);
 
     document.getElementById('moderationGallery-bulk-checked').addEventListener('click', async () => {

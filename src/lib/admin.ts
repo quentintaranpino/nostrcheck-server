@@ -1,12 +1,99 @@
 import { mediaModerationFilters, mediaModerationSelectFields, ModuleDataTables, moduleDataSelectFields, moduleDataWhereFields } from "../interfaces/admin.js";
 import { dbMultiSelect, dbSelect, dbSimpleSelect } from "./database/core.js";
 import { logger } from "./logger.js";
+import { initRedis } from "./redis/client.js";
+
+const redisCore = await initRedis(0, false);
+
+// Dashboard figures, not balances: a number up to this many seconds old is
+// invisible to the operator, while the polling that asked for it several times a
+// minute per widget is what took the database down.
+const countCacheTTL = 45;
+
+// Above this many estimated rows an exact COUNT(*) stops being affordable: on
+// InnoDB it walks an index, and on the events table (millions of rows, being
+// written to by the relay at the same time) it can sit there for minutes. Below
+// it the exact count is cheap and stays exact, so the small modules behave
+// exactly as they do today.
+const exactCountRowLimit = 500000;
+
+// Reads never fail loudly: RedisService.get already swallows its own errors and
+// returns null, so a cache miss and a cache outage look the same to the caller
+// and both fall through to the query.
+const countCacheGet = async (key: string): Promise<string | null> => {
+	try {
+		return await redisCore.get(key);
+	} catch (error) {
+		logger.debug(`countCacheGet - cache unavailable, using the query instead: ${error}`);
+		return null;
+	}
+};
+
+const countCacheSet = async (key: string, value: string): Promise<void> => {
+	try {
+		await redisCore.set(key, value, { EX: countCacheTTL });
+	} catch (error) {
+		logger.debug(`countCacheSet - could not store ${key}: ${error}`);
+	}
+};
+
+/**
+ * Total rows of a module's table, exact on small tables and estimated on the ones
+ * where an exact count is what brings the server down.
+ *
+ * The estimate comes from information_schema, which is metadata: it answers
+ * instantly and never touches the table. On InnoDB it is an approximation, so the
+ * flag travels with the number and the UI has to say so; a figure that looks
+ * exact and isn't is worse than one that admits it.
+ *
+ * @param module - Module key (relay, media, ...).
+ * @returns The count and whether it is an estimate.
+ */
+const dbCountTableRows = async (module: string): Promise<{ count: number; approximate: boolean }> => {
+
+	const table = ModuleDataTables[module];
+	if (!table) return { count: 0, approximate: false };
+
+	const estimated = Number(await dbSelect(
+									"SELECT table_rows FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?",
+									"table_rows",
+									[table])) || 0;
+
+	if (estimated <= exactCountRowLimit) {
+		const exact = await dbSelect(`SELECT COUNT(*) FROM ${table}`, "COUNT(*)", []);
+		// An empty answer means the query failed, not that the table is empty.
+		// Reporting 0 for a full table reads as "nothing to review here".
+		if (exact !== "" && exact !== null && exact !== undefined) return { count: Number(exact) || 0, approximate: false };
+		logger.error(`dbCountTableRows - Exact count of ${table} failed, falling back to the information_schema estimate`);
+	}
+
+	return { count: estimated, approximate: true };
+};
 
 const dbCountModuleData = async (module: string, field = ""): Promise<number> => {
+
 	const table = ModuleDataTables[module];
 	if (!table) {return 0;}
-	if (field) {return Number(await dbSelect(`SELECT COUNT(${field}) FROM ${table} WHERE ${field} = '1' `, `COUNT(${field})`, [])) || 0;}
-    return Number(await dbSelect(`SELECT COUNT(*) FROM ${table}`, "COUNT(*)", [])) || 0;
+
+	// Filtered count: information_schema cannot answer a WHERE, so this one is
+	// memoised instead of estimated. The query itself is untouched.
+	if (field) {
+		const cacheKey = `admincount:v1:field:global:${module}:${field}`;
+		const cached = await countCacheGet(cacheKey);
+		if (cached !== null) return Number(cached) || 0;
+
+		const counted = await dbSelect(`SELECT COUNT(${field}) FROM ${table} WHERE ${field} = '1' `, `COUNT(${field})`, []);
+		if (counted === "" || counted === null || counted === undefined) {
+			logger.error(`dbCountModuleData - Count of ${table}.${field} failed, returning 0 without caching it`);
+			return 0;
+		}
+
+		const count = Number(counted) || 0;
+		await countCacheSet(cacheKey, String(count));
+		return count;
+	}
+
+	return (await dbCountTableRows(module)).count;
 }
 
 
@@ -33,6 +120,18 @@ const dbCountBucketModuleData = async (module: string, field: string, bucket: "w
 	};
 	const { fmt, limit } = formatByBucket[bucket] || formatByBucket.month;
 
+	// Grouped counts can't come from information_schema either, and this one
+	// scans the whole table to bucket it. Memoised, query untouched.
+	const cacheKey = `admincount:v1:bucket:global:${module}:${field}:${bucket}`;
+	const cached = await countCacheGet(cacheKey);
+	if (cached !== null) {
+		try {
+			return JSON.parse(cached);
+		} catch (error) {
+			logger.debug(`dbCountBucketModuleData - cached value for ${cacheKey} was unreadable, querying again`);
+		}
+	}
+
 	const data = await dbMultiSelect(
 		[
 		`COUNT(*) as 'count'`,
@@ -49,6 +148,10 @@ const dbCountBucketModuleData = async (module: string, field: string, bucket: "w
 		[],
 		false
 	);
+
+	// An empty result is what dbMultiSelect returns when the query fails, so it
+	// never gets cached: a chart frozen empty for the TTL reads as "no activity".
+	if (data && data.length > 0) await countCacheSet(cacheKey, JSON.stringify(data));
 
 	return data;
 };
@@ -83,12 +186,38 @@ async function dbSelectModuleData(module:string, offset:number, limit:number, or
 	logger.debug(`dbSelectModuleData - executing query: SELECT ${fieldsLogic} ${fromLogic} ${whereLogic} ${sortLogic} ${limitLogic}`);
 	logger.debug(`dbSelectModuleData - executing query: SELECT COUNT(*) as total FROM (SELECT ${fieldsLogic} ${fromLogic}) as ${table} ${whereLogic}`);
 
-	const total = await dbSimpleSelect(table, `SELECT COUNT(*) as total FROM (SELECT ${fieldsLogic} ${fromLogic}) as ${table} ${whereLogic}`);
+	// This total drives the page count of the table, so it stays exact: an
+	// estimate here would leave the last page empty or hide rows. What it gets
+	// instead is a short-lived cache, and only in the unfiltered case, which is
+	// the one the dashboard polls (a search or a filter is an interactive query
+	// and would fragment the key space for nothing).
+	const plainQuery = whereLogic.trim() === "WHERE (1=1)";
+	const totalCacheKey = `admincount:v1:total:global:${module}`;
+
+	let totalValue: number | null = null;
+	if (plainQuery) {
+		const cached = await countCacheGet(totalCacheKey);
+		if (cached !== null) totalValue = Number(cached) || 0;
+	}
+
+	if (totalValue === null) {
+		const total = await dbSimpleSelect(table, `SELECT COUNT(*) as total FROM (SELECT ${fieldsLogic} ${fromLogic}) as ${table} ${whereLogic}`);
+		if (total) {
+			totalValue = Number(JSON.parse(JSON.stringify(total[0])).total) || 0;
+			if (plainQuery) await countCacheSet(totalCacheKey, String(totalValue));
+		} else {
+			// Failed query: report 0 for this response but don't freeze it into
+			// the cache for the next TTL.
+			logger.error(`dbSelectModuleData - Count of ${table} failed, returning 0 without caching it`);
+			totalValue = 0;
+		}
+	}
+
 	const totalNotFiltered =  await dbCountModuleData(module);
 	const data = await dbSimpleSelect(table, `SELECT * FROM (SELECT ${fieldsLogic} ${fromLogic}) as ${table} ${whereLogic} ${sortLogic} ${limitLogic}`);
 
 	const result = {
-		total: total? JSON.parse(JSON.stringify(total[0])).total : 0,
+		total: totalValue,
 		totalNotFiltered: totalNotFiltered,
 		rows: data || []
 	}
@@ -311,4 +440,4 @@ const dbSelectNotificationStatusBulk = async (origintable: string, ids: number[]
 	return result;
 };
 
-export { dbCountModuleData, dbSelectModuleData, dbCountMonthModuleData, dbCountBucketModuleData, dbSelectMediaModerationData, dbSelectMediaModerationFacets, dbSelectNotificationStatusBulk };
+export { dbCountModuleData, dbCountTableRows, dbSelectModuleData, dbCountMonthModuleData, dbCountBucketModuleData, dbSelectMediaModerationData, dbSelectMediaModerationFacets, dbSelectNotificationStatusBulk };

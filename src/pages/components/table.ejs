@@ -143,14 +143,18 @@
             <th data-field="state" data-checkbox="true" class="d-none d-md-table-cell"></th>
             <th data-field="id" data-sortable="true" data-filter-control="input" data-width="30">ID</th>
             <% for(var i=0; i<fields.length; i++) { %>
-                <th data-field="<%= fields[i][0] %>" 
+                <%# Optional 5th element: header label. The column keeps its field
+                    name for data and sorting, but a cell that shows a translated
+                    pair shouldn't be titled after the raw column it came from.
+                    Tables that pass only 4 elements keep the field name. %>
+                <th data-field="<%= fields[i][0] %>"
                     data-width="<%= fields[i][1] %>"
-                    data-formatter="<%= fields[i][2] %>" 
-                    data-sortable="true" 
-                    data-filter-control="input" 
+                    data-formatter="<%= fields[i][2] %>"
+                    data-sortable="true"
+                    data-filter-control="input"
                     class="<%= fields[i][3] %> <%= fields[i][2] %>"
                 >
-                    <%= fields[i][0] %>
+                    <%= fields[i][4] ? fields[i][4] : fields[i][0] %>
                 </th>
             <% } %>
         </tr>
@@ -631,7 +635,15 @@
                         showMessage(`Balance for ${$(tableId).bootstrapTable('getSelections')[0].username} has been updated successfully 🥳`, "alert-success");
                     }else if (action === 'ban'){
                         showMessage(`Record ${id} from table ${tableId} has been banned successfully 🥳`, "alert-success");
-                        $(`#bannedData`).bootstrapTable('refresh');
+                        // The banned table lives in another tab and may not be
+                        // initialised yet now that panes load on demand: start it
+                        // if needed, and only refresh what exists.
+                        try {
+                            if (window.ensureTableStarted && window.ensureTableStarted['bannedData']) await window.ensureTableStarted['bannedData']();
+                            if ($(`#bannedData`).data('bootstrap.table')) $(`#bannedData`).bootstrapTable('refresh');
+                        } catch (e) {
+                            console.debug('banned table not available to refresh', e);
+                        }
                     }else{
                         showMessage(`Action ${action} completed successfully for id ${id}. 🥳`, "alert-success");
                     }
@@ -794,7 +806,22 @@
                             return [];
                         }
                     };
-                    const nav = navIdx >= 0 ? { rows: allRows, index: navIdx, loadMore } : null;
+                    // Ban is offered here too, so the viewer carries the same four
+                    // actions whichever screen opened it. The reason prompt is this
+                    // table's own confirm modal, and the write goes through the
+                    // same /ban path the toolbar button uses (audited, attributed).
+                    const onBan = async (targetRow) => {
+                        const modal = await initConfirmModal('#filesData', [targetRow.id], 'ban', 'file', '', true);
+                        if (modal.result !== true) return false;
+                        const reason = (modal.value || '').trim();
+                        if (reason === '') {
+                            showMessage('A ban needs a reason', 'alert-warning');
+                            return false;
+                        }
+                        await modifyRecord("/api/v2/admin/ban", '#filesData', targetRow.id, 'reason', reason, 'ban');
+                        return true;
+                    };
+                    const nav = navIdx >= 0 ? { rows: allRows, index: navIdx, loadMore, onBan } : null;
                     initMediaModal(row.pubkey + "/" + value, row.checked, row.visibility, true, row, nav).then(async () => {
                         try { refreshTable('#filesData'); } catch (e) { /* table may not exist */ }
                     })
@@ -898,10 +925,42 @@
             });
         }
 
-        await initTable(`#${tableId}`, datakey, objectName);
+        // A table inside an inactive tab pane is not initialised on page load any
+        // more. Opening /dashboard used to fire one query per table (eleven of
+        // them, including the relay ones that COUNT over millions of rows) just to
+        // reach whichever tab the operator actually wanted.
+        const tableElement = document.getElementById(tableId);
+        const tablePane = tableElement ? tableElement.closest('.tab-pane') : null;
+        let tableStarted = false;
 
-        // Refresh table every timeout
-        setInterval(async () => {await refreshTable(`#${tableId}`)}, timeout);
+        const startTable = async () => {
+            if (tableStarted) return;
+            tableStarted = true;
+            await initTable(`#${tableId}`, datakey, objectName);
+        };
+
+        // Exposed so anything that needs this table populated can demand it even
+        // if its tab was never opened (a cross-table refresh, for instance).
+        window.ensureTableStarted = window.ensureTableStarted || {};
+        window.ensureTableStarted[tableId] = startTable;
+
+        if (!tablePane || tablePane.classList.contains('active')) {
+            await startTable();
+        } else {
+            // Bootstrap fires shown.bs.tab on the button; the pane carries the
+            // active class by then, so one delegated listener covers every table
+            // without each component having to know its own tab id.
+            document.addEventListener('shown.bs.tab', async () => {
+                if (tablePane.classList.contains('active')) await startTable();
+            });
+        }
+
+        // Refresh on a timer, but only while somebody is looking at it and never
+        // stacking a second request on top of a slow one.
+        pollWhenVisible(tableElement, timeout, async () => {
+            if (!tableStarted) return;
+            await refreshTable(`#${tableId}`);
+        });
 
     });
 </script>

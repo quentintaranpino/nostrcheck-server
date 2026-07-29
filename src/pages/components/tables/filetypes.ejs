@@ -1,6 +1,12 @@
 <%
+// The active column used to be a bare check / cross icon, which is easy to read
+// past: with 18 types disabled out of the list it looked like nothing had been
+// turned off. Same treatment as the audit log states, a word instead of a glyph.
 let filetypesFields = [
-  ['active'             , '30' , 'formatCheckbox', 'enabled   show text-center'],
+  // formatCheckbox stays in the class list on purpose: the edit modal keys off it
+  // to render this field as a switch instead of a text box. The data-formatter is
+  // what changes the cell.
+  ['active'             , '60' , 'formatFiletypeActive', 'enabled   show text-center formatCheckbox', 'state'],
   ['original_mime'      , '30' , '', 'enabled   show text-center              '],
   ['original_extension' , '30' , '', 'enabled   show text-center              '],
   ['converted_mime'     , '' , '', 'enabled   hide text-center              '],
@@ -11,9 +17,9 @@ let filetypesFields = [
 %>
 <% if(locals.activeModules.some(mod => mod.name === 'media')) { %>
   <%- include('../table', {
-    tableName:"Filetypes", 
+    tableName:"Filetypes",
     tableDesc:"Manage the accepted file types for uploads.",
-    tableId:"filetypesData", 
+    tableId:"filetypesData",
     buttons:[
       ['add','show'],
       ['disable','show'],
@@ -32,5 +38,16 @@ let filetypesFields = [
     fields: filetypesFields,
     datakey: 'filetypes',
     objectName: 'file type',
-    }); %> 
+    }); %>
+
+<script>
+  // A disabled type means uploads of that mimetype are rejected, so it has to be
+  // obvious which ones are off without comparing icons row by row.
+  function formatFiletypeActive(value) {
+      return Number(value) === 1
+              ? '<span class="badge bg-success" title="Uploads of this type are accepted">accepted</span>'
+              : '<span class="badge bg-secondary" title="Uploads of this type are rejected">disabled</span>';
+  }
+  window.formatFiletypeActive = formatFiletypeActive;
+</script>
   <% } %>

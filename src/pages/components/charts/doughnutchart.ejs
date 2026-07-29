@@ -131,17 +131,17 @@
             });
         });
 
+        // fetchJSON so a proxy error page is reported as its status instead of
+        // throwing a JSON parse error, and rethrown so the poller backs off.
         const fetchCountData = async (datakey, action, field) => {
-            let serverData  = ""
-            await fetch(`/api/v2/admin/modulecountdata?module=${datakey}&action=${action}&field=${field}`, {
-            method: 'GET', headers: {'Content-Type': 'application/json'}})
-            .then(response => response.json())
-            .then(data => {
-                serverData = data;
-            })
-            .catch(error => console.error('Error:', error));
-
-            return serverData || { total: 0 }
+            try {
+                const data = await fetchJSON(`/api/v2/admin/modulecountdata?module=${datakey}&action=${action}&field=${field}`, {
+                    method: 'GET', headers: {'Content-Type': 'application/json'}});
+                return data || { total: 0 };
+            } catch (error) {
+                console.error(`doughnut chart ${chartId} - ${datakey}/${action} failed:`, error.message);
+                throw error;
+            }
         }
 
         const updateDoughnutChart = async () => {
@@ -160,16 +160,18 @@
 
         };
 
-        setInterval(() => {updateDoughnutChart()}, timeout);
-        updateDoughnutChart();
+        // No unconditional first fetch: a chart in a closed tab used to query on
+        // page load anyway. The observer below paints it the first time it is
+        // actually seen, and the poller refreshes it only while it stays visible.
+        const activeChart = document.getElementById(chartId);
+        pollWhenVisible(activeChart, timeout, () => updateDoughnutChart());
 
         // Intersection Observer for updating charts when they are in view
-        const activeChart = document.getElementById(chartId);
         const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
             setTimeout(() => {
-                updateDoughnutChart();
+                updateDoughnutChart().catch(() => { /* reported in fetchCountData */ });
             }, 150);
             observer.unobserve(entry.target); 
             }

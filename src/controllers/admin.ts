@@ -12,7 +12,7 @@ import { dbDelete, dbInsert, dbMultiSelect, dbSimpleSelect, dbUpdate } from "../
 import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames, moduleDataReturnMessage, moduleDataKeys, moduleDataIndex, recordKeyFields, mediaModerationFilters, mediaModerationStatus, mediaModerationNsfwFields, notificationStatusRow } from "../interfaces/admin.js";
 import { parseAuthHeader} from "../lib/authorization.js";
 import { npubToHex } from "../lib/nostr/NIP19.js";
-import { dbCountModuleData, dbCountMonthModuleData, dbCountBucketModuleData, dbSelectModuleData, dbSelectMediaModerationData, dbSelectMediaModerationFacets, dbSelectNotificationStatusBulk } from "../lib/admin.js";
+import { dbCountModuleData, dbCountTableRows, dbCountMonthModuleData, dbCountBucketModuleData, dbSelectModuleData, dbSelectMediaModerationData, dbSelectMediaModerationFacets, dbSelectNotificationStatusBulk } from "../lib/admin.js";
 import { getBalance, getUnpaidTransactionsBalance } from "../lib/payments/core.js";
 import { getModerationQueueLength, moderateFile } from "../lib/moderation/core.js";
 import { addNewUsername } from "../lib/register.js";
@@ -1098,7 +1098,10 @@ const getModuleCountData = async (req: Request, res: Response): Promise<Response
         return res.status(200).send({total: logHistory.total, field: logHistory.total});
     }
     if (module == "relay" && action == "countSynced") {
-        return res.status(200).send({total: await dbCountModuleData(module), field: (eventStore?.eventIndex?.size - eventStore?.pending?.size - eventStore?.pendingDelete?.size)  | 0});
+        // The total may be an information_schema estimate on a table this size:
+        // the flag rides along so the card can show it as approximate.
+        const relayRows = await dbCountTableRows(module);
+        return res.status(200).send({total: relayRows.count, approximate: relayRows.approximate, field: (eventStore?.eventIndex?.size - eventStore?.pending?.size - eventStore?.pendingDelete?.size)  | 0});
     }
 
     if (action == "monthCount") {
@@ -1118,8 +1121,8 @@ const getModuleCountData = async (req: Request, res: Response): Promise<Response
 
     if (field != "" && field != undefined && field != 'undefined') {
         const countField = await dbCountModuleData(module, field);
-        const countTotal = await dbCountModuleData(module);
-        return res.status(200).send({total: countTotal, field: countField});
+        const countTotal = await dbCountTableRows(module);
+        return res.status(200).send({total: countTotal.count, approximate: countTotal.approximate, field: countField});
     }
     
     logger.debug(`getModuleCountData - Data retrieved succesfully`, "|", reqInfo.ip);

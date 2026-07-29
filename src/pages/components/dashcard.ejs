@@ -197,11 +197,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       moduleIndicator.style.backgroundColor = "#c154fd59";
     }
 
+    // Throws on a non-JSON answer (a proxy error page) so the caller can report
+    // the real status instead of a JSON parse error, and so the poller counts it
+    // as a failure and backs off.
     const fetchDashcardData = async (dashcardDataKey, action, field) => {
       try {
           if (dashcardDataKey === 'admin' && action == 'status') {
-              const res = await fetch('/api/v2/admin/status');
-              const serverInfo = await res.json();
+              const serverInfo = await fetchJSON('/api/v2/admin/status');
               if (field === 'uptime') {
                   const timeParts = serverInfo.uptime.split(':');
                   if (timeParts.length === 3) serverInfo.uptime = `${timeParts[0]}:${timeParts[1]}`;
@@ -213,22 +215,22 @@ document.addEventListener('DOMContentLoaded', async () => {
           }
 
           if (dashcardDataKey === 'relay' && action == 'status') {
-              const res = await fetch('/api/v2/relay/status');
-              const serverInfo = await res.json();
+              const serverInfo = await fetchJSON('/api/v2/relay/status');
               return { field: serverInfo[field], total: serverInfo[field] };
           }
-          
 
-          const res = await fetch(`/api/v2/admin/modulecountdata?module=${dashcardDataKey}&action=${action}&field=${field}`, {
+          const data = await fetchJSON(`/api/v2/admin/modulecountdata?module=${dashcardDataKey}&action=${action}&field=${field}`, {
               method: 'GET',
               headers: { 'Content-Type': 'application/json' },
           });
 
-          const data = await res.json();
           return data || { total: 0 };
       } catch (error) {
-          console.error('Error:', error);
-          return { total: 0 };
+          // Surface the real reason (status and what came back) and let it
+          // propagate: refreshDashcard turns it into a visible state and the
+          // poller uses it to back off.
+          console.error(`dashcard ${dashcardId} - ${dashcardDataKey}/${action} failed:`, error.message);
+          throw error;
       }
     };
 
@@ -236,26 +238,50 @@ document.addEventListener('DOMContentLoaded', async () => {
       $('#' + dashcardId + '-tooltip-text').addClass('visible');
       $('#' + dashcardId + '-tooltip-text').text('Retrieving data...');
 
-      const countData = await fetchDashcardData(dashcardDataKey, action, field)
-      if (showField == "true"){
-        $('#' + dashcardId + '-text-field').text(countData.field);
-        $('#' + dashcardId + '-text-total').text(`of ${countData.total}`);
-      }else{
-        $('#' + dashcardId + '-text-field').text(countData.total);
+      try {
+        const countData = await fetchDashcardData(dashcardDataKey, action, field)
+        // On tables too big to count exactly the server answers with an
+        // information_schema estimate. Say so with a ~ instead of showing a
+        // figure that looks exact and isn't.
+        const approx = countData.approximate === true ? '~' : '';
+        if (showField == "true"){
+          $('#' + dashcardId + '-text-field').text(countData.field);
+          $('#' + dashcardId + '-text-total').text(`of ${approx}${countData.total}`);
+        }else{
+          $('#' + dashcardId + '-text-field').text(`${approx}${countData.total}`);
+        }
+        $('#' + dashcardId + '-card').attr('title', approx ? 'Total is an approximate row count (the table is too large to count exactly on every refresh)' : '');
+        $('#' + dashcardId + '-tooltip-text').removeAttr('title');
+      } catch (error) {
+        // A card that can't be read says so instead of showing a confident 0.
+        $('#' + dashcardId + '-text-field').text('—');
+        $('#' + dashcardId + '-tooltip-text').attr('title', error.message);
+        throw error;
+      } finally {
+        setTimeout(() => {$('#' + dashcardId + '-tooltip-text').removeClass('visible')}, 1000);
       }
-    
-      setTimeout(() => {$('#' + dashcardId + '-tooltip-text').removeClass('visible')}, 1000);
     }
 
     $('#' + dashcardId + '-reload-button').on('click', async function() {
-      await refreshDashcard(dashcardId, dashcardDataKey, action, field);
+      // Manual reload is an explicit request: no visibility gate, and a failure
+      // here is already reported inside refreshDashcard.
+      try { await refreshDashcard(dashcardId, dashcardDataKey, action, field); } catch (error) { /* reported */ }
     });
 
-    setInterval(async () => {
-      await refreshDashcard(dashcardId, dashcardDataKey, action, field);
-    }, timeout);
+    // The dashcards sit above the tab bar, so they used to keep polling whatever
+    // the operator was doing. countSynced is a COUNT over the whole events table:
+    // once it starts timing out, a naked interval stacks a new one every tick and
+    // takes the rest of the dashboard down with it. Now it only runs while the
+    // card is actually on screen, never overlaps, and backs off on failure.
+    const dashcardElement = document.getElementById(dashcardId) || document.getElementById(dashcardId + '-text-field');
+    const dashcardPoll = pollWhenVisible(dashcardElement, timeout, () => refreshDashcard(dashcardId, dashcardDataKey, action, field));
 
-    await refreshDashcard(dashcardId, dashcardDataKey, action, field);
+    // Cards below the fold, or the ones the operator hid from the dashboard (they
+    // start as d-none and are revealed later from user prefs), are left to the
+    // poller: it fills them on the first tick after they become visible.
+    if (isWidgetVisible(dashcardElement)) {
+      try { await refreshDashcard(dashcardId, dashcardDataKey, action, field); } catch (error) { /* reported */ }
+    }
 
 });
 

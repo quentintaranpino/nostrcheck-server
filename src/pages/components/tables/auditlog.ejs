@@ -7,17 +7,17 @@
 // Most rows are audit only (notified = 0) and carry no delivery columns at all,
 // which is why status shows a dash instead of a badge on them.
 let auditlogFields = [
-  ['createddate'    , '200', ''                        , 'disabled  show text-center              '],
-  ['eventtype'      , '60' , 'formatAuditEvent'        , 'disabled  show text-center              '],
+  ['createddate'    , '160', 'formatAuditDate'         , 'disabled  show text-center              ', 'date (UTC)'],
+  ['eventtype'      , '60' , 'formatAuditEvent'        , 'disabled  show text-center              ', 'event'],
   ['actor'          , '60' , 'formatAuditActor'        , 'disabled  show text-center              '],
   ['source'         , '40' , 'formatAuditSource'       , 'disabled  show text-center              '],
-  ['previous_value' , '80' , 'formatAuditChange'       , 'disabled  show text-center              '],
-  ['reason'         , ''   , ''                        , 'disabled  show mobile-hide              '],
-  ['origintable'    , '40' , ''                        , 'disabled  show text-center mobile-hide  '],
-  ['originid'       , '30' , ''                        , 'disabled  show text-center              '],
-  ['notified'       , '30' , 'formatCheckbox'          , 'disabled  show text-center mobile-hide  '],
+  ['previous_value' , '90' , 'formatAuditChange'       , 'disabled  show text-center              ', 'change'],
+  ['reason'         , ''   , 'formatAuditReason'       , 'disabled  show mobile-hide              '],
+  ['origintable'    , '40' , ''                        , 'disabled  show text-center mobile-hide  ', 'table'],
+  ['originid'       , '60' , 'formatAuditRecord'       , 'disabled  show text-center              ', 'record'],
+  ['notified'       , '30' , 'formatAuditNotified'     , 'disabled  show text-center mobile-hide  '],
   ['status'         , '40' , 'formatNotificationStatus', 'enabled   show text-center              '],
-  ['lasterror'      , ''   , ''                        , 'disabled  show mobile-hide              '],
+  ['lasterror'      , ''   , 'formatAuditError'        , 'disabled  show mobile-hide              ', 'error'],
   ['attempts'       , '30' , ''                        , 'disabled  hide text-center              '],
   ['channel'        , '40' , ''                        , 'disabled  hide text-center              '],
   ['new_value'      , ''   , ''                        , 'disabled  hide                          '],
@@ -25,7 +25,7 @@ let auditlogFields = [
   ['pubkey'         , ''   , 'formatPubkey'            , 'disabled  hide                          '],
   ['ip'             , ''   , ''                        , 'disabled  hide                          '],
   ['tenant'         , ''   , ''                        , 'disabled  hide                          '],
-  ['sentdate'       , '200', ''                        , 'disabled  hide text-center              '],
+  ['sentdate'       , '160', 'formatAuditDate'         , 'disabled  hide text-center              ', 'sent (UTC)'],
   ['active'         , '30' , 'formatCheckbox'          , 'disabled  hide text-center              '],
 ];
 %>
@@ -92,17 +92,111 @@ let auditlogFields = [
   }
   window.formatAuditSource = formatAuditSource;
 
+  // The stored values are the real column values, which is what an audit log has
+  // to keep: "2" is what mediafiles.checked held, and writing "moderating" into
+  // the table instead would trade fidelity for a label that may change next year.
+  // The translation therefore lives here, in the view, and in one place.
+  //
+  // checked = 0 is deliberately "unchecked" and nothing more: in this project it
+  // means both "never moderated" and "the classifier ran and did not return
+  // SAFE", so calling it either would be a lie half the time.
+  const auditValueVocabulary = {
+      checked:    { '0': 'unchecked', '1': 'checked', '2': 'moderating' },
+      nsfw:       { '0': 'not nsfw',  '1': 'nsfw' },
+      active:     { '0': 'inactive',  '1': 'active' },
+      visibility: { '0': 'hidden',    '1': 'visible' },
+  };
+
+  // Which column each event's pair refers to. Events absent from this map either
+  // store words already (banned, unbanned, deleted) or have no transition at all
+  // (uploaded), and pass through untouched.
+  const auditEventDomain = {
+      classified:         'checked',
+      checked_set:        'checked',
+      checked_unset:      'checked',
+      nsfw_set:           'nsfw',
+      nsfw_unset:         'nsfw',
+      activated:          'active',
+      deactivated:        'active',
+      visibility_changed: 'visibility',
+  };
+
+  // A value we can't translate is shown raw. Better an unexplained "3" than a
+  // confident wrong label.
+  function auditValueLabel(eventtype, raw) {
+      const value = String(raw ?? '');
+      if (value === '') return '';
+      const domain = auditEventDomain[String(eventtype || '')];
+      if (!domain) return value;
+      const vocabulary = auditValueVocabulary[domain] || {};
+      return vocabulary[value] !== undefined ? vocabulary[value] : value;
+  }
+
   // previous → new in one column. The pair is the whole point of an audit entry;
   // split across two columns it reads as two unrelated values. Formatter sits on
   // previous_value and pulls new_value off the row.
   function formatAuditChange(value, row) {
-      const before = String(value ?? '');
-      const after = String(row.new_value ?? '');
+      const before = auditValueLabel(row.eventtype, value);
+      const after = auditValueLabel(row.eventtype, row.new_value);
       if (before === '' && after === '') return '<span class="text-secondary">—</span>';
-      const trim = (v) => v.length > 24 ? v.substring(0, 24) + '…' : v;
-      return `<span class="text-secondary">${escapeHtml(trim(before) || '∅')}</span>` +
+      const trim = (v) => v.length > 22 ? v.substring(0, 22) + '…' : v;
+      // Raw values stay in the tooltip: the translation is a reading aid, not a
+      // replacement for what the log actually holds.
+      const raw = `${String(value ?? '')} → ${String(row.new_value ?? '')}`;
+      return `<span title="stored: ${escapeHtml(raw)}">` +
+             `<span class="text-secondary">${escapeHtml(trim(before) || '∅')}</span>` +
              ` <i class="fa-solid fa-arrow-right fa-xs"></i> ` +
-             `<strong>${escapeHtml(trim(after) || '∅')}</strong>`;
+             `<strong>${escapeHtml(trim(after) || '∅')}</strong>` +
+             `</span>`;
   }
   window.formatAuditChange = formatAuditChange;
+
+  // Which record this entry is about. An originid is a database id and says
+  // nothing to a human; the blob hash does, and on a deleted file it is the only
+  // thing left. The id stays in the tooltip.
+  function formatAuditRecord(value, row) {
+      const originid = String(value ?? '');
+      const filehash = String(row.filehash || '');
+      if (filehash === '') return `<span class="text-secondary">${escapeHtml(originid)}</span>`;
+      const short = typeof shortenHex === 'function' ? shortenHex(filehash, 8, 4) : filehash.substring(0, 12) + '…';
+      return `<code title="${escapeHtml(filehash)} (id ${escapeHtml(originid)})">${escapeHtml(short)}</code>`;
+  }
+  window.formatAuditRecord = formatAuditRecord;
+
+  // notified = 0 means two different things: "this event type never had to be
+  // notified" and "it should have gone out and it didn't". A cross on an upload
+  // reads as a failure, so only genuinely notifiable events get one.
+  function formatAuditNotified(value, row) {
+      const notifiable = ['csam_report', 'illegal_report', 'banned_hash_reupload', 'banned'];
+      if (Number(value) === 1) return '<div class="text-center"><i class="fas fa-check-circle purple-text" title="Notice was created for this event"></i></div>';
+      if (!notifiable.includes(String(row.eventtype || ''))) return '<span class="text-secondary" title="This event type is recorded but never notified">—</span>';
+      return '<div class="text-center"><i class="fas fa-times-circle text-warning" title="Notifiable event that was not sent: delivery disabled or deduplicated"></i></div>';
+  }
+  window.formatAuditNotified = formatAuditNotified;
+
+  // Empty cells all read the same way in this table.
+  function formatAuditError(value) {
+      const error = String(value || '');
+      if (error === '') return '<span class="text-secondary">—</span>';
+      return `<span class="text-danger" title="${escapeHtml(error)}">${escapeHtml(error.length > 60 ? error.substring(0, 60) + '…' : error)}</span>`;
+  }
+  window.formatAuditError = formatAuditError;
+
+  // Stays UTC (toISOString always is, and the header says so), just without the
+  // T, the milliseconds and the Z, which are three characters of noise per row in
+  // a table meant to be read diagonally. Full stored value in the tooltip.
+  function formatAuditDate(value) {
+      if (value === null || value === undefined || value === '') return '<span class="text-secondary">—</span>';
+      const parsed = new Date(value);
+      if (isNaN(parsed.getTime())) return escapeHtml(String(value));
+      return `<span title="${escapeHtml(String(value))}">${escapeHtml(parsed.toISOString().slice(0, 19).replace('T', ' '))}</span>`;
+  }
+  window.formatAuditDate = formatAuditDate;
+
+  function formatAuditReason(value) {
+      const reason = String(value || '');
+      if (reason === '') return '<span class="text-secondary">—</span>';
+      return `<span title="${escapeHtml(reason)}">${escapeHtml(reason.length > 60 ? reason.substring(0, 60) + '…' : reason)}</span>`;
+  }
+  window.formatAuditReason = formatAuditReason;
 </script>

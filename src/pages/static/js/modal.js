@@ -448,6 +448,11 @@ const initMediaModal = async (filename, checked, visible, showButtons = true, fi
     let navRows = nav && Array.isArray(nav.rows) ? nav.rows.slice() : null;
     let navIndex = navRows && typeof nav.index === 'number' ? nav.index : -1;
     let navLoadMore = nav && typeof nav.loadMore === 'function' ? nav.loadMore : null;
+    // onPersist(row, field, value, previous) lets the caller mirror the change in
+    // whatever it is showing behind the modal; onBan(row) delegates the ban to the
+    // caller, which owns its own confirmation dialog and its reason prompt.
+    const navOnPersist = nav && typeof nav.onPersist === 'function' ? nav.onPersist : null;
+    const navOnBan = nav && typeof nav.onBan === 'function' ? nav.onBan : null;
     let navLoading = false;
     let navExhausted = !navLoadMore;
     // Sliding window: never hold more than NAV_WINDOW_MAX rows in memory.
@@ -463,6 +468,8 @@ const initMediaModal = async (filename, checked, visible, showButtons = true, fi
     // nsfw isn't a modal parameter (that would mean touching every call site),
     // it travels inside the row / fileInfo the caller already passes.
     let curNsfw = fileInfo && fileInfo.nsfw != null ? Number(fileInfo.nsfw) : 0;
+    // Same story as nsfw: active travels inside the row the caller passes.
+    let curActive = fileInfo && fileInfo.active != null ? Number(fileInfo.active) : 1;
     let curFileInfo = fileInfo;
     let curRow = navRows && navIndex >= 0 ? navRows[navIndex] : null;
 
@@ -482,11 +489,21 @@ const initMediaModal = async (filename, checked, visible, showButtons = true, fi
     $('#modalSwitch-checked').prop('checked', checked == '1' || checked === 1);
     $('#modalSwitch-visible').prop('checked', visible == '1' || visible === 1 || visible === true);
     $('#modalSwitch-nsfw').prop('checked', curNsfw === 1);
+    $('#modalSwitch-active').prop('checked', curActive === 1);
 
     if (!showButtons) {
         $('#modalSwitch-footer').addClass('d-none');
     } else {
         $('#modalSwitch-footer').removeClass('d-none');
+    }
+
+    // Ban needs somewhere to ask for the reason, and that dialog belongs to
+    // whoever opened the modal. No callback, no button.
+    const banButton = $('#modalButton-ban');
+    if (navOnBan) {
+        banButton.removeClass('d-none');
+    } else {
+        banButton.addClass('d-none');
     }
 
     // Switches: when in nav mode, persist via admin endpoint; otherwise
@@ -515,26 +532,53 @@ const initMediaModal = async (filename, checked, visible, showButtons = true, fi
             curNsfw = next;
         }
     });
+    $('#modalSwitch-active').off('change').on('change', function () {
+        const next = this.checked ? 1 : 0;
+        if (navRows && curRow?.id != null) {
+            persistField('active', next);
+        } else {
+            curActive = next;
+        }
+    });
+
+    // Ban is not a switch: it needs a reason, so it goes back to whoever opened
+    // the modal and reuses their confirmation dialog.
+    banButton.off('click').on('click', async function () {
+        if (!navOnBan || !curRow || curRow.id == null) return;
+        const banned = await navOnBan(curRow);
+        if (banned === true) {
+            curRow.banned = 1;
+            syncSwitches();
+        }
+    });
+
+    const syncSwitches = () => {
+        $('#modalSwitch-checked').prop('checked', curChecked == 1 || curChecked === '1');
+        $('#modalSwitch-visible').prop('checked', curVisible == 1 || curVisible === '1' || curVisible === true);
+        $('#modalSwitch-nsfw').prop('checked', curNsfw === 1);
+        $('#modalSwitch-active').prop('checked', curActive === 1);
+    };
 
     function persistField(field, value) {
         if (!curRow || curRow.id == null) return;
         const id = curRow.id;
-        // nsfw writes two columns (nsfw + checked) and only the bulk endpoint
-        // keeps them in one statement, so it doesn't go through /updaterecord.
-        const nsfwField = field === 'nsfw';
-        const url = nsfwField ? '/api/v2/admin/bulkmoderate' : '/api/v2/admin/updaterecord/';
-        const body = nsfwField
-            ? { table: 'filesData', ids: [id], field: 'nsfw', value: String(value) }
-            : { table: 'filesData', field, value: String(value), id };
+        // Everything the modal writes goes through the batch endpoint with a
+        // single id. One path for the four actions instead of two, and the same
+        // path the cards use: same validation, same audit row with actor and
+        // source admin, and nsfw keeps writing nsfw + checked in one statement.
+        const previous = field === 'nsfw'
+                            ? { nsfw: Number(curNsfw) || 0, checked: Number(curChecked) || 0 }
+                            : { [field]: Number(field === 'checked' ? curChecked : field === 'visibility' ? curVisible : curActive) || 0 };
         $.ajax({
-            url: url,
+            url: '/api/v2/admin/bulkmoderate',
             method: 'POST',
             contentType: 'application/json',
-            data: JSON.stringify(body),
+            data: JSON.stringify({ table: 'filesData', ids: [id], field: field, value: String(value) }),
             success: function () {
                 if (field === 'checked') { curChecked = value; curRow.checked = value; }
                 if (field === 'visibility') { curVisible = value; curRow.visibility = value; }
-                if (nsfwField) {
+                if (field === 'active') { curActive = value; curRow.active = value; }
+                if (field === 'nsfw') {
                     curNsfw = value;
                     curRow.nsfw = value;
                     // The server sets checked with it, keep the other switch honest.
@@ -542,16 +586,18 @@ const initMediaModal = async (filename, checked, visible, showButtons = true, fi
                     curRow.checked = 1;
                     $('#modalSwitch-checked').prop('checked', true);
                 }
+                // Tell the opener so what is behind the modal matches the database.
+                if (navOnPersist) {
+                    try { navOnPersist(curRow, field, value, previous); } catch (e) { console.error('media modal - onPersist failed', e); }
+                }
                 if (typeof refreshTable === 'function') {
                     try { refreshTable('#filesData'); } catch (e) { /* table may not exist on this page */ }
                 }
             },
             error: function (err) {
                 console.error(`Error updating ${field}`, err);
-                // revert UI
-                $('#modalSwitch-checked').prop('checked', curChecked == 1 || curChecked === '1');
-                $('#modalSwitch-visible').prop('checked', curVisible == 1 || curVisible === '1');
-                $('#modalSwitch-nsfw').prop('checked', curNsfw === 1);
+                syncSwitches();
+                if (typeof showMessage === 'function') showMessage(`Could not update ${escapeHtml(field)}`, 'alert-danger');
             }
         });
     }
@@ -605,6 +651,7 @@ const initMediaModal = async (filename, checked, visible, showButtons = true, fi
         curChecked = curRow.checked ?? curChecked;
         curVisible = curRow.visibility ?? curVisible;
         curNsfw = curRow.nsfw != null ? Number(curRow.nsfw) : 0;
+        curActive = curRow.active != null ? Number(curRow.active) : 1;
         curFileInfo = curRow;
         renderFile();
         // Background prefetch so the next ↓ is instant.
@@ -632,6 +679,14 @@ const initMediaModal = async (filename, checked, visible, showButtons = true, fi
             e.preventDefault();
             const cb = document.getElementById('modalSwitch-nsfw');
             if (cb) { cb.checked = !cb.checked; $(cb).trigger('change'); }
+        } else if (e.key === 'a' || e.key === 'A') {
+            e.preventDefault();
+            const cb = document.getElementById('modalSwitch-active');
+            if (cb) { cb.checked = !cb.checked; $(cb).trigger('change'); }
+        } else if (e.key === 'b' || e.key === 'B') {
+            // Ban still asks for a reason: the dialog is the confirmation.
+            e.preventDefault();
+            banButton.trigger('click');
         }
     }
 
@@ -658,11 +713,32 @@ const initMediaModal = async (filename, checked, visible, showButtons = true, fi
         }
     }
 
+    // Dropping the src attribute and calling load() is what actually aborts an
+    // in-flight media transfer; setting src="" leaves the element pointing at the
+    // page URL and keeps the connection. With 954 MB videos in the backlog,
+    // stepping through files with the arrows has to release the previous one or a
+    // triage session ends up holding hundreds of megabytes per file visited.
+    function releaseMediaElement($element) {
+        const element = $element.get(0);
+        if (!element) return;
+        try {
+            element.pause();
+        } catch (e) {
+            // Not a media element or already gone.
+        }
+        if (element.getAttribute && element.getAttribute('src')) {
+            element.removeAttribute('src');
+            try { element.load(); } catch (e) { /* nothing buffered to drop */ }
+        }
+    }
+
     function resetPreviews() {
         mediaPreviewIframe.attr('src', '').addClass('d-none');
         mediapreviewImg.attr('src', '').addClass('d-none');
-        mediaPreviewVideo.attr('src', '').addClass('d-none');
-        mediaPreviewAudio.attr('src', '').addClass('d-none');
+        releaseMediaElement(mediaPreviewVideo);
+        releaseMediaElement(mediaPreviewAudio);
+        mediaPreviewVideo.addClass('d-none');
+        mediaPreviewAudio.addClass('d-none');
         mediaPreview3d.addClass('d-none');
         fontPreview.addClass('d-none');
         yamlPreview.addClass('d-none');
@@ -758,6 +834,20 @@ const initMediaModal = async (filename, checked, visible, showButtons = true, fi
     }
 
     async function loadPreview(name) {
+
+        // Video and audio are pointed straight at the URL instead of being fetched
+        // into a blob first. A blob has to arrive whole before anything plays, so a
+        // 954 MB video means downloading 954 MB into memory to look at one frame;
+        // a plain src streams it and honours Range, and the cookie goes with the
+        // request just the same because it is same-origin. Everything else keeps
+        // the blob path, which is also what tells us the real mimetype.
+        const declaredMime = String(curFileInfo?.mimetype || curFileInfo?.type || '');
+        if (declaredMime.startsWith('video/') || declaredMime.startsWith('audio/')) {
+            const target = declaredMime.startsWith('video/') ? mediaPreviewVideo : mediaPreviewAudio;
+            target.attr('src', '/api/v2/media/' + name).removeClass('d-none');
+            return;
+        }
+
         $('#media-loading').removeClass('d-none');
         const data = await loadMediaWithToken('/api/v2/media/' + name);
         $('#media-loading').addClass('d-none');
@@ -808,9 +898,7 @@ const initMediaModal = async (filename, checked, visible, showButtons = true, fi
     async function renderFile() {
         resetPreviews();
         renderInfoPanel(curFileInfo);
-        $('#modalSwitch-checked').prop('checked', curChecked == 1 || curChecked === '1');
-        $('#modalSwitch-visible').prop('checked', curVisible == 1 || curVisible === '1' || curVisible === true);
-        $('#modalSwitch-nsfw').prop('checked', curNsfw === 1);
+        syncSwitches();
         updateNavPos();
         if (curFilename) await loadPreview(curFilename);
     }

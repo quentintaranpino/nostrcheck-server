@@ -1210,6 +1210,119 @@ const serveBuffer = (req: Request, res: Response, buffer: Buffer, mime: string, 
 	return res.send(buffer);
 };
 
+/**
+ * * Serve a file from disk to the client without loading it into memory.
+ * * Same headers and same status codes as serveBuffer, but the bytes travel
+ * * through a read stream, so a 954MB video never becomes a 954MB Buffer.
+ * * @param req - The request object.
+ * * @param res - The response object.
+ * * @param filePath - The path of the file to serve.
+ * * @param size - The size of the file in bytes (from fs.stat, never from a buffer).
+ * * @param mime - The MIME type of the file.
+ * * @param clientIp - The requester IP, only used for logging.
+ * * @param noCache - Send the no-store headers instead of the immutable ones.
+ * * @param statusCode - The HTTP status code to send (default is calculated based on the prefix).
+ * */
+const serveFile = (req: Request, res: Response, filePath: string, size: number, mime: string, clientIp: string, noCache: boolean = false, statusCode?: number) => {
+
+	if (size == 0) {
+		res.status(statusCode ?? 204);
+		return res.end();
+	}
+
+	const prefix = mime.split("/")[0];
+
+	if (noCache) {
+		res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
+		res.setHeader("Expires", "0");
+	} else {
+		res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+	}
+
+	res.setHeader("Content-Type", mime);
+	res.setHeader("Vary", "Origin, Cookie");
+
+	let start = 0;
+	let end = size - 1;
+
+	if (prefix == "video" || prefix == "audio") {
+		res.setHeader("Accept-Ranges", "bytes");
+
+		if (req.headers.range) {
+			const range = readRangeHeader(req.headers.range, size);
+
+			if (range.Start >= size || range.End >= size) {
+				res.status(416).setHeader("Content-Range", `bytes */${size}`);
+				return res.end();
+			}
+
+			// A malformed suffix range (bytes=-N with N greater than the file) makes
+			// readRangeHeader return a negative Start, and createReadStream refuses it.
+			start = range.Start < 0 ? 0 : range.Start;
+			end = range.End;
+
+			res.status(statusCode ?? 206);
+			res.setHeader("Content-Range", `bytes ${start}-${end}/${size}`);
+			res.setHeader("Content-Length", end - start + 1);
+		} else {
+			res.status(statusCode ?? 200);
+			res.setHeader("Content-Length", size);
+		}
+	} else {
+		res.status(statusCode ?? 200);
+		res.setHeader("Content-Length", size);
+	}
+
+	// Only the requested window is read from disk, the rest of the file never reaches RAM.
+	let stream : fs.ReadStream;
+	try {
+		stream = fs.createReadStream(filePath, { start, end });
+	} catch (err) {
+		logger.error(`serveFile - Unable to open a read stream for ${filePath}: ${err}`, "|", clientIp);
+		if (res.headersSent == false) res.status(500);
+		return res.end();
+	}
+
+	// Autoplaying clients drop connections constantly (the gallery removes the src
+	// when a tile leaves the viewport). Without this the file descriptor leaks.
+	const closeStream = () => {
+		if (stream.destroyed == false) stream.destroy();
+	};
+
+	res.once("close", closeStream);
+	res.once("error", closeStream);
+	req.once("aborted", closeStream);
+
+	stream.on("error", async (err : NodeJS.ErrnoException) => {
+
+		logger.error(`serveFile - Error reading ${filePath}: ${err.code || err.message}`, "|", clientIp);
+		closeStream();
+
+		// Headers already on the wire: the status code can no longer be changed,
+		// so the only honest thing left is to cut the response.
+		if (res.headersSent == true || res.writableEnded == true) {
+			if (res.destroyed == false) res.destroy();
+			return;
+		}
+
+		// Nothing sent yet: answer as the file not found path does.
+		try {
+			res.removeHeader("Content-Length");
+			res.removeHeader("Content-Range");
+			res.setHeader("X-Original-Content-Type", mime);
+			res.setHeader("X-Reason", "File not found");
+			const notFoundBanner = await getNotFoundFileBanner(req.hostname, mime);
+			serveBuffer(req, res, notFoundBanner.buffer, notFoundBanner.type, true);
+		} catch (bannerErr) {
+			logger.error(`serveFile - Unable to serve the not found banner: ${bannerErr}`, "|", clientIp);
+			if (res.writableEnded == false) res.end();
+		}
+
+	});
+
+	return stream.pipe(res);
+};
+
 const getMediabyURL = async (req: Request, res: Response) => {
 
 	// Check if the request IP is allowed
@@ -1442,9 +1555,22 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			fileType = guessed;
 		}
 
-		const fileBuffer = await fs.promises.readFile(fileName);
+		// Size from stat, never from a buffer: reading the file just to know how big it is
+		// is what filled the RAM with 954MB videos.
+		let fileSize = 0;
+		try {
+			const fileStat = await fs.promises.stat(fileName);
+			fileSize = fileStat.size;
+		} catch (err) {
+			logger.error(`getMediabyURL - 404 Not found - unable to stat ${fileName}: ${err}`, "|", reqInfo.ip);
+			res.setHeader('X-Original-Content-Type', fileType);
+			res.setHeader("X-Reason", "File not found");
+			const notFoundBanner = await getNotFoundFileBanner(req.hostname, fileType);
+			return serveBuffer(req, res, notFoundBanner.buffer, notFoundBanner.type, true);
+		}
+
 		logger.debug(`getMediabyURL - Media file found successfully: ${req.url}`, "|", reqInfo.ip, "|", "cached:", cachedStatus ? true : false);
-		return serveBuffer(req, res, fileBuffer, fileType);
+		return serveFile(req, res, fileName, fileSize, fileType, reqInfo.ip);
 
 	} else if (mediaLocation == "remote") {
 

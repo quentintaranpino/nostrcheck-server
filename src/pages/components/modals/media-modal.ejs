@@ -62,6 +62,13 @@
                     <input class="form-check-input" type="checkbox" id="modalSwitch-nsfw">
                     <label class="form-check-label" for="modalSwitch-nsfw" title="Reviewed but kept out of every public listing (gallery, home feed, search). The file is still reachable by direct URL.">NSFW <span class="text-secondary small ms-1">(N)</span></label>
                 </div>
+                <div class="form-check form-switch mx-auto">
+                    <input class="form-check-input" type="checkbox" id="modalSwitch-active">
+                    <label class="form-check-label" for="modalSwitch-active" title="An inactive file is not served: the server answers with a not-found banner.">Active <span class="text-secondary small ms-1">(A)</span></label>
+                </div>
+                <button type="button" id="modalButton-ban" class="btn btn-danger d-none" title="Ban this file. A reason is required.">
+                    <i class="fa-solid fa-triangle-exclamation me-1"></i>Ban <span class="small ms-1">(B)</span>
+                </button>
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
             </div>
         </div>

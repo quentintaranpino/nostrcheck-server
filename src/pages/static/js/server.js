@@ -20,6 +20,152 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 });
 
+// True when the widget is actually in front of somebody: the browser tab is in
+// the foreground, the widget is not inside an inactive bootstrap tab pane, and it
+// is somewhere near the viewport. Widgets outside any tab pane (the dashcards
+// live above the tab bar) only answer to the first two.
+window.isWidgetVisible = (element) => {
+
+    if (document.hidden) return false;
+    if (!element || !element.isConnected) return false;
+
+    const pane = element.closest(".tab-pane");
+    if (pane && !pane.classList.contains("active")) return false;
+
+    // Cheap geometry instead of an observer per widget: a card 4000px up the page
+    // is not being read, and asking the database for it is what took the server
+    // down.
+    const rect = element.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) return false;
+    const margin = 300;
+    return rect.bottom > -margin && rect.top < window.innerHeight + margin;
+};
+
+/**
+ * Polling that stops when nobody is watching, never overlaps itself, and backs
+ * off when the endpoint is failing.
+ *
+ * The dashboard used to fire a naked setInterval per widget. With a slow endpoint
+ * (a COUNT over millions of rows behind a 300s proxy timeout) that means a new
+ * request every tick while the previous ones are still open: dozens of them pile
+ * up, the pool saturates and every other request on the page starts failing too.
+ *
+ * @param element - Widget the data belongs to, used to decide visibility.
+ * @param intervalMs - Base period.
+ * @param task - Async function to run. Rejecting counts as a failure.
+ * @returns Handle with stop() and runNow().
+ */
+window.pollWhenVisible = (element, intervalMs, task) => {
+
+    const base = Math.max(Number(intervalMs) || 60000, 1000);
+    const maxBackoff = 10;
+    let running = false;
+    let failures = 0;
+    let skipTicks = 0;
+    let stopped = false;
+
+    const tick = async () => {
+
+        if (stopped) return;
+
+        // Still working on the previous one: skip this beat entirely rather than
+        // stacking a second request on top of it.
+        if (running) return;
+
+        if (!window.isWidgetVisible(element)) return;
+
+        if (skipTicks > 0) {
+            skipTicks--;
+            return;
+        }
+
+        running = true;
+        try {
+            await task();
+            failures = 0;
+        } catch (error) {
+            // Back off on failure so a broken or overloaded endpoint gets asked
+            // less often, not just as often.
+            failures++;
+            skipTicks = Math.min(failures, maxBackoff);
+            console.debug(`pollWhenVisible - task failed (${failures}), skipping the next ${skipTicks} tick(s)`, error);
+        } finally {
+            running = false;
+        }
+    };
+
+    const timer = setInterval(tick, base);
+
+    return {
+        stop: () => { stopped = true; clearInterval(timer); },
+        runNow: tick,
+    };
+};
+
+/**
+ * Fetches JSON and fails with something readable when the answer isn't JSON.
+ *
+ * A 502 from the proxy is an HTML error page. Parsing it blindly throws
+ * "SyntaxError: Unexpected token '<'", which buries the actual problem under a
+ * parser complaint and sends whoever is debugging to look in the wrong place.
+ *
+ * @param url - Request URL.
+ * @param options - fetch options.
+ * @returns Parsed body.
+ * @throws Error whose message names the status and what came back instead.
+ */
+window.fetchJSON = async (url, options = {}) => {
+
+    let response;
+    try {
+        response = await fetch(url, options);
+    } catch (error) {
+        // Network-level failure: the server is unreachable, which is not the same
+        // as being logged out.
+        const failure = new Error("the server could not be reached");
+        failure.status = 0;
+        failure.serverUnavailable = true;
+        throw failure;
+    }
+
+    const body = await response.text();
+    const contentType = (response.headers.get("content-type") || "").toLowerCase();
+    const looksJSON = contentType.includes("json") || /^\s*[[{]/.test(body);
+
+    // The one distinction that matters for the session: only the server saying
+    // "who are you" means the session is gone. 502/503/504 and a dead socket mean
+    // the server is unavailable, and nothing may ever react to those by reloading
+    // or bouncing to login: a reload under saturation re-fires the whole dashboard
+    // and makes the outage worse.
+    const buildError = (message) => {
+        const failure = new Error(message);
+        failure.status = response.status;
+        failure.sessionLost = response.status === 401 || response.status === 403;
+        failure.serverUnavailable = response.status === 502 || response.status === 503 || response.status === 504;
+        return failure;
+    };
+
+    if (!looksJSON) {
+        const hint = response.status === 502 || response.status === 503 || response.status === 504
+                        ? "the server is unavailable or took too long to answer (proxy timeout), it may be under heavy load"
+                        : `the server answered with ${contentType || "no content type"} instead of JSON`;
+        throw buildError(`HTTP ${response.status}: ${hint}`);
+    }
+
+    let parsed;
+    try {
+        parsed = JSON.parse(body);
+    } catch (error) {
+        throw buildError(`HTTP ${response.status}: the answer was not valid JSON`);
+    }
+
+    if (!response.ok) {
+        throw buildError(parsed?.message || `HTTP ${response.status}`);
+    }
+
+    return parsed;
+};
+
 // Wires every .search-box on the page to the unified search endpoint.
 // One instance can live in the navbar and another in a page hero — they share
 // the backend and the renderer, only the surrounding markup differs.
@@ -194,12 +340,24 @@ document.querySelectorAll('a[href^="#"]').forEach(anchor => {
   });
 });
 
-// Reload page when loaded from cache
+// Reload only when the page really comes back from the back/forward cache, where
+// scripts resume with stale state. It used to reload on performance.navigation.type
+// === 2 as well, which is any ordinary back/forward navigation: on the dashboard
+// that meant a full reload, and a full reload re-fires every card, table and chart
+// query at once. Under load that is the worst possible response, and it is what
+// made the dashboard look like it was reloading itself.
+// The guard also stops a reload loop if the restore repeats immediately.
 window.addEventListener('pageshow', (event) => {
-  if (event.persisted || (performance && performance.navigation.type === 2)) {
-      console.debug('Page loaded from cache, reloading...');
-      window.location.reload();
+  if (!event.persisted) return;
+  try {
+      const last = Number(sessionStorage.getItem('bfcacheReloadAt')) || 0;
+      if (Date.now() - last < 5000) return;
+      sessionStorage.setItem('bfcacheReloadAt', String(Date.now()));
+  } catch (e) {
+      // Storage blocked: reload once anyway, it is the documented behaviour.
   }
+  console.debug('Restored from the back/forward cache, reloading for fresh state...');
+  window.location.reload();
 });
 
 // Messages engine
@@ -351,10 +509,9 @@ window.addEventListener("load", () => {
     getParticles();
 }, { once: true });
 
-// bfcache restore: lib's internal state doesn't survive cleanly, full reload.
-window.addEventListener("pageshow", (event) => {
-    if (event.persisted) location.reload();
-});
+// bfcache restore for the particles lib: handled by the single pageshow listener
+// above, which reloads once and guards against repeats. A second listener doing
+// the same thing meant two reloads racing each other on every restore.
 
 // Global hotkeys: Ctrl/Cmd+K, Ctrl/Cmd+F and `/` open the navbar search.
 // Capture phase + stopPropagation so we beat the browser's own bindings
