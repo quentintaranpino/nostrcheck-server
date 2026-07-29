@@ -1,6 +1,10 @@
 <% 
 let filesFields = [
   ['checked',       '30' , 'formatCheckbox' , 'enabled   show text-center              '],
+  // Read-only on purpose: nsfw always travels with checked, and the edit modal
+  // writes one field at a time. Toggle it with the N key in the file viewer or
+  // from the moderation gallery, both of which write the pair together.
+  ['nsfw',          '30' , 'formatCheckbox' , 'disabled  show text-center              '],
   ['active',        '30' , 'formatCheckbox' , 'enabled   show text-center mobile-hide  '],
   ['banned',        ''   , 'formatCheckbox' , 'disabled  hide                          '],      
   ['visibility',    '30' , 'formatCheckbox' , 'enabled   show text-center mobile-hide  '],
@@ -17,10 +21,12 @@ let filesFields = [
   ['date',          '200', ''               , 'disabled  show text-center              '],
   ['comments',      ''   , ''               , 'enabled   hide                          '],
 ];
+// Indexes shifted by one when the nsfw column went in above, so the payment
+// columns still land right after `banned`.
 if(locals.activeModules.some(mod => mod.name === 'payments'))  {
-    filesFields.splice(3, 0, ['paid', '30', 'formatCheckbox', 'disabled show text-center'],);
-    filesFields.splice(4, 0, ['satoshi','30', 'formatSatoshi', 'disabled show text-end'],);
-    filesFields.splice(5, 0, ['transactionid','', '', 'disabled hide']);
+    filesFields.splice(4, 0, ['paid', '30', 'formatCheckbox', 'disabled show text-center'],);
+    filesFields.splice(5, 0, ['satoshi','30', 'formatSatoshi', 'disabled show text-end'],);
+    filesFields.splice(6, 0, ['transactionid','', '', 'disabled hide']);
 }
 
 %>

@@ -460,6 +460,9 @@ const initMediaModal = async (filename, checked, visible, showButtons = true, fi
     let curFilename = filename;
     let curChecked = checked;
     let curVisible = visible;
+    // nsfw isn't a modal parameter (that would mean touching every call site),
+    // it travels inside the row / fileInfo the caller already passes.
+    let curNsfw = fileInfo && fileInfo.nsfw != null ? Number(fileInfo.nsfw) : 0;
     let curFileInfo = fileInfo;
     let curRow = navRows && navIndex >= 0 ? navRows[navIndex] : null;
 
@@ -478,6 +481,7 @@ const initMediaModal = async (filename, checked, visible, showButtons = true, fi
 
     $('#modalSwitch-checked').prop('checked', checked == '1' || checked === 1);
     $('#modalSwitch-visible').prop('checked', visible == '1' || visible === 1 || visible === true);
+    $('#modalSwitch-nsfw').prop('checked', curNsfw === 1);
 
     if (!showButtons) {
         $('#modalSwitch-footer').addClass('d-none');
@@ -503,18 +507,41 @@ const initMediaModal = async (filename, checked, visible, showButtons = true, fi
             curVisible = next;
         }
     });
+    $('#modalSwitch-nsfw').off('change').on('change', function () {
+        const next = this.checked ? 1 : 0;
+        if (navRows && curRow?.id != null) {
+            persistField('nsfw', next);
+        } else {
+            curNsfw = next;
+        }
+    });
 
     function persistField(field, value) {
         if (!curRow || curRow.id == null) return;
         const id = curRow.id;
+        // nsfw writes two columns (nsfw + checked) and only the bulk endpoint
+        // keeps them in one statement, so it doesn't go through /updaterecord.
+        const nsfwField = field === 'nsfw';
+        const url = nsfwField ? '/api/v2/admin/bulkmoderate' : '/api/v2/admin/updaterecord/';
+        const body = nsfwField
+            ? { table: 'filesData', ids: [id], field: 'nsfw', value: String(value) }
+            : { table: 'filesData', field, value: String(value), id };
         $.ajax({
-            url: '/api/v2/admin/updaterecord/',
+            url: url,
             method: 'POST',
             contentType: 'application/json',
-            data: JSON.stringify({ table: 'filesData', field, value: String(value), id }),
+            data: JSON.stringify(body),
             success: function () {
                 if (field === 'checked') { curChecked = value; curRow.checked = value; }
                 if (field === 'visibility') { curVisible = value; curRow.visibility = value; }
+                if (nsfwField) {
+                    curNsfw = value;
+                    curRow.nsfw = value;
+                    // The server sets checked with it, keep the other switch honest.
+                    curChecked = 1;
+                    curRow.checked = 1;
+                    $('#modalSwitch-checked').prop('checked', true);
+                }
                 if (typeof refreshTable === 'function') {
                     try { refreshTable('#filesData'); } catch (e) { /* table may not exist on this page */ }
                 }
@@ -524,6 +551,7 @@ const initMediaModal = async (filename, checked, visible, showButtons = true, fi
                 // revert UI
                 $('#modalSwitch-checked').prop('checked', curChecked == 1 || curChecked === '1');
                 $('#modalSwitch-visible').prop('checked', curVisible == 1 || curVisible === '1');
+                $('#modalSwitch-nsfw').prop('checked', curNsfw === 1);
             }
         });
     }
@@ -576,6 +604,7 @@ const initMediaModal = async (filename, checked, visible, showButtons = true, fi
         curFilename = url ? url.substring(url.lastIndexOf('/') + 1) : (curRow.filename || '');
         curChecked = curRow.checked ?? curChecked;
         curVisible = curRow.visibility ?? curVisible;
+        curNsfw = curRow.nsfw != null ? Number(curRow.nsfw) : 0;
         curFileInfo = curRow;
         renderFile();
         // Background prefetch so the next ↓ is instant.
@@ -598,6 +627,10 @@ const initMediaModal = async (filename, checked, visible, showButtons = true, fi
         } else if (e.key === 'v' || e.key === 'V') {
             e.preventDefault();
             const cb = document.getElementById('modalSwitch-visible');
+            if (cb) { cb.checked = !cb.checked; $(cb).trigger('change'); }
+        } else if (e.key === 'n' || e.key === 'N') {
+            e.preventDefault();
+            const cb = document.getElementById('modalSwitch-nsfw');
             if (cb) { cb.checked = !cb.checked; $(cb).trigger('change'); }
         }
     }
@@ -777,6 +810,7 @@ const initMediaModal = async (filename, checked, visible, showButtons = true, fi
         renderInfoPanel(curFileInfo);
         $('#modalSwitch-checked').prop('checked', curChecked == 1 || curChecked === '1');
         $('#modalSwitch-visible').prop('checked', curVisible == 1 || curVisible === '1' || curVisible === true);
+        $('#modalSwitch-nsfw').prop('checked', curNsfw === 1);
         updateNavPos();
         if (curFilename) await loadPreview(curFilename);
     }

@@ -84,6 +84,9 @@ interface FileData{
 	transaction_id: string;
 	payment_request: string;
 	visibility: number;
+	// Reviewed, legal, but kept out of every public listing. Independent from
+	// visibility, which stays the uploader's own switch.
+	nsfw: number;
 	tenant: string;
 }
 

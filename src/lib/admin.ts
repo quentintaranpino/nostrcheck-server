@@ -96,6 +96,10 @@ async function dbSelectModuleData(module:string, offset:number, limit:number, or
 	return result;
 }
 
+// An active ban on a mediafiles row. Used both to select the banned bucket and
+// to keep banned files out of the pending one.
+const mediaBannedExists = "EXISTS (SELECT 1 FROM banned WHERE banned.originid = mediafiles.id AND banned.origintable = 'mediafiles' AND banned.active = '1')";
+
 /**
  * Builds the WHERE clause for the moderation gallery.
  * Every value the operator can type (mimetype, pubkey) travels as a bound
@@ -112,10 +116,25 @@ const mediaModerationWhere = (filters: mediaModerationFilters): { clause: string
 
 	switch (filters.status) {
 		case "pending":
-			clauses.push("mediafiles.checked <> 1");
+			// A ban is a decision already taken, so it leaves the queue. Done
+			// here rather than by forcing checked = 1 on ban: checked means "the
+			// classifier or the operator reviewed this" and writing it from the
+			// ban path would falsify that for every other consumer of the column.
+			clauses.push("mediafiles.checked <> 1 AND NOT " + mediaBannedExists);
 			break;
 		case "checked":
+			// Deliberately every reviewed file, nsfw ones included. "checked" is
+			// the column and it means reviewed, nothing more; splitting it here
+			// would make this view disagree with the hosted files table and hide
+			// files from the very list the reviewer uses to audit their own work.
+			// The nsfw bucket below is the way to look at that subset, and the
+			// gallery badges each tile so the two never look alike.
 			clauses.push("mediafiles.checked = 1");
+			break;
+		case "nsfw":
+			// Its own flag now, so the uploader's visibility switch no longer
+			// leaks into this bucket.
+			clauses.push("mediafiles.nsfw = 1");
 			break;
 		case "active":
 			clauses.push("mediafiles.active = 1");
@@ -124,7 +143,7 @@ const mediaModerationWhere = (filters: mediaModerationFilters): { clause: string
 			clauses.push("mediafiles.active <> 1");
 			break;
 		case "banned":
-			clauses.push("EXISTS (SELECT 1 FROM banned WHERE banned.originid = mediafiles.id AND banned.origintable = 'mediafiles' AND banned.active = '1')");
+			clauses.push(mediaBannedExists);
 			break;
 		default:
 			break;
@@ -223,4 +242,73 @@ const dbSelectMediaModerationFacets = async (filters: mediaModerationFilters): P
 	return { mimetypes: mimetypes || [], pubkeys: pubkeys || [] };
 };
 
-export { dbCountModuleData, dbSelectModuleData, dbCountMonthModuleData, dbCountBucketModuleData, dbSelectMediaModerationData, dbSelectMediaModerationFacets };
+// null = not probed yet. Installations that haven't migrated simply get no
+// notification state instead of an error on every gallery page.
+let auditlogTableAvailable: boolean | null = null;
+
+/**
+ * Bridge reader for delivery state, kept as the fallback for when
+ * lib/audit/core.getNotificationStatusBulk can't be reached (the controller
+ * prefers that helper and only lands here if the module isn't loadable). Same
+ * shape: one entry per originid.
+ *
+ * Only notifiable rows count. An audit-only row (notified = 0) has no channel
+ * and no status, and letting those in would drag every "worst status" down to
+ * an empty string and paint "not notified" on files that never had anything to
+ * notify.
+ *
+ * A record can have several notices (one per channel, plus retries), and the
+ * interesting one is never the newest but the worst: a failure means the
+ * operator believes they warned somebody and they didn't. So failed wins over
+ * pending, and pending over sent. That is also the row a manual retry should
+ * target, which is why the controller uses this to resolve the retry id even
+ * when the audit layer supplied the status.
+ *
+ * If the auditlog table isn't there dbMultiSelect logs and returns an empty
+ * array, which degrades to "no notification info" instead of breaking the
+ * caller.
+ *
+ * @param origintable - Table the events point at (e.g. "mediafiles").
+ * @param ids - Origin ids to look up.
+ * @returns Map of originid to the notice that matters for it.
+ */
+const dbSelectNotificationStatusBulk = async (origintable: string, ids: number[]): Promise<Record<string, { id: number; status: string; attempts: number; lasterror: string }>> => {
+
+	const result: Record<string, { id: number; status: string; attempts: number; lasterror: string }> = {};
+	const safeIds = ids.filter(id => Number.isInteger(id) && id > 0);
+	if (origintable === "" || safeIds.length === 0) return result;
+
+	// Probe once per process instead of letting every page load fail against a
+	// missing table and write an error line for it.
+	if (auditlogTableAvailable === null) {
+		const probe = await dbSimpleSelect("auditlog", "SHOW TABLES LIKE 'auditlog'");
+		auditlogTableAvailable = probe !== "" && probe.length > 0;
+		if (!auditlogTableAvailable) logger.info(`dbSelectNotificationStatusBulk - no auditlog table on this install, notification state stays empty`);
+	}
+	if (auditlogTableAvailable === false) return result;
+
+	// auditlog.originid is a varchar: bind the ids as strings or MySQL casts the
+	// column and idx_auditlog_origin_created stops being usable.
+	const rows = await dbMultiSelect(["id", "originid", "status", "attempts", "lasterror"],
+									"auditlog",
+									`origintable = ? AND notified = 1 AND originid IN (${safeIds.map(() => "?").join(",")}) ORDER BY id DESC`,
+									[origintable, ...safeIds.map(id => String(id))],
+									false);
+
+	const severity: { [key: string]: number } = { sent: 0, pending: 1, failed: 2 };
+	for (const row of rows) {
+		const key = String(row.originid);
+		const current = result[key];
+		const candidate = {
+			id: Number(row.id),
+			status: String(row.status || ""),
+			attempts: Number(row.attempts) || 0,
+			lasterror: String(row.lasterror || ""),
+		};
+		if (!current || (severity[candidate.status] || 0) > (severity[current.status] || 0)) result[key] = candidate;
+	}
+
+	return result;
+};
+
+export { dbCountModuleData, dbSelectModuleData, dbCountMonthModuleData, dbCountBucketModuleData, dbSelectMediaModerationData, dbSelectMediaModerationFacets, dbSelectNotificationStatusBulk };

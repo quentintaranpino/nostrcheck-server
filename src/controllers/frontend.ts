@@ -92,6 +92,7 @@ const loadSettingsPage = async (req: Request, res: Response, version: string): P
         payments: getConfig(null, ["payments"]),
         register: getConfig(null, ["register"]),
         logger: getConfig(null, ["logger"]),
+        notifications: getConfig(null, ["notifications"]),
         security: getConfig(null, ["security"]),
         database: getConfig(null, ["database"]),
         plugins: getConfig(null, ["plugins"]),
@@ -108,6 +109,7 @@ const loadSettingsPage = async (req: Request, res: Response, version: string): P
         payments: getConfig(domain, ["payments"]),
         register: getConfig(domain, ["register"]),
         logger: getConfig(domain, ["logger"]),
+        notifications: getConfig(domain, ["notifications"]),
         security: getConfig(domain, ["security"]),
         database: getConfig(domain, ["database"]),
         plugins: getConfig(domain, ["plugins"]),
@@ -401,7 +403,7 @@ const loadHomePage = async (req: Request, res: Response, version:string): Promis
             const rows = await dbMultiSelect(
                 ["id", "filename", "hash", "mimetype", "dimensions", "blurhash", "pubkey"],
                 "mediafiles",
-                "active = '1' AND visibility = '1' AND checked = '1' AND original_hash IS NOT NULL ORDER BY id DESC LIMIT 16",
+                "active = '1' AND visibility = '1' AND checked = '1' AND nsfw = '0' AND original_hash IS NOT NULL ORDER BY id DESC LIMIT 16",
                 [], false);
             return rows.map((r: any) => ({
                 ...r,
@@ -1171,7 +1173,7 @@ const unifiedSearch = async (req: Request, res: Response): Promise<Response | vo
                 : Promise.resolve([]),
             mediaEnabled
                 ? dbMultiSelect(["id", "filename", "hash", "mimetype", "dimensions", "blurhash", "pubkey"], "mediafiles",
-                    "active = 1 AND visibility = 1 AND checked = 1 AND original_hash IS NOT NULL AND filename LIKE ? ORDER BY id DESC LIMIT 8",
+                    "active = 1 AND visibility = 1 AND checked = 1 AND nsfw = 0 AND original_hash IS NOT NULL AND filename LIKE ? ORDER BY id DESC LIMIT 8",
                     [like], false)
                 : Promise.resolve([]),
             relayEnabled

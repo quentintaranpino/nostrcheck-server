@@ -263,6 +263,29 @@ const defaultConfig = {
 			"maxMessageMinute": 150,
 		},
 	},
+	// Outbound notices only. The audit log itself is always written: it is the
+	// record of what happened, not a feature you turn off.
+	"notifications" : {
+		"enabled": true,
+		"webhook" : {
+			"url": "",
+			"secret": "",
+		},
+		"retries": 3,
+		"timeout": 10000,
+		"dedupeWindow": 300,
+		"maxPerMinute": 20,
+		"events" : {
+			"csam_report": true,
+			"illegal_report": true,
+			"banned_hash_reupload": true,
+			"banned": true,
+		},
+		"reporter" : {
+			"enabled": false,
+			"provider": "noop",
+		},
+	},
 	"plugins" : {
 		"path": "plugins",
 		"list": {

@@ -7,6 +7,7 @@ import { getConfig, isModuleEnabled } from "../config/core.js";
 import { getResource } from "../frontend.js";
 import { generateVideoFromImage } from "../utils.js";
 import { initRedis } from "../redis/client.js";
+import { logAuditEvent } from "../audit/core.js";
 
 const redisCore = await initRedis(0, false);
 
@@ -16,7 +17,7 @@ const redisCore = await initRedis(0, false);
 // re-populates them when needed.
 const BAN_KEY_TTL = 7 * 24 * 60 * 60; // 7 days
 
-const manageEntity = async (originId: number, originTable: string, action: "ban" | "unban", reason?: string): Promise<ResultMessagev2> => {
+const manageEntity = async (originId: number, originTable: string, action: "ban" | "unban", reason?: string, actor?: string, source?: string): Promise<ResultMessagev2> => {
 
     if (!isModuleEnabled("security", ""))  return { status: "error", message: "Security module is not enabled" };
 
@@ -53,7 +54,7 @@ const manageEntity = async (originId: number, originTable: string, action: "ban"
             if (!result || result.length === 0) {
                 return { status: "error", message: "Record not found" };
             }
-            return manageEntity(result[0].originid, result[0].origintable, action, reason);
+            return manageEntity(result[0].originid, result[0].origintable, action, reason, actor, source);
         }
         default: {
             return { status: "error", message: "Invalid table name" };
@@ -167,6 +168,25 @@ const manageEntity = async (originId: number, originTable: string, action: "ban"
             }
         }
 
+        // Every ban and unban is audited, ips included. Only content bans are
+        // notified: the infraction autoban in ips.ts would flood the channel.
+        const notifiableBan = originTable == "mediafiles" || originTable == "registered" || originTable == "events";
+        await logAuditEvent({
+            eventtype: action === "ban" ? "banned" : "unbanned",
+            origintable: originTable,
+            originid: originId,
+            actor: actor,
+            source: source,
+            pubkey: originTable == "registered" ? result[0].hex || "" : "",
+            filehash: originTable == "mediafiles" ? result[0].original_hash || "" : "",
+            previous_value: action === "ban" ? "not banned" : "banned",
+            new_value: action === "ban" ? "banned" : "not banned",
+            action: `${resultRecords.length} row(s) ${action}ned in ${originTable}`,
+            reason: reason || "",
+            details: {keyfield: keyField, keyvalue: result[0][keyField], rows: resultRecords.length},
+            notify: action === "ban" && notifiableBan,
+        });
+
         return { status: "success", message: `Records with ${keyField} : ${result[0][keyField]} from table ${originTable} ${action}ned successfully` };
     }
 
@@ -178,30 +198,34 @@ const manageEntity = async (originId: number, originTable: string, action: "ban"
  * @param originId - The ID of the entity to ban.
  * @param originTable - The table where the entity is stored.
  * @param reason - The reason for banning the entity.
+ * @param actor - Who ordered the ban: pubkey in hex, or "system". Ends up in the audit log.
+ * @param source - Where it came from: admin | user | system | report. Defaults to "system".
  * @returns Promise resolving to a `ResultMessagev2` object.
  * @async
  * @example
  * ```typescript
- * const banResult = await banEntity(1, "registered", "Spamming the network");
+ * const banResult = await banEntity(1, "registered", "Spamming the network", adminPubkey, "admin");
  * ```
  **/
-const banEntity = async (originId: number, originTable: string, reason: string): Promise<ResultMessagev2> => {
-    return manageEntity(originId, originTable, "ban", reason);
+const banEntity = async (originId: number, originTable: string, reason: string, actor?: string, source?: string): Promise<ResultMessagev2> => {
+    return manageEntity(originId, originTable, "ban", reason, actor, source);
 };
 
 /**
  * Unbans an entity.
  * @param originId - The ID of the entity to unban.
  * @param originTable - The table where the entity is stored.
+ * @param actor - Who ordered the unban: pubkey in hex, or "system". Ends up in the audit log.
+ * @param source - Where it came from: admin | user | system. Defaults to "system".
  * @returns Promise resolving to a `ResultMessagev2` object.
  * @async
  * @example
  * ```typescript
- * const unbanResult = await unbanEntity(1, "registered");
+ * const unbanResult = await unbanEntity(1, "registered", adminPubkey, "admin");
  * ```
  **/
-const unbanEntity = async (originId: number, originTable: string): Promise<ResultMessagev2> => {
-    return manageEntity(originId, originTable, "unban");
+const unbanEntity = async (originId: number, originTable: string, actor?: string, source?: string): Promise<ResultMessagev2> => {
+    return manageEntity(originId, originTable, "unban", undefined, actor, source);
 };
 
 /**

@@ -62,7 +62,8 @@ const PrepareNIP96_listEvent = async (filedata : FileData): Promise<NIP94_data> 
                     ["no_transform", filedata.no_transform.valueOf().toString() ],
                     ["payment_request", filedata.payment_request],
                     ["visibility", filedata.visibility.valueOf().toString()],
-            ],              
+                    ["nsfw", filedata.nsfw ? filedata.nsfw.valueOf().toString() : "0"],
+            ],
             content: '',
             created_at: Number(filedata.date),}
 

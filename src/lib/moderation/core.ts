@@ -7,6 +7,7 @@ import { logger } from "../logger.js";
 import { dbMultiSelect, dbUpdate } from "../database/core.js";
 import { getFileUrl } from "../media.js";
 import { getConfig } from "../config/core.js";
+import { logAuditEvent } from "../audit/core.js";
 
 // Create the fastq queue for moderation tasks
 const moderationQueue: queueAsPromised<ModerationJob> = fastq.promise(moderationWorker, 1);
@@ -43,8 +44,29 @@ async function moderationWorker(task: ModerationJob): Promise<ModerationCategory
 
     // Update the final status in the database:
     // If result.code === '0', set status to '1' (approved); otherwise, set to '0' (rejected).
-    const updateChecked: boolean = await dbUpdate(task.originTable, { checked: result.code === "0" ? "1" : "0" }, ["id"], [task.originId]);
+    const checkedValue = result.code === "0" ? "1" : "0";
+    const updateChecked: boolean = await dbUpdate(task.originTable, { checked: checkedValue }, ["id"], [task.originId]);
     if (!updateChecked) logger.error(`moderateFile - Failed to update record | ${task.originId}`);
+
+    // The verdict of a machine on somebody's file. Auditing it is what makes an
+    // automatic rejection arguable later: which engine, what it answered, and
+    // what it did to the record. "2" is the in-progress value moderateFile wrote
+    // before enqueueing this task.
+    if (updateChecked) {
+        await logAuditEvent({
+            eventtype: "classified",
+            origintable: task.originTable,
+            originid: task.originId,
+            actor: "classifier",
+            source: "classifier",
+            tenant: task.tenant,
+            previous_value: "2",
+            new_value: checkedValue,
+            action: checkedValue === "1" ? "record approved" : "record left unchecked",
+            reason: result.description || "",
+            details: {code: result.code, description: result.description, engine: getConfig(task.tenant, ["media", "mediainspector", "type"]) || ""},
+        });
+    }
 
     return result;
   } catch (error) {

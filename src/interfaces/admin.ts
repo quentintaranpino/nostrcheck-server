@@ -1,5 +1,5 @@
 
-const allowedTableNames = ["registered", "mediafiles", "lightning", "domains", "banned", "invitations", "ips", "events", "filetypes", "plugins"];
+const allowedTableNames = ["registered", "mediafiles", "lightning", "domains", "banned", "invitations", "ips", "events", "filetypes", "plugins", "auditlog"];
 const allowedFieldNames = [ "allowed", 
                             "active", 
                             "banned",
@@ -25,7 +25,9 @@ const allowedFieldNames = [ "allowed",
                             "original_extension",
                             "converted_mime",
                             "converted_extension",
-                        ]; 
+                            "status",
+                            "nsfw",
+                        ];
 
 const allowedFieldNamesAndValues = [
     {field: "allowed", values: [0, 1]},
@@ -33,6 +35,7 @@ const allowedFieldNamesAndValues = [
     {field: "banned", values: [0, 1]},
     {field: "visibility", values: [0, 1]},
     {field: "checked", values: [0, 1]},
+    {field: "nsfw", values: [0, 1]},
     {field: "comments", values: ["string"]},
     {field: "username", values: ["string"]},
     {field: "pubkey", values: ["string"]},
@@ -56,6 +59,11 @@ const allowedFieldNamesAndValues = [
     {field: "original_extension", values: ["string"]},
     {field: "converted_mime", values: ["string"]},
     {field: "converted_extension", values: ["string"]},
+    // auditlog.status. Putting a row back to "pending" is how a failed
+    // notification gets retried by the sweeper. Note the allowlist is keyed by
+    // field name, not by table, so this also narrows mediafiles.status edits to
+    // these three values (nothing in the frontend writes that column).
+    {field: "status", values: ["pending", "sent", "failed"]},
 ];
 
 interface moduleDataReturnMessage {
@@ -79,6 +87,7 @@ const mediaModerationSelectFields: string[] = [
     "mediafiles.checked",
     "mediafiles.active",
     "mediafiles.visibility",
+    "mediafiles.nsfw",
     "DATE_FORMAT(mediafiles.date, '%Y-%m-%d %H:%i') as date",
     "CASE WHEN EXISTS (SELECT 1 FROM banned WHERE banned.originid = mediafiles.id AND banned.origintable = 'mediafiles' AND banned.active = '1') THEN 1 ELSE 0 END as banned",
     "(SELECT registered.username FROM registered WHERE registered.hex = mediafiles.pubkey LIMIT 1) as username",
@@ -86,12 +95,35 @@ const mediaModerationSelectFields: string[] = [
 
 // Status buckets the gallery can filter by. Anything else is rejected, the
 // value never reaches the SQL.
-const mediaModerationStatus = ["pending", "checked", "active", "inactive", "banned", "all"];
+// "nsfw" is its own column now, and it overlaps "checked" on purpose: flagging a
+// file is a review decision, so an nsfw file is also a checked one. The gallery
+// tells them apart with its own badge.
+const mediaModerationStatus = ["pending", "checked", "nsfw", "active", "inactive", "banned", "all"];
+
+// Fields the "nsfw" action writes, and the value each one takes. The flag never
+// travels alone: marking also sets checked = 1 because deciding a file is nsfw
+// *is* reviewing it, and unmarking leaves checked where it was. visibility is
+// never touched, it belongs to the uploader. Both columns go in a single UPDATE
+// per row so a file can't end up half marked.
+const mediaModerationNsfwFields: { [key: string]: { nsfw: number; checked: number } } = {
+    "1": { nsfw: 1, checked: 1 },
+    "0": { nsfw: 0, checked: 1 },
+};
 
 interface mediaModerationFilters {
     status: string;
     mimetype: string;
     pubkey: string;
+}
+
+// What the gallery needs to know about a notification: which row to retry, how
+// it went, and why it failed. Whatever the notification layer hands back gets
+// coerced into this before it reaches a tile.
+interface notificationStatusRow {
+    id: number;
+    status: string;
+    attempts: number;
+    lasterror: string;
 }
 
 const ModuleDataTables: { [key: string]: string } = {
@@ -103,8 +135,9 @@ const ModuleDataTables: { [key: string]: string } = {
     "banned": "banned",
     "register": "invitations",
     "ips": "ips",
-    "relay": "events", 
+    "relay": "events",
     "filetypes": "filetypes",
+    "auditlog": "auditlog",
 };
 
 const moduleDataKeys: { [key: string]: string } = {
@@ -119,6 +152,7 @@ const moduleDataKeys: { [key: string]: string } = {
     "eventsData": "events",
     "filetypesData": "filetypes",
     "pluginsData": "plugins",
+    "auditlogData": "auditlog",
 };
 
 const moduleDataIndex: { [key: string]: string } = {
@@ -211,6 +245,24 @@ const moduleDataWhereFields: { [key: string]: [string] } = {
                         "filetypes.converted_mime, " +
                         "filetypes.converted_extension, " +
                         "filetypes.comments "
+                        ],
+    "auditlog": [
+                        "auditlog.id, " +
+                        "auditlog.eventtype, " +
+                        "auditlog.origintable, " +
+                        "auditlog.originid, " +
+                        "auditlog.tenant, " +
+                        "auditlog.actor, " +
+                        "auditlog.source, " +
+                        "auditlog.pubkey, " +
+                        "auditlog.ip, " +
+                        "auditlog.filehash, " +
+                        "auditlog.previous_value, " +
+                        "auditlog.new_value, " +
+                        "auditlog.reason, " +
+                        "auditlog.channel, " +
+                        "auditlog.status, " +
+                        "auditlog.lasterror"
                         ]
 };
 
@@ -236,6 +288,7 @@ const moduleDataSelectFields: { [key: string]: string } = {
                         "mediafiles.checked, " +
                         "mediafiles.active, " +
                         "mediafiles.visibility, " +
+                        "mediafiles.nsfw, " +
                         "(SELECT transactions.paid FROM transactions WHERE mediafiles.transactionid = transactions.id LIMIT 1) as paid, " +
                         "(SELECT transactions.satoshi FROM transactions WHERE mediafiles.transactionid = transactions.id LIMIT 1) as satoshi, " +
                         "mediafiles.transactionid, " +
@@ -322,7 +375,31 @@ const moduleDataSelectFields: { [key: string]: string } = {
                         "filetypes.original_extension, " +
                         "filetypes.converted_mime, " +
                         "filetypes.converted_extension, " +
-                        "filetypes.comments"
+                        "filetypes.comments",
+    // payload is left out on purpose: it can be a fat JSON blob and the listing
+    // never shows it. createddate / sentdate go out raw, the audit layer owns
+    // their storage format.
+    "auditlog":         "auditlog.id, " +
+                        "auditlog.active, " +
+                        "auditlog.eventtype, " +
+                        "auditlog.origintable, " +
+                        "auditlog.originid, " +
+                        "auditlog.actor, " +
+                        "auditlog.source, " +
+                        "auditlog.previous_value, " +
+                        "auditlog.new_value, " +
+                        "auditlog.reason, " +
+                        "auditlog.tenant, " +
+                        "auditlog.pubkey, " +
+                        "auditlog.ip, " +
+                        "auditlog.filehash, " +
+                        "auditlog.notified, " +
+                        "auditlog.channel, " +
+                        "auditlog.status, " +
+                        "auditlog.attempts, " +
+                        "auditlog.lasterror, " +
+                        "auditlog.createddate, " +
+                        "auditlog.sentdate"
 };
 
 export { allowedTableNames,
@@ -336,4 +413,6 @@ export { allowedTableNames,
          moduleDataIndex,
          mediaModerationSelectFields,
          mediaModerationStatus,
-         mediaModerationFilters };
+         mediaModerationNsfwFields,
+         mediaModerationFilters,
+         notificationStatusRow };

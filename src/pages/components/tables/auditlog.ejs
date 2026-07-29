@@ -1,0 +1,108 @@
+<%
+// Trail of what happened to each record: what changed, who changed it, where the
+// change came from and what the value went from and to. Rows are written by the
+// audit layer; the only field an operator edits here is `status`, and only to put
+// a failed notification back to "pending" so the sweep picks it up again.
+//
+// Most rows are audit only (notified = 0) and carry no delivery columns at all,
+// which is why status shows a dash instead of a badge on them.
+let auditlogFields = [
+  ['createddate'    , '200', ''                        , 'disabled  show text-center              '],
+  ['eventtype'      , '60' , 'formatAuditEvent'        , 'disabled  show text-center              '],
+  ['actor'          , '60' , 'formatAuditActor'        , 'disabled  show text-center              '],
+  ['source'         , '40' , 'formatAuditSource'       , 'disabled  show text-center              '],
+  ['previous_value' , '80' , 'formatAuditChange'       , 'disabled  show text-center              '],
+  ['reason'         , ''   , ''                        , 'disabled  show mobile-hide              '],
+  ['origintable'    , '40' , ''                        , 'disabled  show text-center mobile-hide  '],
+  ['originid'       , '30' , ''                        , 'disabled  show text-center              '],
+  ['notified'       , '30' , 'formatCheckbox'          , 'disabled  show text-center mobile-hide  '],
+  ['status'         , '40' , 'formatNotificationStatus', 'enabled   show text-center              '],
+  ['lasterror'      , ''   , ''                        , 'disabled  show mobile-hide              '],
+  ['attempts'       , '30' , ''                        , 'disabled  hide text-center              '],
+  ['channel'        , '40' , ''                        , 'disabled  hide text-center              '],
+  ['new_value'      , ''   , ''                        , 'disabled  hide                          '],
+  ['filehash'       , ''   , ''                        , 'disabled  hide                          '],
+  ['pubkey'         , ''   , 'formatPubkey'            , 'disabled  hide                          '],
+  ['ip'             , ''   , ''                        , 'disabled  hide                          '],
+  ['tenant'         , ''   , ''                        , 'disabled  hide                          '],
+  ['sentdate'       , '200', ''                        , 'disabled  hide text-center              '],
+  ['active'         , '30' , 'formatCheckbox'          , 'disabled  hide text-center              '],
+];
+%>
+<%- include('../table', {
+  tableName:"Audit log",
+  tableDesc:"Every state change recorded by the server: moderation decisions, reports and bans, with the actor behind each one. Edit a row and set its status back to pending to have a failed notification retried.",
+  tableId:"auditlogData",
+  buttons:[
+    ['add','hide'],
+    ['disable','hide'],
+    ['enable','hide'],
+    ['visible','hide'],
+    ['invisible','hide'],
+    ['admin','hide'],
+    ['edit','show'],
+    ['password','hide'],
+    ['remove','hide'],
+    ['pay','hide'],
+    ['balance','hide'],
+    ['moderate','hide'],
+    ['ban','hide']
+  ],
+  fields: auditlogFields,
+  datakey: 'auditlog',
+  objectName: 'audit entry',
+  }); %>
+
+<script>
+  // Delivery state. Only notifiable rows carry one; audit-only rows show a dash,
+  // otherwise an empty cell reads as "we failed to warn somebody".
+  function formatNotificationStatus(value) {
+      const status = String(value || '');
+      if (status === '') return '<span class="text-secondary" title="Audit only, this event never had to be notified">—</span>';
+      if (status === 'sent')    return '<span class="badge bg-success">sent</span>';
+      if (status === 'pending') return '<span class="badge bg-warning text-dark">pending</span>';
+      if (status === 'failed')  return '<span class="badge bg-danger">failed</span>';
+      return `<span class="badge bg-secondary">${escapeHtml(status)}</span>`;
+  }
+  window.formatNotificationStatus = formatNotificationStatus;
+
+  // Incidents red, ordinary decisions neutral: scanning the column should surface
+  // the reports first.
+  function formatAuditEvent(value) {
+      const eventtype = String(value || '');
+      const incidents = ['csam_report', 'illegal_report', 'banned_hash_reupload', 'banned'];
+      const cls = incidents.includes(eventtype) ? 'bg-danger' : 'bg-secondary';
+      return `<span class="badge ${cls}">${escapeHtml(eventtype)}</span>`;
+  }
+  window.formatAuditEvent = formatAuditEvent;
+
+  // Who did it, truncated like every other pubkey in the admin, full value on hover.
+  function formatAuditActor(value) {
+      const actor = String(value || '');
+      if (actor === '' || actor === 'system') return '<span class="text-secondary">system</span>';
+      const short = typeof shortenHex === 'function' ? shortenHex(actor, 8, 4) : actor.substring(0, 12) + '…';
+      return `<span title="${escapeHtml(actor)}"><code>${escapeHtml(short)}</code></span>`;
+  }
+  window.formatAuditActor = formatAuditActor;
+
+  function formatAuditSource(value) {
+      const source = String(value || 'system');
+      const tone = source === 'admin' ? 'text-primary' : source === 'user' ? 'text-info' : 'text-secondary';
+      return `<span class="${tone}">${escapeHtml(source)}</span>`;
+  }
+  window.formatAuditSource = formatAuditSource;
+
+  // previous → new in one column. The pair is the whole point of an audit entry;
+  // split across two columns it reads as two unrelated values. Formatter sits on
+  // previous_value and pulls new_value off the row.
+  function formatAuditChange(value, row) {
+      const before = String(value ?? '');
+      const after = String(row.new_value ?? '');
+      if (before === '' && after === '') return '<span class="text-secondary">—</span>';
+      const trim = (v) => v.length > 24 ? v.substring(0, 24) + '…' : v;
+      return `<span class="text-secondary">${escapeHtml(trim(before) || '∅')}</span>` +
+             ` <i class="fa-solid fa-arrow-right fa-xs"></i> ` +
+             `<strong>${escapeHtml(trim(after) || '∅')}</strong>`;
+  }
+  window.formatAuditChange = formatAuditChange;
+</script>

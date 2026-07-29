@@ -47,6 +47,7 @@ interface NIP94_data {
             ["no_transform", string],
             ["payment_request", string],
             ["visibility", string],
+            ["nsfw", string],
     ],
     content: string,
     created_at: number,

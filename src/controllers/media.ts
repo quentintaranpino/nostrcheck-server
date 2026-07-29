@@ -28,6 +28,7 @@ import { loadCdnPage } from "./frontend.js";
 import { getBannedFileBanner, isEntityBanned } from "../lib/security/banned.js";
 import { mirrorFile } from "../lib/blossom/BUD04.js";
 import { isBUD09ReportValid, saveBlobReport } from "../lib/blossom/BUD09.js";
+import { logAuditEvent } from "../lib/audit/core.js";
 import { executePlugins } from "../lib/plugins/core.js";
 import { setAuthCookie } from "../lib/frontend.js";
 import { addIpInfraction, isIpAllowed } from "../lib/security/ips.js";
@@ -227,6 +228,8 @@ const uploadMedia = async (req: Request, res: Response, version: string, mode: U
 		transaction_id: "",
 		payment_request: "",
 		visibility: 1,
+		// Nothing arrives flagged: nsfw is a moderation decision taken later.
+		nsfw: 0,
 		tenant: req.hostname,
 	};
 
@@ -282,6 +285,25 @@ const uploadMedia = async (req: Request, res: Response, version: string, mode: U
 	// the check headUpload already does on the BUD-06 pre-flight.
 	if (await isEntityBanned(filedata.originalhash, "mediafiles")) {
 		logger.warn(`uploadMedia - 403 Forbidden - SHA-256 hash banned: ${filedata.originalhash}`, "|", reqInfo.ip);
+
+		// A banned hash coming back through the door is intent, not an accident.
+		// Leave a record of who tried it before the request is dropped.
+		const bannedRows = await dbMultiSelect(["id"], "mediafiles", "original_hash = ?", [filedata.originalhash], true);
+		await logAuditEvent({
+			eventtype: "banned_hash_reupload",
+			origintable: "mediafiles",
+			originid: bannedRows.length > 0 ? bannedRows[0].id : "0",
+			actor: filedata.pubkey,
+			source: "user",
+			tenant: req.hostname,
+			pubkey: filedata.pubkey,
+			ip: reqInfo.ip,
+			filehash: filedata.originalhash,
+			action: "upload rejected with 403",
+			reason: "Upload attempt of a banned SHA-256 hash",
+			details: {endpoint: req.originalUrl || req.path, mediatype: filedata.media_type, mime: filedata.originalmime, filesize: filedata.filesize},
+		});
+
 		if(version != "v2"){return res.status(403).send({"result": false, "description" : "SHA-256 hash banned"});}
 
 		const bannedResult: ResultMessagev2 = {
@@ -455,6 +477,22 @@ const uploadMedia = async (req: Request, res: Response, version: string, mode: U
 			res.setHeader("X-Reason", "Internal server error");
 			return res.status(500).send(result);
 		}
+
+		// Start of the trail for this file. A repeated upload of a file already in
+		// the database doesn't reach this branch, and rightly so: nothing new was
+		// stored, so there is no state change to record.
+		await logAuditEvent({
+			eventtype: "uploaded",
+			origintable: "mediafiles",
+			originid: filedata.fileid,
+			actor: filedata.pubkey,
+			source: "user",
+			tenant: req.hostname,
+			pubkey: filedata.pubkey,
+			ip: reqInfo.ip,
+			filehash: filedata.originalhash,
+			details: {filename: filedata.filename, mime: filedata.originalmime, filesize: filedata.filesize, mediatype: filedata.media_type, no_transform: filedata.no_transform, endpoint: req.originalUrl || req.path},
+		});
 
 		// Update accountid in ledger and transactions tables.
 		if (filedata.transaction_id != "") {
@@ -767,23 +805,28 @@ const getMediaList = async (req: Request, res: Response): Promise<Response> => {
 	let whereStatement = "";
 	let whereFields: (string | number)[] = [];
 
+	// nsfw = '0' on every public listing. It is a promotion filter, not an access
+	// one: the file is still served by direct URL (getMediabyURL / headMedia don't
+	// look at this flag). The owner's own listing is the documented exception, it
+	// returns them carrying the flag so their client can label them instead of
+	// making the user think their files were deleted.
 	if (listType === "public") {
 	// Todos los públicos (tu no-estándar)
 	if (useCursor) {
-		whereStatement = "active = '1' AND visibility = '1' AND checked = '1' AND original_hash IS NOT NULL AND id < ? ORDER BY id DESC LIMIT ?";
+		whereStatement = "active = '1' AND visibility = '1' AND checked = '1' AND nsfw = '0' AND original_hash IS NOT NULL AND id < ? ORDER BY id DESC LIMIT ?";
 		whereFields = [before, count];
 	} else {
-		whereStatement = "active = '1' AND visibility = '1' AND checked = '1' AND original_hash IS NOT NULL ORDER BY date DESC LIMIT ? OFFSET ?";
+		whereStatement = "active = '1' AND visibility = '1' AND checked = '1' AND nsfw = '0' AND original_hash IS NOT NULL ORDER BY date DESC LIMIT ? OFFSET ?";
 		whereFields = [count, offset];
 	}
 
 	} else if (listType === "vanity") {
 	// Públicos de un pubkey concreto (tu no-estándar)
 	if (useCursor) {
-		whereStatement = "active = '1' AND visibility = '1' AND checked = '1' AND original_hash IS NOT NULL AND pubkey = ? AND id < ? ORDER BY id DESC LIMIT ?";
+		whereStatement = "active = '1' AND visibility = '1' AND checked = '1' AND nsfw = '0' AND original_hash IS NOT NULL AND pubkey = ? AND id < ? ORDER BY id DESC LIMIT ?";
 		whereFields = [pubkey, before, count];
 	} else {
-		whereStatement = "active = '1' AND visibility = '1' AND checked = '1' AND original_hash IS NOT NULL AND pubkey = ? ORDER BY date DESC LIMIT ? OFFSET ?";
+		whereStatement = "active = '1' AND visibility = '1' AND checked = '1' AND nsfw = '0' AND original_hash IS NOT NULL AND pubkey = ? ORDER BY date DESC LIMIT ? OFFSET ?";
 		whereFields = [pubkey, count, offset];
 	}
 
@@ -794,7 +837,7 @@ const getMediaList = async (req: Request, res: Response): Promise<Response> => {
 		whereStatement = "pubkey = ? AND active = '1' AND original_hash IS NOT NULL";
 		whereFields = [pubkey];
 	} else {
-		whereStatement = "pubkey = ? AND active = '1' AND visibility = '1' AND checked = '1' AND original_hash IS NOT NULL";
+		whereStatement = "pubkey = ? AND active = '1' AND visibility = '1' AND checked = '1' AND nsfw = '0' AND original_hash IS NOT NULL";
 		whereFields = [pubkey];
 	}
 	if (since !== "0") {
@@ -808,12 +851,16 @@ const getMediaList = async (req: Request, res: Response): Promise<Response> => {
 	whereStatement += " ORDER BY date DESC";
 
 	} else {
+		// NIP-96 list. Auth is mandatory here (the request 401s above when it
+		// fails) and the query is scoped to eventHeader.pubkey, so this listing is
+		// only ever the caller's own files: same reasoning as the Blossom owner
+		// case, no nsfw filter, the flag travels in the response instead.
 		whereStatement = "pubkey = ? AND active = '1' ORDER BY date DESC LIMIT ? OFFSET ?";
 		whereFields = [eventHeader.pubkey, count, offset];
 	}
 
 	// Get files and total from database
-	const result = await dbMultiSelect(["id", "filename", "mimetype",  "original_hash", "hash", "filesize", "dimensions", "date", "blurhash", "pubkey", "transactionid", "visibility"],
+	const result = await dbMultiSelect(["id", "filename", "mimetype",  "original_hash", "hash", "filesize", "dimensions", "date", "blurhash", "pubkey", "transactionid", "visibility", "nsfw"],
 										"mediafiles",
 										`${whereStatement}`,
 										whereFields, false);
@@ -829,14 +876,15 @@ const getMediaList = async (req: Request, res: Response): Promise<Response> => {
 			[eventHeader.pubkey]
 		);
 	} else if (listType === "public") {
+		// Same predicate as the listing above, or total wouldn't match the rows.
 		total = await dbSelect(
-			"SELECT COUNT(*) AS count FROM mediafiles WHERE active = '1' AND visibility = '1' AND checked = '1' AND original_hash IS NOT NULL",
+			"SELECT COUNT(*) AS count FROM mediafiles WHERE active = '1' AND visibility = '1' AND checked = '1' AND nsfw = '0' AND original_hash IS NOT NULL",
 			"count",
 			[]
 		);
 	} else if (listType === "vanity") {
 		total = await dbSelect(
-			"SELECT COUNT(*) AS count FROM mediafiles WHERE active = '1' AND visibility = '1' AND checked = '1' AND original_hash IS NOT NULL AND pubkey = ?",
+			"SELECT COUNT(*) AS count FROM mediafiles WHERE active = '1' AND visibility = '1' AND checked = '1' AND nsfw = '0' AND original_hash IS NOT NULL AND pubkey = ?",
 			"count",
 			[pubkey]
 		);
@@ -877,6 +925,7 @@ const getMediaList = async (req: Request, res: Response): Promise<Response> => {
 			payment_request: "",
 			transaction_id: e.transactionid,
 			visibility: e.visibility,
+			nsfw: Number(e.nsfw) || 0,
 			tenant: req.hostname,
 		};
 
@@ -980,7 +1029,7 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 
 	logger.info(`getMediaStatusbyID - Requested file ID: ${id}`, "|", reqInfo.ip);
 
-	const mediaFileData = await dbMultiSelect(["id", "filename", "pubkey", "status", "magnet", "original_hash", "hash", "blurhash", "dimensions", "filesize", "mimetype", "transactionid", "visibility"],
+	const mediaFileData = await dbMultiSelect(["id", "filename", "pubkey", "status", "magnet", "original_hash", "hash", "blurhash", "dimensions", "filesize", "mimetype", "transactionid", "visibility", "nsfw"],
 												"mediafiles",
 												"id = ? and (pubkey = ? or pubkey = ?)",
 												[id, eventHeader.pubkey, getConfig(req.hostname, ["server", "pubkey"])],
@@ -1000,7 +1049,7 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 		return res.status(404).send(result);
 	}
 
-	const { filename, pubkey, status, magnet, original_hash, hash, blurhash, filesize, mimetype, transactionid, visibility  } = mediaFileData[0];
+	const { filename, pubkey, status, magnet, original_hash, hash, blurhash, filesize, mimetype, transactionid, visibility, nsfw  } = mediaFileData[0];
 	let { dimensions } = mediaFileData[0];
 
 	//Fix dimensions for old API requests
@@ -1034,6 +1083,7 @@ const getMediaStatusbyID = async (req: Request, res: Response, version:string): 
 		transaction_id: transactionid,
 		payment_request: "",
 		visibility: visibility,
+		nsfw: Number(nsfw) || 0,
 		tenant: req.hostname
 	};
 
@@ -1646,7 +1696,7 @@ const updateMediaVisibility = async (req: Request, res: Response, version: strin
 		return res.status(400).send(result);
 	}
 
-	const fileData = await dbMultiSelect(["id", "filename"], "mediafiles", "(id = ? or original_hash = ?) and pubkey = ?", [req.params.fileId, req.params.fileId, eventHeader.pubkey], true);
+	const fileData = await dbMultiSelect(["id", "filename", "visibility", "original_hash"], "mediafiles", "(id = ? or original_hash = ?) and pubkey = ?", [req.params.fileId, req.params.fileId, eventHeader.pubkey], true);
 
 	const update = await dbUpdate("mediafiles", {"visibility": req.params.visibility}, ["id", "pubkey"], [fileData[0].id, eventHeader.pubkey]);
 	if (!update) {
@@ -1663,6 +1713,23 @@ const updateMediaVisibility = async (req: Request, res: Response, version: strin
 	}
 
 	logger.info(`updateMediaVisibility - Media visibility updated successfully`, "|", reqInfo.ip);
+
+	// Visibility belongs to the uploader, so this one is on them and not on any
+	// moderator. Audited all the same: it is the difference between a file being
+	// listed and not being listed.
+	await logAuditEvent({
+		eventtype: "visibility_changed",
+		origintable: "mediafiles",
+		originid: fileData[0].id,
+		actor: eventHeader.pubkey,
+		source: "user",
+		tenant: req.hostname,
+		pubkey: eventHeader.pubkey,
+		ip: reqInfo.ip,
+		filehash: fileData[0].original_hash || "",
+		previous_value: fileData[0].visibility,
+		new_value: req.params.visibility,
+	});
 
 	// Clear redis cache
 	await redisCore.del(fileData[0].filename + "-" + eventHeader.pubkey);
@@ -1736,7 +1803,7 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 	
 	logger.info(`deleteMedia - Request from:`, reqInfo.ip);
 
-	const selectedFile = await dbMultiSelect(	["id","filename", "hash"],
+	const selectedFile = await dbMultiSelect(	["id","filename", "hash", "original_hash"],
 												"mediafiles",
 												"pubkey = ? and (filename = ? OR original_hash = ? or id = ?)",
 												[eventHeader.pubkey, req.params.id, req.params.id, req.params.id],
@@ -1808,6 +1875,21 @@ const deleteMedia = async (req: Request, res: Response, version:string): Promise
 		res.setHeader("X-Reason", "Mediafile not found on database");
 		return res.status(404).send(result);
 	}
+
+	// The mediafiles row is gone, so this entry is the only trace left of the
+	// file. It carries the filename and both hashes for that reason.
+	await logAuditEvent({
+		eventtype: "deleted",
+		origintable: "mediafiles",
+		originid: fileid,
+		actor: eventHeader.pubkey,
+		source: "user",
+		tenant: req.hostname,
+		pubkey: eventHeader.pubkey,
+		ip: reqInfo.ip,
+		filehash: selectedFile[0].original_hash || "",
+		details: {filename: filename, hash: selectedFile[0].hash || "", storagedeleted: hashCount == '1'},
+	});
 
 	//v0 and v1 compatibility
 	if (version != "v2"){

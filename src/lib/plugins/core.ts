@@ -15,9 +15,9 @@ import { initRedis } from '../redis/client.js';
 const redisPlugins = await initRedis (1, false);
 
 // Config subtrees hidden from plugins. These carry credentials (session
-// signing secret, redis/database/storage/payments/lightning creds) or the
-// server's nostr private key. Anything not listed here is considered
-// public-ish config that a plugin may legitimately read.
+// signing secret, redis/database/storage/payments/lightning creds, the webhook
+// signing secret) or the server's nostr private key. Anything not listed here
+// is considered public-ish config that a plugin may legitimately read.
 const pluginConfigBlocklist: string[] = [
 	"session",
 	"redis",
@@ -25,6 +25,7 @@ const pluginConfigBlocklist: string[] = [
 	"storage",
 	"lightning",
 	"payments",
+	"notifications",
 	"server.secretKey",
 ];
 

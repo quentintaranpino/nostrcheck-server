@@ -9,7 +9,8 @@ import { getClientInfo } from "../security/ips.js";
 import { getDomainId } from "../security/domain.js";
 import { isEventValid } from "../nostr/core.js";
 import { storeEvents } from "../relay/database.js";
-import { dbUpdate } from "../database/core.js";
+import { dbMultiSelect, dbUpdate } from "../database/core.js";
+import { logAuditEvent } from "../audit/core.js";
 
 
 /**
@@ -66,7 +67,9 @@ const isBUD09ReportValid = async (reportEvent: Event, req: Request): Promise<Res
  * `eventtags` / `eventmetadata` tables (same store the relay uses for nostr
  * events) and, for any `csam`-typed `x` tag, immediately marks the matching
  * mediafile rows as `active = 0` so they stop being served until an admin
- * reviews them. Other report types are stored without taking action.
+ * reviews them. `csam` and `illegal` tags also leave a record in the
+ * `notifications` table and reach the operator through it. Other report types
+ * are stored without taking action.
  *
  * Duplicates of the same `event_id` are silently ignored (UNIQUE constraint
  * on `events.event_id`).
@@ -107,15 +110,58 @@ const saveBlobReport = async (reportEvent: Event, req: Request): Promise<boolean
 		const blobHash = tag[1].toLowerCase();
 		const tagType = tag[2] && BUD09_reportTypes.includes(tag[2]) ? tag[2] : "other";
 
+		if (tagType != "csam" && tagType != "illegal") continue;
+
+		// Rows are resolved before hiding them so the record says exactly which
+		// ones were affected, who uploaded them and what their state was.
+		let affected: any[] = [];
+		try {
+			affected = await dbMultiSelect(["id", "pubkey", "ip_address", "active"], "mediafiles", "original_hash = ?", [blobHash], false);
+		} catch (error) {
+			logger.error(`saveBlobReport - Cannot resolve mediafile rows for blob ${blobHash}: ${error}`);
+		}
+
 		if (tagType == "csam") {
 			try {
 				const updated = await dbUpdate("mediafiles", {"active": 0}, ["original_hash"], [blobHash]);
 				if (updated) {
 					logger.warn(`saveBlobReport - CSAM report received, auto-hid mediafile rows for blob ${blobHash} | reporter: ${reportEvent.pubkey} | ${getClientInfo(req).ip}`);
+
+					// The hide is a state change of its own, and the trail has to
+					// answer "who deactivated this file" without going through the
+					// report that caused it.
+					for (const row of affected) {
+						if (row.active == 0) continue;
+						await logAuditEvent({eventtype: "deactivated", origintable: "mediafiles", originid: row.id, actor: "system", source: "report", tenant: req.hostname, pubkey: row.pubkey || "", filehash: blobHash, previous_value: row.active, new_value: 0, reason: `Auto-hidden by a BUD-09 csam report from ${reportEvent.pubkey}`, details: {reporteventid: reportEvent.id}});
+					}
 				}
 			} catch (error) {
 				logger.error(`saveBlobReport - Failed to auto-hide CSAM-reported blob ${blobHash}: ${error}`);
 			}
+		}
+
+		const eventtype = tagType == "csam" ? "csam_report" : "illegal_report";
+		const action = tagType == "csam"
+			? (affected.length > 0 ? `${affected.length} mediafile row(s) hidden (active = 0)` : "nothing to hide, no mediafile row matched the blob")
+			: "none, report stored for review";
+		const details = {
+			reporttype: tagType,
+			reporterpubkey: reportEvent.pubkey,
+			reporterip: getClientInfo(req).ip,
+			reporteventid: reportEvent.id,
+			reportcontent: (reportEvent.content || "").substring(0, 500),
+			affectedrows: affected.length,
+		};
+
+		// The actor is the reporter, the pubkey and the ip belong to the uploader:
+		// the report is what happened, the file is what it happened to.
+		if (affected.length == 0) {
+			await logAuditEvent({eventtype: eventtype, origintable: "mediafiles", originid: "0", actor: reportEvent.pubkey, source: "report", tenant: req.hostname, pubkey: "", ip: "", filehash: blobHash, action: action, reason: `BUD-09 report type '${tagType}' on blob ${blobHash}`, details: details});
+			continue;
+		}
+
+		for (const row of affected) {
+			await logAuditEvent({eventtype: eventtype, origintable: "mediafiles", originid: row.id, actor: reportEvent.pubkey, source: "report", tenant: req.hostname, pubkey: row.pubkey || "", ip: row.ip_address || "", filehash: blobHash, action: action, reason: `BUD-09 report type '${tagType}' on blob ${blobHash}`, details: details});
 		}
 	}
 

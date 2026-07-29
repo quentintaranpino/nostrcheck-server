@@ -9,10 +9,10 @@ import { format, getCPUUsage, getNewDate } from "../lib/utils.js";
 import { ResultMessagev2, ServerStatusMessage, ServerUpdateMessage } from "../interfaces/server.js";
 import { generatePassword } from "../lib/authorization.js";
 import { dbDelete, dbInsert, dbMultiSelect, dbSimpleSelect, dbUpdate } from "../lib/database/core.js";
-import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames, moduleDataReturnMessage, moduleDataKeys, moduleDataIndex, mediaModerationFilters, mediaModerationStatus } from "../interfaces/admin.js";
+import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames, moduleDataReturnMessage, moduleDataKeys, moduleDataIndex, mediaModerationFilters, mediaModerationStatus, mediaModerationNsfwFields, notificationStatusRow } from "../interfaces/admin.js";
 import { parseAuthHeader} from "../lib/authorization.js";
 import { npubToHex } from "../lib/nostr/NIP19.js";
-import { dbCountModuleData, dbCountMonthModuleData, dbCountBucketModuleData, dbSelectModuleData, dbSelectMediaModerationData, dbSelectMediaModerationFacets } from "../lib/admin.js";
+import { dbCountModuleData, dbCountMonthModuleData, dbCountBucketModuleData, dbSelectModuleData, dbSelectMediaModerationData, dbSelectMediaModerationFacets, dbSelectNotificationStatusBulk } from "../lib/admin.js";
 import { getBalance, getUnpaidTransactionsBalance } from "../lib/payments/core.js";
 import { getModerationQueueLength, moderateFile } from "../lib/moderation/core.js";
 import { addNewUsername } from "../lib/register.js";
@@ -30,6 +30,7 @@ import { initRedis } from "../lib/redis/client.js";
 import { wss } from "../routes/relay.route.js";
 import { IpInfo } from "../interfaces/security.js";
 import { getLatestRelease, compareVersions } from "../lib/updater.js";
+import { AuditEvent } from "../interfaces/audit.js";
 
 const redisCore = await initRedis(0, false);
 
@@ -252,7 +253,13 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
         }
     }
 
-    let update; 
+    // Audit snapshot, taken before the write. This endpoint is the one the file
+    // viewer switches (Space / V / N) and the table toolbar buttons post to, so
+    // without this the fastest moderation path in the admin would leave no trace.
+    const singleEventType = table != "plugins" ? moderationEventType(req.body.field, req.body.value) : "";
+    const singleSnapshot = singleEventType !== "" ? await readModerationSnapshot(table, [req.body.field], [Number(req.body.id)]) : {};
+
+    let update;
     if (table == "plugins"){
         // Special case for plugins
         update = await setConfig(req.body.tenant, ["plugins", "list", req.body.id, "enabled"], Boolean(req.body.value));
@@ -261,6 +268,23 @@ const updateDBRecord = async (req: Request, res: Response): Promise<Response> =>
         update = await dbUpdate(table, { [req.body.field]: req.body.value }, ["id"], [req.body.id]);
     }
     if (update) {
+
+        if (singleEventType !== "") {
+            const before = singleSnapshot[String(req.body.id)];
+            await recordModerationEvent({
+                eventtype: singleEventType,
+                origintable: table,
+                originid: String(req.body.id),
+                actor: eventHeader.pubkey,
+                source: "admin",
+                tenant: req.hostname,
+                pubkey: before ? String(before.pubkey || "") : "",
+                ip: reqInfo.ip,
+                filehash: before ? String(before.original_hash || "") : "",
+                previous_value: before ? String(before[req.body.field]) : "",
+                new_value: String(req.body.value),
+            });
+        }
 
         // Create redis key if necessary
         if (redisTableIndex && req.body.field === redisTableIndex) {
@@ -621,7 +645,9 @@ const deleteDBRecord = async (req: Request, res: Response): Promise<Response> =>
     }
 
     // Unban the record if it was banned and delete it from banned redis cache.
-    await unbanEntity(req.body.id, table);
+    // Attributed too: the unban this triggers is an admin decision, not the
+    // server's own.
+    await unbanEntity(req.body.id, table, eventHeader.pubkey, "admin");
 
     // Delete record from table
     const deletedRecord = await dbDelete(table, ['id'], [req.body.id]);
@@ -1171,7 +1197,9 @@ const banDBRecord = async (req: Request, res: Response): Promise<Response> => {
         return res.status(400).send(result);
     }
 
-    const banResult = await banEntity(req.body.id, table, req.body.reason);
+    // Attribution: banEntity writes its own audit row, and without these it would
+    // be filed under "system" instead of the admin who pressed the button.
+    const banResult = await banEntity(req.body.id, table, req.body.reason, eventHeader.pubkey, "admin");
 
     if (banResult.status == "error") {
         logger.error(`banDBRecord - Failed to ban record`, "|", reqInfo.ip);
@@ -1182,6 +1210,129 @@ const banDBRecord = async (req: Request, res: Response): Promise<Response> => {
     return res.status(200).send({status: "success", message: banResult.message});
         
 }
+
+// The audit layer exports getNotificationStatusBulk(origintable, ids) from
+// lib/audit/core. The specifier is held in a variable so this compiles and runs
+// on installations where that module (or its table) isn't there yet: the import
+// fails, we fall back to the bridge reader, and the worst case is a gallery with
+// no notification badges.
+// Pending, once that layer settles its schema: read the delivery state only from
+// rows with notified = 1, or audit-only events would show up as "not notified".
+const auditCorePath = "../lib/audit/core.js";
+
+// Maps a moderation write to its audit event type. Fields that aren't moderation
+// decisions (comments, username, ...) return "" and are not recorded: the event
+// vocabulary is closed and inventing names would fragment the timeline.
+const moderationEventType = (field: string, value: string | number): string => {
+
+    const on = String(value) === "1";
+
+    switch (field) {
+        case "checked":    return on ? "checked_set" : "checked_unset";
+        case "active":     return on ? "activated" : "deactivated";
+        case "nsfw":       return on ? "nsfw_set" : "nsfw_unset";
+        case "visibility": return "visibility_changed";
+        default:           return "";
+    }
+};
+
+/**
+ * Reads the columns an audit entry needs before they are overwritten.
+ *
+ * previous_value has to be the value that was actually there. Taking it from the
+ * request would only record what the client asked for, which is the one thing we
+ * already know.
+ *
+ * @param table - Real table name.
+ * @param fields - Columns whose previous value matters.
+ * @param ids - Rows about to change.
+ * @returns Map of row id to its pre-update row, empty when it can't be read.
+ */
+const readModerationSnapshot = async (table: string, fields: string[], ids: number[]): Promise<Record<string, Record<string, unknown>>> => {
+
+    const snapshot: Record<string, Record<string, unknown>> = {};
+    if (ids.length === 0 || fields.length === 0) return snapshot;
+
+    // pubkey and the hash make the trail answerable by uploader and by blob, and
+    // they cost nothing here since the row is already being read.
+    const extra = table === "mediafiles" ? ["pubkey", "original_hash"] : [];
+
+    try {
+        const rows = await dbMultiSelect(["id", ...fields, ...extra],
+                                        table,
+                                        `id IN (${ids.map(() => "?").join(",")})`,
+                                        ids,
+                                        false);
+        for (const row of rows) snapshot[String(row.id)] = row;
+    } catch (error) {
+        logger.error(`readModerationSnapshot - Could not read the previous values of ${table}: ${error}`);
+    }
+
+    return snapshot;
+};
+
+/**
+ * Records one moderation change in the audit log.
+ *
+ * A logging failure never aborts the moderation that was already applied, but a
+ * change with no trace is exactly what this exists to prevent, so every miss is
+ * written to the application log.
+ *
+ * @param event - The audit event to record.
+ */
+const recordModerationEvent = async (event: AuditEvent): Promise<void> => {
+
+    try {
+        const auditCore = await import(auditCorePath);
+        if (typeof auditCore.logAuditEvent !== "function") {
+            logger.warn(`recordModerationEvent - audit core exports no logAuditEvent, ${event.eventtype} on ${event.origintable}:${event.originid} goes unrecorded`);
+            return;
+        }
+        const result = await auditCore.logAuditEvent(event);
+        if (result && result.status === "error") {
+            logger.error(`recordModerationEvent - Could not record ${event.eventtype} on ${event.origintable}:${event.originid}: ${result.message}`);
+        }
+    } catch (error) {
+        logger.error(`recordModerationEvent - Could not record ${event.eventtype} on ${event.origintable}:${event.originid}: ${error}`);
+    }
+};
+
+const normaliseNotificationStatus = (bulk: Record<string, unknown>): Record<string, notificationStatusRow> => {
+
+    const result: Record<string, notificationStatusRow> = {};
+
+    for (const [key, value] of Object.entries(bulk)) {
+        if (!value || typeof value !== "object") continue;
+        const row = value as Partial<notificationStatusRow>;
+        result[key] = {
+            id: Number(row.id) || 0,
+            status: String(row.status || ""),
+            attempts: Number(row.attempts) || 0,
+            lasterror: String(row.lasterror || ""),
+        };
+    }
+
+    return result;
+};
+
+const getNotificationStatus = async (origintable: string, ids: number[]): Promise<Record<string, notificationStatusRow>> => {
+
+    try {
+        const auditCore = await import(auditCorePath);
+        if (typeof auditCore.getNotificationStatusBulk === "function") {
+            const bulk = await auditCore.getNotificationStatusBulk(origintable, ids);
+            // The contract only promises "a map by id", so take either a Map or
+            // a plain object and coerce the fields we render.
+            if (bulk instanceof Map) return normaliseNotificationStatus(Object.fromEntries(bulk));
+            if (bulk && typeof bulk === "object") return normaliseNotificationStatus(bulk);
+        }
+        logger.debug(`getNotificationStatus - audit core exports no getNotificationStatusBulk, falling back to the bridge reader`);
+    } catch (error) {
+        logger.debug(`getNotificationStatus - audit core not available, falling back to the bridge reader`);
+    }
+
+    return await dbSelectNotificationStatusBulk(origintable, ids);
+};
 
 /**
  * Retrieves a page of media files for the moderation gallery.
@@ -1241,6 +1392,28 @@ const getMediaModerationData = async (req: Request, res: Response): Promise<Resp
     const order = typeof req.query.order === "string" ? req.query.order : "DESC";
 
     const data = await dbSelectMediaModerationData(filters, cursor, limit, order);
+
+    // Notification state for the page, in one lookup instead of one per tile.
+    const notifications = await getNotificationStatus("mediafiles", data.rows.map(row => Number(row.id)));
+
+    // A manual retry writes the auditlog row by id. The audit layer's status map
+    // now carries that id, so this normally resolves nothing; it stays as the
+    // safety net for any reader that doesn't supply one, and it only asks about
+    // rows that could actually be retried (almost none in a healthy queue).
+    const pendingRetry = Object.keys(notifications).filter(key => {
+        const status = notifications[key].status;
+        return notifications[key].id === 0 && status !== "" && status !== "sent";
+    });
+    if (pendingRetry.length > 0) {
+        const retryTargets = await dbSelectNotificationStatusBulk("mediafiles", pendingRetry.map(key => Number(key)));
+        for (const key of pendingRetry) {
+            if (retryTargets[key] && retryTargets[key].id > 0) notifications[key].id = retryTargets[key].id;
+        }
+    }
+
+    for (const row of data.rows) {
+        row.notification = notifications[String(row.id)] || null;
+    }
 
     // Facets are only worth a couple of GROUP BY scans when the toolbar asks
     // for them (first load and whenever the status bucket changes).
@@ -1336,14 +1509,79 @@ const bulkModerateRecords = async (req: Request, res: Response): Promise<Respons
             return res.status(400).send({"status": "error", "message": "Reason cannot be empty"});
         }
 
+        // banEntity / unbanEntity record their own audit event, so the only thing
+        // needed here is the attribution: without actor and source the ban would
+        // land in the log as "system".
         for (const id of ids) {
-            const result = String(value) === "1" ? await banEntity(id, table, req.body.reason) : await unbanEntity(id, table);
+            const result = String(value) === "1"
+                            ? await banEntity(id, table, req.body.reason, eventHeader.pubkey, "admin")
+                            : await unbanEntity(id, table, eventHeader.pubkey, "admin");
             if (result.status === "error") {
                 logger.warn(`bulkModerateRecords - Failed to ban record ${id}: ${result.message}`, "|", reqInfo.ip);
                 failed.push(id);
                 continue;
             }
             processed++;
+        }
+
+    } else if (field === "nsfw") {
+
+        // nsfw is a real column, but it is never written alone: flagging a file
+        // is a review decision, so checked goes to 1 with it. Both in a single
+        // UPDATE per row (dbUpdate builds one SET) so the pair can't come apart
+        // halfway through a 200 file batch. visibility is left alone on purpose,
+        // that switch belongs to the uploader.
+        if (String(value) !== "0" && String(value) !== "1") {
+            logger.error(`bulkModerateRecords - Invalid value for nsfw field`, "|", reqInfo.ip);
+            return res.status(400).send({"status": "error", "message": "Invalid value for nsfw field"});
+        }
+
+        // Only mediafiles carries these columns.
+        if (table !== "mediafiles") {
+            logger.warn(`bulkModerateRecords - nsfw is only available for media files, table: ${table}`, "|", reqInfo.ip);
+            return res.status(400).send({"status": "error", "message": "nsfw is only available for media files"});
+        }
+
+        const nsfwFields = mediaModerationNsfwFields[String(value)];
+
+        // Same allowlist gate the plain field path goes through, applied to each
+        // of the two columns this action writes.
+        for (const [nsfwField, nsfwValue] of Object.entries(nsfwFields)) {
+            const nsfwRule = allowedFieldNamesAndValues.find(e => e.field === nsfwField);
+            const nsfwAllowedValues = (nsfwRule?.values || []) as (string | number)[];
+            if (!allowedFieldNames.includes(nsfwField) || !nsfwRule || !nsfwAllowedValues.includes(nsfwValue)) {
+                logger.warn(`bulkModerateRecords - nsfw would write a field that is not allowed: ${nsfwField}`, "|", reqInfo.ip);
+                return res.status(400).send({"status": "error", "message": "Invalid field name"});
+            }
+        }
+
+        // Read before writing: the flag each row had is the previous_value.
+        const snapshot = await readModerationSnapshot(table, ["nsfw"], ids);
+
+        for (const id of ids) {
+            const update = await dbUpdate(table, { ...nsfwFields }, ["id"], [id]);
+            if (!update) {
+                logger.warn(`bulkModerateRecords - Failed to update record ${id}`, "|", reqInfo.ip);
+                failed.push(id);
+                continue;
+            }
+            processed++;
+
+            const before = snapshot[String(id)];
+            await recordModerationEvent({
+                eventtype: moderationEventType("nsfw", value),
+                origintable: table,
+                originid: String(id),
+                actor: eventHeader.pubkey,
+                source: "admin",
+                tenant: req.hostname,
+                pubkey: before ? String(before.pubkey || "") : "",
+                ip: reqInfo.ip,
+                filehash: before ? String(before.original_hash || "") : "",
+                previous_value: before ? String(before.nsfw) : "",
+                new_value: String(nsfwFields.nsfw),
+                reason: req.body.reason || "",
+            });
         }
 
     } else {
@@ -1366,13 +1604,21 @@ const bulkModerateRecords = async (req: Request, res: Response): Promise<Respons
             return res.status(400).send({"status": "error", "message": field + " cannot be empty."});
         }
 
-        // Flag fields only accept their declared values.
+        // Flag fields only accept their declared values. Those can be numbers
+        // (0/1 switches) or a set of strings (auditlog.status), so check both
+        // forms before rejecting.
         const fieldRule = allowedFieldNamesAndValues.find(e => e.field === field);
         const allowedValues = (fieldRule?.values || []) as (string | number)[];
-        if (fieldRule && !allowedValues.includes("string") && !allowedValues.includes("number") && !allowedValues.includes(Number(value))) {
+        const freeform = allowedValues.includes("string") || allowedValues.includes("number");
+        if (fieldRule && !freeform && !allowedValues.includes(Number(value)) && !allowedValues.includes(String(value))) {
             logger.warn(`bulkModerateRecords - Invalid value for field ${field}: ${value}`, "|", reqInfo.ip);
             return res.status(400).send({"status": "error", "message": `Invalid value for field ${field}`});
         }
+
+        // Only moderation flags produce an audit event; the snapshot is skipped
+        // entirely for anything else.
+        const eventtype = moderationEventType(field, value);
+        const snapshot = eventtype !== "" ? await readModerationSnapshot(table, [field], ids) : {};
 
         for (const id of ids) {
             const update = await dbUpdate(table, { [field]: value }, ["id"], [id]);
@@ -1382,6 +1628,23 @@ const bulkModerateRecords = async (req: Request, res: Response): Promise<Respons
                 continue;
             }
             processed++;
+
+            if (eventtype === "") continue;
+            const before = snapshot[String(id)];
+            await recordModerationEvent({
+                eventtype,
+                origintable: table,
+                originid: String(id),
+                actor: eventHeader.pubkey,
+                source: "admin",
+                tenant: req.hostname,
+                pubkey: before ? String(before.pubkey || "") : "",
+                ip: reqInfo.ip,
+                filehash: before ? String(before.original_hash || "") : "",
+                previous_value: before ? String(before[field]) : "",
+                new_value: String(value),
+                reason: req.body.reason || "",
+            });
         }
 
         // Same cache refresh updateDBRecord does for the ips table.
@@ -1402,7 +1665,7 @@ const bulkModerateRecords = async (req: Request, res: Response): Promise<Respons
         return res.status(500).send({"status": "error", "message": `Failed to update ${ids.length} records`, "processed": 0, "failed": failed});
     }
 
-    logger.info(`bulkModerateRecords - ${field} set to ${field === "banned" ? value : value} on ${processed} records from ${req.body.table}, ${failed.length} failed`, "|", reqInfo.ip);
+    logger.info(`bulkModerateRecords - ${field} set to ${value} on ${processed} records from ${req.body.table}, ${failed.length} failed`, "|", reqInfo.ip);
     return res.status(200).send({
         status: "success",
         message: failed.length === 0 ? `${processed} records updated succesfully` : `${processed} records updated, ${failed.length} failed`,

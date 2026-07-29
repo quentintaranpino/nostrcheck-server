@@ -300,6 +300,46 @@ const fixOldMimeType = async (): Promise<boolean> => {
 	}
 }
 
+/**
+ * Backfills the nsfw flag for installations that predate the column.
+ *
+ * Before the flag existed, "reviewed but not in the shop window" was expressed
+ * as checked = 1 AND visibility = 0, so that pair is what becomes nsfw = 1.
+ *
+ * visibility is deliberately left untouched. Some of those files are hidden
+ * because the uploader hid them from their own client (PUT /media/:id/visibility/0),
+ * and flipping them back to visible would be overriding a user's preference
+ * without being asked. The new flag already produces the intended effect on its
+ * own, so the old value can simply stay as it is.
+ *
+ * Idempotent: the WHERE excludes rows that already carry the flag, so a second
+ * boot updates nothing.
+ */
+const backfillNsfwFlag = async (): Promise<boolean> => {
+
+	const { connect } = await import("./core.js");
+	const pool = await connect("backfillNsfwFlag");
+	try {
+		const [dbNsfwUpdate] = await pool.execute(
+			`UPDATE mediafiles
+			SET nsfw = 1
+			WHERE nsfw <> 1
+			AND checked = 1
+			AND visibility = 0`
+		);
+		if (!dbNsfwUpdate) {
+			logger.error(`backfillNsfwFlag - Error backfilling the nsfw flag on mediafiles table`);
+			return false;
+		}
+		const result = dbNsfwUpdate as any as { affectedRows: number };
+		if (result.affectedRows > 0) logger.info(`backfillNsfwFlag - Flagged ${result.affectedRows} file(s) as nsfw from the old checked + not visible pair`);
+		return true;
+	} catch (error) {
+		logger.error(`backfillNsfwFlag - Error backfilling the nsfw flag on mediafiles table with error: ${error}`);
+		return false;
+	}
+}
+
 const initDatabase = async (): Promise<void> => {
 
 	//Check database integrity
@@ -388,6 +428,12 @@ const initDatabase = async (): Promise<void> => {
 		logger.error(`initDatabase - Error fixing old mimetype for mediafiles table. Exiting.`);
 		process.exit(1);
 	}
+
+	// Backfill the nsfw flag. Runs after populateTables created the column, and
+	// doesn't take the server down if it fails: the flag stays at its default and
+	// the operator gets an error in the log, which beats refusing to boot.
+	const backfillNsfw = await backfillNsfwFlag();
+	if (!backfillNsfw) logger.error(`initDatabase - Error backfilling the nsfw flag for mediafiles table, moderation flags may be incomplete`);
 
 	// Insert default media types if table is empty
     const { dbMultiSelect } = await import("./core.js");

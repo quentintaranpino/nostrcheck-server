@@ -1,0 +1,162 @@
+<%
+  const cfg = locals.domainConfig?.notifications || {};
+  const globalCfg = locals.globalConfig?.notifications || {};
+  const cfgWebhook = cfg.webhook || {};
+  const globalWebhook = globalCfg.webhook || {};
+  const cfgEvents = cfg.events || {};
+  const globalEvents = globalCfg.events || {};
+  const cfgReporter = cfg.reporter || {};
+  const globalReporter = globalCfg.reporter || {};
+%>
+<div id="settingsNotifications">
+  <h3 class="mt-4">Notifications</h3>
+  <form class="form mx-auto">
+    <p>
+      Every state change in the life of a file or a user (uploads, classifier verdicts, checked, active, nsfw, visibility,
+      bans, deletions, blob reports) is written to the <b>auditlog</b> table with the actor, the source, the value it went
+      from and to, the file hash, the IP and the UTC time it happened. That table is always written and is not affected by
+      anything on this page.
+    </p>
+    <p>
+      What this page configures is which of those events also have to reach you, and where. Four of them are worth waking
+      somebody up for; the rest stay in the table until you go looking for them.
+    </p>
+
+    <%- include('field', {
+      type: "checkbox",
+      name: "notifications.enabled",
+      label: "Enable notifications",
+      description: "Master switch for outbound notices. The audit log keeps being written either way, this only decides whether anything leaves the server.",
+      value: cfg.enabled,
+      globalValue: globalCfg.enabled,
+      overridable: false
+    }) %>
+
+    <%- include('field', {
+      type: "text",
+      name: "notifications.webhook.url",
+      label: "Webhook URL",
+      description: "Endpoint that receives the notification as a JSON POST. Leave empty to only keep the record in the database.",
+      value: cfgWebhook.url,
+      globalValue: globalWebhook.url,
+      overridable: false,
+      placeholder: "https://your-endpoint.example/incidents"
+    }) %>
+
+    <%- include('field', {
+      type: "password",
+      name: "notifications.webhook.secret",
+      label: "Webhook secret",
+      description: "Shared secret used to sign the body with HMAC-SHA256. The receiver gets the digest in the X-Nostrcheck-Signature header and can verify the notice came from this server.",
+      value: cfgWebhook.secret,
+      globalValue: globalWebhook.secret,
+      overridable: false
+    }) %>
+
+    <%- include('field', {
+      type: "number",
+      name: "notifications.timeout",
+      label: "Timeout (ms)",
+      description: "Maximum time to wait for the webhook to answer.",
+      value: cfg.timeout,
+      globalValue: globalCfg.timeout,
+      overridable: false
+    }) %>
+
+    <%- include('field', {
+      type: "number",
+      name: "notifications.retries",
+      label: "Retries",
+      description: "Delivery attempts before a notification is marked as failed. Retries use an exponential backoff.",
+      value: cfg.retries,
+      globalValue: globalCfg.retries,
+      overridable: false
+    }) %>
+
+    <%- include('field', {
+      type: "number",
+      name: "notifications.dedupeWindow",
+      label: "Deduplication window (seconds)",
+      description: "The same incident on the same record is only recorded once inside this window.",
+      value: cfg.dedupeWindow,
+      globalValue: globalCfg.dedupeWindow,
+      overridable: false
+    }) %>
+
+    <%- include('field', {
+      type: "number",
+      name: "notifications.maxPerMinute",
+      label: "Max notifications per minute",
+      description: "Ceiling for outbound notifications. Recording is never throttled: anything over the limit stays pending and is sent by the periodic sweep.",
+      value: cfg.maxPerMinute,
+      globalValue: globalCfg.maxPerMinute,
+      overridable: false
+    }) %>
+
+    <h4 class="mt-5">Notified events</h4>
+    <p>
+      Turning one off stops the notice, not the record: the event still goes into the audit log.
+    </p>
+
+    <%- include('field', {
+      type: "checkbox",
+      name: "notifications.events.csam_report",
+      label: "CSAM blob report (BUD-09)",
+      description: "A blob was reported with a csam tag. The blob is hidden automatically; this is the most urgent of the four.",
+      value: cfgEvents.csam_report,
+      globalValue: globalEvents.csam_report,
+      overridable: false
+    }) %>
+
+    <%- include('field', {
+      type: "checkbox",
+      name: "notifications.events.illegal_report",
+      label: "Illegal blob report (BUD-09)",
+      description: "A blob was reported with an illegal tag. Stored for review, not hidden automatically.",
+      value: cfgEvents.illegal_report,
+      globalValue: globalEvents.illegal_report,
+      overridable: false
+    }) %>
+
+    <%- include('field', {
+      type: "checkbox",
+      name: "notifications.events.banned_hash_reupload",
+      label: "Banned hash upload attempt",
+      description: "Someone tried to upload a file whose SHA-256 is already banned.",
+      value: cfgEvents.banned_hash_reupload,
+      globalValue: globalEvents.banned_hash_reupload,
+      overridable: false
+    }) %>
+
+    <%- include('field', {
+      type: "checkbox",
+      name: "notifications.events.banned",
+      label: "Ban executed",
+      description: "A file, user or event was banned. IP bans are audited but never notified: the abuse autoban would flood the channel.",
+      value: cfgEvents.banned,
+      globalValue: globalEvents.banned,
+      overridable: false
+    }) %>
+
+    <h4 class="mt-5">External reporting</h4>
+
+    <%- include('field', {
+      type: "checkbox",
+      name: "notifications.reporter.enabled",
+      label: "Report to an external authority",
+      description: "Placeholder for authority reporting (NCMEC CyberTipline and the like). There is no implementation behind it: filing a real report requires prior registration as an Electronic Service Provider and human review, it is not something a classifier or a stranger's report tag decides. Leave it off.",
+      value: cfgReporter.enabled,
+      globalValue: globalReporter.enabled,
+      overridable: false,
+      alert: {
+        type: "info",
+        icon: "fa-circle-info",
+        message: "Not implemented. Enabling it only exercises the contract, no report leaves the server."
+      }
+    }) %>
+
+    <div class="col-12 col-md-3 mb-5 mt-4 pb-5 pb-lg-0 mb-lg-2">
+      <button class="btn btn-lg mb-4 btn-primary w-100" name="Submit" type="button" onclick="saveSettings()">Save</button>
+    </div>
+  </form>
+</div>

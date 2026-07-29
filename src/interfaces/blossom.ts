@@ -47,6 +47,10 @@ interface BlobDescriptor extends ResultMessagev2{
     dim: string;
     payment_request?: string;
     visibility?: number;
+    // Extra field, same as visibility. Public listings never carry nsfw blobs, so
+    // this only ever reads 1 on the owner's own listing, which is exactly who
+    // needs to know.
+    nsfw?: number;
 }
 
 

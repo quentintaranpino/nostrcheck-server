@@ -9,14 +9,20 @@ const modTriggerTabId = typeof triggerTabId !== 'undefined' ? triggerTabId : '';
 <div id="moderationGallery" class="mt-2">
 
   <h3 class="mt-4 mb-2 display-5 gradient-text">Moderation gallery</h3>
-  <p>Thumbnail triage for the hosted files queue. Every card carries its own checked, active and ban buttons; select several to apply one action to the lot.</p>
+  <p class="mb-1">Thumbnail triage for the hosted files queue. Every card carries its own checked, NSFW, active and ban buttons; select several to apply one action to the lot.</p>
+  <p class="small text-secondary">
+    <strong>NSFW</strong> marks a file as reviewed and drops it from the public listings (gallery, home feed, search).
+    It does <strong>not</strong> make the file private: anyone holding the direct URL can still download it.
+    Deactivate or ban the file if you need it gone.
+  </p>
 
   <div class="row g-2 align-items-end">
     <div class="col-12 col-md-3 col-lg-2">
       <label for="moderationGallery-status" class="form-label mb-1">Status</label>
       <select id="moderationGallery-status" class="form-select form-select-sm">
         <option value="pending" selected>Pending review</option>
-        <option value="checked">Checked</option>
+        <option value="checked">Checked (NSFW included)</option>
+        <option value="nsfw">NSFW (hidden from listings)</option>
         <option value="active">Active</option>
         <option value="inactive">Inactive</option>
         <option value="banned">Banned</option>
@@ -45,9 +51,9 @@ const modTriggerTabId = typeof triggerTabId !== 'undefined' ? triggerTabId : '';
     <div class="col-6 col-md-2 col-lg-1">
       <label for="moderationGallery-size" class="form-label mb-1">Tiles</label>
       <select id="moderationGallery-size" class="form-select form-select-sm">
-        <option value="110">S</option>
-        <option value="150" selected>M</option>
-        <option value="210">L</option>
+        <option value="150">S</option>
+        <option value="200" selected>M</option>
+        <option value="280">L</option>
       </select>
     </div>
     <div class="col-6 col-md-2 col-lg-1">
@@ -55,18 +61,28 @@ const modTriggerTabId = typeof triggerTabId !== 'undefined' ? triggerTabId : '';
     </div>
   </div>
 
-  <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
+  <div class="d-flex flex-wrap align-items-center gap-3 mt-3">
     <button id="moderationGallery-select-all" class="btn btn-outline-secondary btn-sm" type="button">Select all loaded</button>
     <button id="moderationGallery-select-none" class="btn btn-outline-secondary btn-sm" type="button">Clear selection</button>
+    <div class="form-check form-switch mb-0">
+      <input class="form-check-input" type="checkbox" role="switch" id="moderationGallery-autoplay" checked>
+      <label class="form-check-label small" for="moderationGallery-autoplay" title="Plays the videos in view, muted and looping. Files over 15 MB never autoplay, open them in the viewer instead.">Autoplay video</label>
+    </div>
+    <div class="form-check form-switch mb-0">
+      <input class="form-check-input" type="checkbox" role="switch" id="moderationGallery-safetyblur">
+      <label class="form-check-label small" for="moderationGallery-safetyblur" title="Blurs everything not reviewed yet. Hover a card to reveal it. Handy while sharing your screen.">Blur unreviewed</label>
+    </div>
     <span id="moderationGallery-counter" class="text-secondary small ms-auto"></span>
   </div>
 
   <div id="moderationGallery-bulkbar" class="mod-bulkbar d-none">
     <span id="moderationGallery-bulkcount" class="fw-bold me-2"></span>
     <button id="moderationGallery-bulk-checked" class="btn btn-success btn-sm" type="button"><i class="fa-solid fa-check-circle me-1"></i>Mark checked</button>
+    <button id="moderationGallery-bulk-nsfw" class="btn btn-sm mod-btn-nsfw" type="button" title="Checked + hidden from public listings. Still reachable by direct URL."><i class="fa-solid fa-mask me-1"></i>Mark NSFW</button>
     <button id="moderationGallery-bulk-enable" class="btn btn-primary btn-sm" type="button"><i class="fa-solid fa-eye me-1"></i>Activate</button>
     <button id="moderationGallery-bulk-disable" class="btn btn-warning btn-sm" type="button"><i class="fa-solid fa-eye-slash me-1"></i>Deactivate</button>
     <button id="moderationGallery-bulk-ban" class="btn btn-danger btn-sm" type="button"><i class="fa-solid fa-triangle-exclamation me-1"></i>Ban</button>
+    <button id="moderationGallery-bulk-retry" class="btn btn-info btn-sm" type="button" title="Put pending or failed notifications for the selection back in the queue"><i class="fa-solid fa-paper-plane me-1"></i>Retry notification</button>
     <button id="moderationGallery-bulk-close" class="btn btn-outline-light btn-sm ms-1" type="button" title="Clear selection"><i class="fa-solid fa-xmark"></i></button>
   </div>
 
@@ -87,7 +103,7 @@ const modTriggerTabId = typeof triggerTabId !== 'undefined' ? triggerTabId : '';
 <style>
   .mod-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(var(--mod-tile, 150px), 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(var(--mod-tile, 200px), 1fr));
     gap: 6px;
   }
   .mod-tile {
@@ -102,22 +118,28 @@ const modTriggerTabId = typeof triggerTabId !== 'undefined' ? triggerTabId : '';
   }
   .mod-tile.is-pending  { border-color: #ffc107; }
   .mod-tile.is-checked  { border-color: #198754; }
+  .mod-tile.is-nsfw     { border-color: #d63384; }
   .mod-tile.is-banned   { border-color: #dc3545; }
   .mod-tile.is-selected { outline: 3px solid #a575ff; outline-offset: -3px; }
   .mod-tile.is-leaving  { opacity: 0; }
+  /* Busy dims, never blurs: a blur left behind by a hung request would hide the
+     very thing the operator is judging. */
   .mod-tile.is-busy     { pointer-events: none; }
-  .mod-tile.is-busy .mod-media { filter: blur(2px); }
+  .mod-tile.is-busy .mod-media { opacity: 0.45; }
 
   .mod-tile .mod-media {
     display: block;
     width: 100%;
     height: 100%;
     object-fit: cover;
+    position: relative;
+    z-index: 1;
   }
-  .mod-tile.is-inactive .mod-media { opacity: 0.35; filter: grayscale(1); }
   .mod-tile img.mod-media { opacity: 0; transition: opacity 0.25s ease; }
   .mod-tile img.mod-media.is-loaded { opacity: 1; }
-  .mod-tile.is-inactive img.mod-media.is-loaded { opacity: 0.35; }
+
+  /* The placeholder only exists while the image is in flight: the canvas is
+     removed from the DOM on load, so no thumbnail can stay blurred for good. */
   .mod-tile canvas.mod-placeholder {
     position: absolute;
     inset: 0;
@@ -125,7 +147,10 @@ const modTriggerTabId = typeof triggerTabId !== 'undefined' ? triggerTabId : '';
     height: 100%;
     z-index: 0;
   }
-  .mod-tile img.mod-media { position: relative; z-index: 1; }
+
+  /* Opt-in safety blur, off by default: moderating means looking at the file. */
+  .mod-grid.mod-safety-blur .mod-tile.is-pending .mod-media { filter: blur(14px); }
+  .mod-grid.mod-safety-blur .mod-tile.is-pending:hover .mod-media { filter: none; }
 
   .mod-fallback {
     width: 100%;
@@ -144,10 +169,10 @@ const modTriggerTabId = typeof triggerTabId !== 'undefined' ? triggerTabId : '';
   }
   .mod-fallback i { font-size: 1.6rem; }
   .mod-fallback .mod-fallback-label {
-    font-size: 0.62rem;
-    line-height: 1.1;
+    font-size: 0.68rem;
+    line-height: 1.15;
     word-break: break-all;
-    opacity: 0.85;
+    opacity: 0.9;
   }
   .mod-play {
     position: absolute;
@@ -156,11 +181,13 @@ const modTriggerTabId = typeof triggerTabId !== 'undefined' ? triggerTabId : '';
     align-items: center;
     justify-content: center;
     color: #fff;
-    font-size: 1.6rem;
+    font-size: 1.8rem;
     text-shadow: 0 0 6px rgba(0,0,0,0.8);
     z-index: 2;
     pointer-events: none;
   }
+  /* Once the stream is running the play hint gets out of the way. */
+  .mod-tile.is-playing .mod-play { display: none; }
 
   .mod-check {
     position: absolute;
@@ -175,21 +202,52 @@ const modTriggerTabId = typeof triggerTabId !== 'undefined' ? triggerTabId : '';
     top: 2px;
     right: 2px;
     display: flex;
-    gap: 2px;
+    align-items: center;
+    gap: 3px;
     z-index: 4;
     font-size: 0.7rem;
   }
   .mod-badges i {
-    background: rgba(0,0,0,0.55);
+    background: rgba(0,0,0,0.6);
     border-radius: 3px;
     padding: 2px 3px;
   }
+  .mod-chip {
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    line-height: 1;
+    padding: 3px 4px;
+    border-radius: 3px;
+    color: #fff;
+  }
+  .mod-chip-nsfw { background: #d63384; }
+  .mod-chip-off  { background: #cc8a00; }
+  .mod-chip-big  { background: #495057; }
+  /* Notification state keeps its own language (envelopes, blue) so it never
+     reads as a moderation flag. A failed delivery pulses: it means the operator
+     thinks somebody was warned and nobody was. */
+  .mod-chip-failed {
+    background: #0d6efd;
+    box-shadow: 0 0 0 2px rgba(13,110,253,0.45);
+    animation: mod-notify-pulse 1.6s ease-in-out infinite;
+  }
+  .mod-badges i.mod-notify { background: rgba(0,0,0,0.6); }
+  @keyframes mod-notify-pulse {
+    0%, 100% { box-shadow: 0 0 0 2px rgba(13,110,253,0.15); }
+    50%      { box-shadow: 0 0 0 4px rgba(13,110,253,0.65); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .mod-chip-failed { animation: none; }
+  }
+
   .mod-actions {
     position: absolute;
     bottom: 0;
     left: 0;
     right: 0;
     display: flex;
+    flex-wrap: wrap;
     justify-content: center;
     gap: 3px;
     padding: 3px;
@@ -198,9 +256,16 @@ const modTriggerTabId = typeof triggerTabId !== 'undefined' ? triggerTabId : '';
   }
   .mod-actions .btn {
     --bs-btn-padding-y: 0.05rem;
-    --bs-btn-padding-x: 0.3rem;
+    --bs-btn-padding-x: 0.25rem;
     --bs-btn-font-size: 0.7rem;
   }
+  .mod-btn-nsfw {
+    background: #d63384;
+    border-color: #d63384;
+    color: #fff;
+  }
+  .mod-btn-nsfw:hover { background: #b02a6c; border-color: #b02a6c; color: #fff; }
+
   .mod-spin {
     position: absolute;
     inset: 0;
@@ -250,6 +315,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const pageSize = 60;
     const batchSize = 200;
 
+    // Video guardrails. The queue holds ~7k videos averaging 4.5 MB with a long
+    // tail into the hundreds of MB, so autoplay is capped both ways: at most
+    // maxConcurrentVideos streams at a time, and anything fatter than
+    // autoplayMaxBytes never streams inside the grid at all.
+    const maxConcurrentVideos = 6;
+    const autoplayMaxBytes = 15 * 1024 * 1024;
+    const storeAutoplay = 'moderationGalleryAutoplay';
+    const storeSafetyBlur = 'moderationGallerySafetyBlur';
+
     const state = {
         status: 'pending',
         mimetype: '',
@@ -260,9 +334,14 @@ document.addEventListener('DOMContentLoaded', () => {
         exhausted: false,
         started: false,
         needFacets: true,
+        autoplay: true,
         aborter: null,
         rows: new Map(),        // id -> row data
         selected: new Set(),    // ids
+        videosInView: new Set(),
+        videosPlaying: new Set(),
+        videoObserver: null,
+        scrollScheduled: false,
     };
 
     const el = {
@@ -276,6 +355,8 @@ document.addEventListener('DOMContentLoaded', () => {
         refresh: document.getElementById('moderationGallery-refresh'),
         selectAll: document.getElementById('moderationGallery-select-all'),
         selectNone: document.getElementById('moderationGallery-select-none'),
+        autoplay: document.getElementById('moderationGallery-autoplay'),
+        safetyBlur: document.getElementById('moderationGallery-safetyblur'),
         counter: document.getElementById('moderationGallery-counter'),
         bulkbar: document.getElementById('moderationGallery-bulkbar'),
         bulkcount: document.getElementById('moderationGallery-bulkcount'),
@@ -328,13 +409,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const isFlagOn = (value) => Number(value) === 1;
 
+    // Its own column. Independent from visibility, which stays the uploader's.
+    const isNsfw = (row) => isFlagOn(row.nsfw);
+
+    // Delivery state of the notifiable events of this file, as reported by the
+    // audit layer. null / absent means "no information", which is what an install
+    // without the auditlog table gets, and also what an audit-only file gets.
+    const notificationOf = (row) => (row.notification && row.notification.status) ? row.notification : null;
+    const isRetryable = (row) => {
+        const notification = notificationOf(row);
+        return notification !== null && notification.status !== 'sent' && Number(notification.id) > 0;
+    };
+
     // A row stops belonging to the current view when the action just taken
     // pushes it out of the status filter. Dropping the tile is the feedback:
     // the queue visibly shrinks as you work through it.
+    // Mirrors mediaModerationWhere on the server, including its two overlaps: a
+    // banned file is no longer pending, and "checked" still holds the nsfw ones
+    // (the badge is what tells them apart).
     const matchesStatus = (row) => {
         switch (state.status) {
-            case 'pending':  return !isFlagOn(row.checked);
+            case 'pending':  return !isFlagOn(row.checked) && !isFlagOn(row.banned);
             case 'checked':  return isFlagOn(row.checked);
+            case 'nsfw':     return isNsfw(row);
             case 'active':   return isFlagOn(row.active);
             case 'inactive': return !isFlagOn(row.active);
             case 'banned':   return isFlagOn(row.banned);
@@ -360,22 +457,145 @@ document.addEventListener('DOMContentLoaded', () => {
         el.grid.querySelectorAll('canvas.mod-placeholder[data-bh]').forEach(c => paintBlurhash(c, c.dataset.bh));
     });
 
+    // ------------------------------------------------------------------ video
+
+    const startVideo = (video) => {
+        if (!video.isConnected) return;
+        if (!video.getAttribute('src')) video.setAttribute('src', video.dataset.src || '');
+        state.videosPlaying.add(video);
+        video.closest('.mod-tile')?.classList.add('is-playing');
+        const played = video.play();
+        if (played && typeof played.catch === 'function') played.catch(() => {});
+    };
+
+    // Pausing is not enough, the browser keeps pulling the rest of the file.
+    // Dropping the src and calling load() is what actually aborts the transfer
+    // and releases what was buffered.
+    const stopVideo = (video) => {
+        state.videosPlaying.delete(video);
+        video.closest('.mod-tile')?.classList.remove('is-playing');
+        try {
+            video.pause();
+            if (video.getAttribute('src')) {
+                video.removeAttribute('src');
+                video.load();
+            }
+        } catch (e) {
+            // Element already detached, nothing left to abort.
+        }
+    };
+
+    const stopAllVideos = () => {
+        for (const video of [...state.videosPlaying]) stopVideo(video);
+        state.videosPlaying.clear();
+    };
+
+    // Of everything on screen, only the cards closest to the middle of the
+    // viewport get to stream. The rest sit on their poster.
+    const reconcileVideos = () => {
+
+        if (!state.autoplay || document.hidden) {
+            stopAllVideos();
+            return;
+        }
+
+        // Tiles dropped mid-session can leave detached elements behind.
+        for (const video of [...state.videosInView]) {
+            if (!video.isConnected) state.videosInView.delete(video);
+        }
+
+        const centre = window.innerHeight / 2;
+        const winners = new Set([...state.videosInView]
+            .map(video => {
+                const rect = video.getBoundingClientRect();
+                return { video, distance: Math.abs(rect.top + (rect.height / 2) - centre) };
+            })
+            .sort((a, b) => a.distance - b.distance)
+            .slice(0, maxConcurrentVideos)
+            .map(item => item.video));
+
+        for (const video of [...state.videosPlaying]) {
+            if (!winners.has(video)) stopVideo(video);
+        }
+        for (const video of winners) {
+            if (!state.videosPlaying.has(video)) startVideo(video);
+        }
+    };
+
+    state.videoObserver = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+            if (entry.isIntersecting) {
+                state.videosInView.add(entry.target);
+            } else {
+                state.videosInView.delete(entry.target);
+                stopVideo(entry.target);
+            }
+        }
+        reconcileVideos();
+    }, { threshold: 0.25 });
+
+    // Scrolling through a screenful of videos doesn't change what intersects,
+    // but it does change which ones are nearest the middle.
+    window.addEventListener('scroll', () => {
+        if (state.scrollScheduled) return;
+        state.scrollScheduled = true;
+        requestAnimationFrame(() => {
+            state.scrollScheduled = false;
+            reconcileVideos();
+        });
+    }, { passive: true });
+
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            stopAllVideos();
+        } else {
+            reconcileVideos();
+        }
+    });
+
+    const releaseTileVideo = (tile) => {
+        const video = tile.querySelector('video.mod-media');
+        if (!video) return;
+        state.videosInView.delete(video);
+        stopVideo(video);
+        state.videoObserver?.unobserve(video);
+    };
+
     // ------------------------------------------------------------- tile build
 
     const applyTileState = (tile, row) => {
+        const nsfw = isNsfw(row);
         tile.classList.toggle('is-banned', isFlagOn(row.banned));
-        tile.classList.toggle('is-checked', !isFlagOn(row.banned) && isFlagOn(row.checked));
+        tile.classList.toggle('is-nsfw', !isFlagOn(row.banned) && nsfw);
+        tile.classList.toggle('is-checked', !isFlagOn(row.banned) && !nsfw && isFlagOn(row.checked));
         tile.classList.toggle('is-pending', !isFlagOn(row.banned) && !isFlagOn(row.checked));
-        tile.classList.toggle('is-inactive', !isFlagOn(row.active));
         tile.classList.toggle('is-selected', state.selected.has(row.id));
 
         const badges = tile.querySelector('.mod-badges');
         if (badges) {
+            // Static markup only, every value here is a flag we computed.
             const marks = [];
             if (isFlagOn(row.banned)) marks.push('<i class="fa-solid fa-triangle-exclamation text-danger" title="Banned"></i>');
-            if (isFlagOn(row.checked)) marks.push('<i class="fa-solid fa-check-circle text-success" title="Checked"></i>');
-            if (!isFlagOn(row.active)) marks.push('<i class="fa-solid fa-eye-slash text-warning" title="Inactive"></i>');
-            if (!isFlagOn(row.visibility)) marks.push('<i class="fa-solid fa-lock text-secondary" title="Not visible on the gallery"></i>');
+            if (nsfw) marks.push('<span class="mod-chip mod-chip-nsfw" title="Reviewed, kept out of every public listing. Still reachable by direct URL.">NSFW</span>');
+            if (!nsfw && isFlagOn(row.checked)) marks.push('<i class="fa-solid fa-check-circle text-success" title="Checked"></i>');
+            if (!isFlagOn(row.active)) marks.push('<span class="mod-chip mod-chip-off" title="Inactive: the server serves a not-found banner for this file">OFF</span>');
+            // The uploader's own switch, now unrelated to nsfw.
+            if (!isFlagOn(row.visibility)) marks.push('<i class="fa-solid fa-lock text-secondary" title="Hidden by the uploader (visibility = 0)"></i>');
+            if (mediaKind(row.mimetype) === 'video' && Number(row.filesize) > autoplayMaxBytes) {
+                marks.push('<span class="mod-chip mod-chip-big" title="Too big to preview in the grid, click to watch it in the viewer">BIG</span>');
+            }
+            // Notification state. Its own shape (an envelope) so it never reads
+            // as one of the moderation flags, and the failed one shouts.
+            const notification = notificationOf(row);
+            if (notification !== null) {
+                if (notification.status === 'sent') {
+                    marks.push('<i class="fa-solid fa-envelope-circle-check text-info mod-notify" title="Notification sent"></i>');
+                } else if (notification.status === 'pending') {
+                    marks.push('<i class="fa-solid fa-envelope text-secondary mod-notify" title="Notification queued, not sent yet"></i>');
+                } else if (notification.status === 'failed') {
+                    marks.push('<span class="mod-chip mod-chip-failed" title="Notification FAILED: nobody was warned. Use the retry button on the card.">!MAIL</span>');
+                }
+            }
             badges.innerHTML = marks.join('');
         }
 
@@ -389,29 +609,84 @@ document.addEventListener('DOMContentLoaded', () => {
             checkedButton.title = isFlagOn(row.checked) ? 'Unmark as checked' : 'Mark as checked';
         }
 
+        const nsfwButton = tile.querySelector('.mod-btn-nsfw');
+        if (nsfwButton) {
+            nsfwButton.title = nsfw
+                ? 'Undo NSFW: put the file back on the public listings'
+                : 'Mark NSFW: checked + hidden from the public listings. Still reachable by direct URL.';
+        }
+
         const activeButton = tile.querySelector('.mod-btn-active');
         if (activeButton) {
             activeButton.innerHTML = isFlagOn(row.active) ? '<i class="fa-solid fa-eye"></i>' : '<i class="fa-solid fa-eye-slash"></i>';
             activeButton.title = isFlagOn(row.active) ? 'Deactivate file' : 'Activate file';
         }
+
+        // Retry only exists while there is something to retry.
+        const retryButton = tile.querySelector('.mod-btn-retry');
+        if (retryButton) {
+            const notification = notificationOf(row);
+            retryButton.classList.toggle('d-none', !isRetryable(row));
+            retryButton.title = notification && notification.lasterror !== ''
+                ? `Queue the notification again (${notification.attempts} attempt(s), last error: ${notification.lasterror})`
+                : 'Queue the notification again';
+        }
+
+        tile.title = tileTooltip(row);
+    };
+
+    const tileTooltip = (row) => {
+        const notification = notificationOf(row);
+        const lines = [
+            row.filename || '',
+            `${row.mimetype || ''} · ${formatSize(row.filesize)}`,
+            `${row.username ? row.username + ' · ' : ''}${row.pubkey || ''}`,
+            row.date || '',
+        ];
+        if (notification !== null) {
+            lines.push(`notification: ${notification.status}${notification.attempts ? ' after ' + notification.attempts + ' attempt(s)' : ''}`);
+            if (notification.lasterror !== '') lines.push(`last error: ${notification.lasterror}`);
+        }
+        // A title property is plain text, never parsed as markup.
+        return lines.filter(Boolean).join('\n');
+    };
+
+    const fallbackCard = (row, iconClass, extraLabel) => {
+        const fallback = document.createElement('div');
+        fallback.className = 'mod-fallback';
+        const icon = document.createElement('i');
+        icon.className = `fa-solid ${iconClass}`;
+        fallback.appendChild(icon);
+        const label = document.createElement('div');
+        label.className = 'mod-fallback-label';
+        // textContent: mimetype, dimensions and size all come from the database.
+        label.textContent = String(row.mimetype || 'unknown');
+        fallback.appendChild(label);
+        const meta = document.createElement('div');
+        meta.className = 'mod-fallback-label';
+        meta.textContent = [row.dimensions, formatSize(row.filesize), extraLabel].filter(Boolean).join(' · ');
+        fallback.appendChild(meta);
+        return fallback;
     };
 
     const buildMedia = (row) => {
         const kind = mediaKind(row.mimetype);
         const fragment = document.createDocumentFragment();
 
-        // Placeholder first so it sits under whatever comes next. Only images
-        // carry a blurhash (it is generated on upload for images only).
-        if (row.blurhash) {
-            const canvas = document.createElement('canvas');
-            canvas.className = 'mod-placeholder';
-            canvas.width = 32;
-            canvas.height = 32;
-            fragment.appendChild(canvas);
-            paintBlurhash(canvas, row.blurhash);
-        }
-
         if (kind === 'image') {
+
+            // Blurhash placeholder, and only while the image is in flight: it is
+            // removed from the DOM on load so a thumbnail can never stay blurred.
+            let placeholder = null;
+            if (row.blurhash) {
+                placeholder = document.createElement('canvas');
+                placeholder.className = 'mod-placeholder';
+                placeholder.width = 32;
+                placeholder.height = 32;
+                fragment.appendChild(placeholder);
+                paintBlurhash(placeholder, row.blurhash);
+            }
+
             const img = document.createElement('img');
             img.className = 'mod-media';
             img.loading = 'lazy';
@@ -419,21 +694,43 @@ document.addEventListener('DOMContentLoaded', () => {
             img.fetchPriority = 'low';
             img.alt = '';
             img.src = fileUrl(row);
-            if (img.complete && img.naturalWidth > 0) {
+            const reveal = () => {
                 img.classList.add('is-loaded');
+                placeholder?.remove();
+            };
+            if (img.complete && img.naturalWidth > 0) {
+                reveal();
             } else {
-                img.addEventListener('load', () => img.classList.add('is-loaded'), { once: true });
+                img.addEventListener('load', reveal, { once: true });
+                // On failure the blurhash stays as the fallback: it is the only
+                // hint left of what the file was.
                 img.addEventListener('error', () => img.classList.add('is-loaded'), { once: true });
             }
             fragment.appendChild(img);
             return fragment;
         }
 
-        // Video, audio and everything else: never mount a player. A hundred
-        // <video> elements on one screen is how you kill the browser, so the
-        // card shows the blurhash (when there is one) plus an icon and the
-        // mimetype, and the full file only opens in the modal on click.
-        if (kind === 'video' && row.blurhash) {
+        if (kind === 'video') {
+
+            // The long tail is brutal (the biggest file in the queue is ~950 MB).
+            // Over the threshold the card stays static and the viewer is the only
+            // way to watch it.
+            if (Number(row.filesize) > autoplayMaxBytes) {
+                fragment.appendChild(fallbackCard(row, 'fa-film', 'click to play'));
+                return fragment;
+            }
+
+            const video = document.createElement('video');
+            video.className = 'mod-media';
+            video.muted = true;
+            video.loop = true;
+            video.playsInline = true;
+            video.preload = 'none';
+            video.setAttribute('poster', '/static/resources/loading-video.webp');
+            // src is attached on demand by the observer, never up front.
+            video.dataset.src = fileUrl(row);
+            fragment.appendChild(video);
+
             const overlay = document.createElement('div');
             overlay.className = 'mod-play';
             overlay.innerHTML = '<i class="fa-solid fa-circle-play"></i>';
@@ -441,22 +738,10 @@ document.addEventListener('DOMContentLoaded', () => {
             return fragment;
         }
 
-        const icons = { video: 'fa-film', audio: 'fa-music', other: 'fa-file-lines' };
-        const fallback = document.createElement('div');
-        fallback.className = 'mod-fallback';
-        const icon = document.createElement('i');
-        icon.className = `fa-solid ${icons[kind] || icons.other}`;
-        fallback.appendChild(icon);
-        const label = document.createElement('div');
-        label.className = 'mod-fallback-label';
-        // textContent: mimetype and dimensions come from the database.
-        label.textContent = String(row.mimetype || 'unknown');
-        fallback.appendChild(label);
-        const meta = document.createElement('div');
-        meta.className = 'mod-fallback-label';
-        meta.textContent = [row.dimensions, formatSize(row.filesize)].filter(Boolean).join(' · ');
-        fallback.appendChild(meta);
-        fragment.appendChild(fallback);
+        // Audio and everything else: icon plus metadata, the file itself only
+        // opens in the viewer.
+        const icons = { audio: 'fa-music', other: 'fa-file-lines' };
+        fragment.appendChild(fallbackCard(row, icons[kind] || icons.other));
         return fragment;
     };
 
@@ -466,9 +751,6 @@ document.addEventListener('DOMContentLoaded', () => {
         tile.className = 'mod-tile';
         tile.setAttribute('role', 'listitem');
         tile.dataset.id = String(row.id);
-        // Attributes are never HTML-parsed, and the tooltip is the only place
-        // the raw filename shows up.
-        tile.title = `${row.filename || ''}\n${row.mimetype || ''} · ${formatSize(row.filesize)}\n${row.username ? row.username + ' · ' : ''}${row.pubkey || ''}\n${row.date || ''}`;
 
         tile.appendChild(buildMedia(row));
 
@@ -491,6 +773,12 @@ document.addEventListener('DOMContentLoaded', () => {
         checkedButton.innerHTML = '<i class="fa-solid fa-check"></i>';
         actions.appendChild(checkedButton);
 
+        const nsfwButton = document.createElement('button');
+        nsfwButton.type = 'button';
+        nsfwButton.className = 'btn mod-btn-nsfw';
+        nsfwButton.innerHTML = '<i class="fa-solid fa-mask"></i>';
+        actions.appendChild(nsfwButton);
+
         const activeButton = document.createElement('button');
         activeButton.type = 'button';
         activeButton.className = 'btn btn-secondary mod-btn-active';
@@ -503,9 +791,19 @@ document.addEventListener('DOMContentLoaded', () => {
         banButton.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i>';
         actions.appendChild(banButton);
 
+        const retryButton = document.createElement('button');
+        retryButton.type = 'button';
+        retryButton.className = 'btn btn-info mod-btn-retry d-none';
+        retryButton.innerHTML = '<i class="fa-solid fa-paper-plane"></i>';
+        actions.appendChild(retryButton);
+
         tile.appendChild(actions);
 
         applyTileState(tile, row);
+
+        const video = tile.querySelector('video.mod-media');
+        if (video) state.videoObserver?.observe(video);
+
         return tile;
     };
 
@@ -559,6 +857,9 @@ document.addEventListener('DOMContentLoaded', () => {
         state.needFacets = needFacets === true;
         state.rows.clear();
         state.selected.clear();
+        stopAllVideos();
+        state.videosInView.clear();
+        state.videoObserver?.disconnect();
         el.grid.innerHTML = '';
         el.empty.classList.add('d-none');
         el.more.classList.add('d-none');
@@ -634,6 +935,7 @@ document.addEventListener('DOMContentLoaded', () => {
         el.more.classList.toggle('d-none', state.exhausted);
         el.empty.classList.toggle('d-none', state.rows.size > 0);
         refreshCounter();
+        reconcileVideos();
     };
 
     const renderFacets = (facets) => {
@@ -686,6 +988,7 @@ document.addEventListener('DOMContentLoaded', () => {
         state.selected.delete(id);
         if (state.total > 0) state.total--;
         if (!tile) return;
+        releaseTileVideo(tile);
         tile.classList.add('is-leaving');
         setTimeout(() => tile.remove(), 250);
     };
@@ -706,13 +1009,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Sends the action in chunks (the endpoint caps a batch at 500) and only
-    // touches the local rows for the ids the server confirmed.
-    const applyAction = async (ids, field, value, reason) => {
+    // Sends one action to the bulk endpoint in chunks (it caps a batch at 500)
+    // and reports back which ids the server refused.
+    const postBulk = async (table, ids, field, value, reason) => {
 
-        if (ids.length === 0) return;
-
-        setBusy(ids, true);
         const failed = new Set();
         let processed = 0;
         let lastError = '';
@@ -724,7 +1024,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     method: 'POST',
                     credentials: 'include',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ table: tableKey, ids: chunk, field, value: String(value), reason: reason || '' }),
+                    body: JSON.stringify({ table, ids: chunk, field, value: String(value), reason: reason || '' }),
                 });
                 const payload = await response.json().catch(() => null);
                 if (!response.ok || !payload || payload.status !== 'success') {
@@ -741,13 +1041,29 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        return { processed, failed, lastError };
+    };
+
+    // Applies a moderation action to media rows and only touches the local state
+    // for the ids the server confirmed.
+    const applyAction = async (ids, field, value, reason) => {
+
+        if (ids.length === 0) return;
+
+        setBusy(ids, true);
+        const { processed, failed, lastError } = await postBulk(tableKey, ids, field, value, reason);
         setBusy(ids, false);
 
         for (const id of ids) {
             if (failed.has(id)) continue;
             const row = state.rows.get(id);
             if (!row) continue;
-            if (field === 'banned') {
+            if (field === 'nsfw') {
+                // The same pair the server wrote in a single UPDATE. visibility
+                // is not part of it any more.
+                row.nsfw = Number(value);
+                row.checked = 1;
+            } else if (field === 'banned') {
                 row.banned = Number(value);
             } else {
                 row[field] = Number(value);
@@ -762,6 +1078,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         refreshBulkbar();
         refreshCounter();
+        reconcileVideos();
 
         if (failed.size > 0) {
             toast(`${failed.size} file(s) could not be updated${lastError ? ': ' + lastError : ''}`, 'alert-danger');
@@ -788,6 +1105,33 @@ document.addEventListener('DOMContentLoaded', () => {
         await applyAction(ids, 'banned', 1, reason);
     };
 
+    // Puts the notice of each file back to pending so the sweep takes it again.
+    // Writes to auditlog, not to mediafiles, so the ids on the wire are audit row
+    // ids and not file ids.
+    const retryNotifications = async (mediaIds) => {
+
+        const targets = mediaIds.map(id => state.rows.get(id)).filter(row => row && isRetryable(row));
+        if (targets.length === 0) {
+            toast('Nothing to retry: no pending or failed notification here', 'alert-warning');
+            return;
+        }
+
+        const tileIds = targets.map(row => row.id);
+        setBusy(tileIds, true);
+        const { processed, failed, lastError } = await postBulk('auditlogData', targets.map(row => Number(row.notification.id)), 'status', 'pending');
+        setBusy(tileIds, false);
+
+        for (const row of targets) {
+            if (failed.has(Number(row.notification.id))) continue;
+            row.notification.status = 'pending';
+            const tile = tileOf(row.id);
+            if (tile) applyTileState(tile, row);
+        }
+
+        if (failed.size > 0) toast(`${failed.size} notification(s) could not be queued${lastError ? ': ' + lastError : ''}`, 'alert-danger');
+        if (processed > 0) toast(`${processed} notification(s) back in the queue`, 'alert-success');
+    };
+
     // ----------------------------------------------------------------- events
 
     el.grid.addEventListener('click', async (event) => {
@@ -804,27 +1148,37 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (event.target.closest('.mod-btn-checked')) {
-            event.stopPropagation();
             await applyAction([id], 'checked', isFlagOn(row.checked) ? 0 : 1);
             return;
         }
 
+        if (event.target.closest('.mod-btn-nsfw')) {
+            await applyAction([id], 'nsfw', isNsfw(row) ? 0 : 1);
+            return;
+        }
+
         if (event.target.closest('.mod-btn-active')) {
-            event.stopPropagation();
             await applyAction([id], 'active', isFlagOn(row.active) ? 0 : 1);
             return;
         }
 
         if (event.target.closest('.mod-btn-ban')) {
-            event.stopPropagation();
             await banFiles([id]);
             return;
         }
 
+        if (event.target.closest('.mod-btn-retry')) {
+            await retryNotifications([id]);
+            return;
+        }
+
         // Tile body: open the file in the shared media modal (read only, the
-        // buttons on the card are the ones that write).
+        // buttons on the card are the ones that write). Grid playback stops while
+        // the viewer holds the screen.
         if (typeof initMediaModal === 'function') {
-            initMediaModal(`${row.pubkey}/${row.filename}`, row.checked, row.visibility, false, row);
+            stopAllVideos();
+            await initMediaModal(`${row.pubkey}/${row.filename}`, row.checked, row.visibility, false, row);
+            reconcileVideos();
         }
     });
 
@@ -876,6 +1230,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     el.size.addEventListener('change', () => {
         el.grid.style.setProperty('--mod-tile', `${el.size.value}px`);
+        reconcileVideos();
     });
 
     el.refresh.addEventListener('click', () => {
@@ -884,6 +1239,17 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     el.more.addEventListener('click', () => loadPage());
+
+    el.autoplay.addEventListener('change', () => {
+        state.autoplay = el.autoplay.checked;
+        try { localStorage.setItem(storeAutoplay, state.autoplay ? '1' : '0'); } catch (e) { /* storage blocked */ }
+        reconcileVideos();
+    });
+
+    el.safetyBlur.addEventListener('change', () => {
+        el.grid.classList.toggle('mod-safety-blur', el.safetyBlur.checked);
+        try { localStorage.setItem(storeSafetyBlur, el.safetyBlur.checked ? '1' : '0'); } catch (e) { /* storage blocked */ }
+    });
 
     el.selectAll.addEventListener('click', () => {
         for (const id of state.rows.keys()) state.selected.add(id);
@@ -900,6 +1266,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('moderationGallery-bulk-checked').addEventListener('click', async () => {
         await applyAction([...state.selected], 'checked', 1);
+    });
+
+    document.getElementById('moderationGallery-bulk-nsfw').addEventListener('click', async () => {
+        await applyAction([...state.selected], 'nsfw', 1);
     });
 
     document.getElementById('moderationGallery-bulk-enable').addEventListener('click', async () => {
@@ -920,6 +1290,10 @@ document.addEventListener('DOMContentLoaded', () => {
         await banFiles([...state.selected]);
     });
 
+    document.getElementById('moderationGallery-bulk-retry').addEventListener('click', async () => {
+        await retryNotifications([...state.selected]);
+    });
+
     // Incremental scroll. The button next to it is the fallback for when the
     // grid lives inside a scrolling container the observer can't see.
     if ('IntersectionObserver' in window) {
@@ -929,10 +1303,27 @@ document.addEventListener('DOMContentLoaded', () => {
         }, { rootMargin: '400px' }).observe(el.sentinel);
     }
 
+    const restorePreferences = () => {
+        let autoplayPref = null;
+        let blurPref = null;
+        try {
+            autoplayPref = localStorage.getItem(storeAutoplay);
+            blurPref = localStorage.getItem(storeSafetyBlur);
+        } catch (e) {
+            // Storage blocked, keep the defaults.
+        }
+        state.autoplay = autoplayPref === null ? true : autoplayPref === '1';
+        el.autoplay.checked = state.autoplay;
+        const safetyBlur = blurPref === '1';
+        el.safetyBlur.checked = safetyBlur;
+        el.grid.classList.toggle('mod-safety-blur', safetyBlur);
+    };
+
     const start = () => {
         if (state.started) return;
         state.started = true;
         el.grid.style.setProperty('--mod-tile', `${el.size.value}px`);
+        restorePreferences();
         loadPage();
     };
 
@@ -940,6 +1331,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const tabButton = document.getElementById(triggerTabId);
         if (tabButton) {
             tabButton.addEventListener('shown.bs.tab', start);
+            // Leaving the tab hides the grid, nothing should keep streaming.
+            tabButton.addEventListener('hide.bs.tab', stopAllVideos);
             if (tabButton.classList.contains('active')) start();
         } else {
             start();
