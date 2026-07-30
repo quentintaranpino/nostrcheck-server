@@ -16,6 +16,7 @@ media/*
 files/*
 tmp/*
 config/local.json*
+config/test.json
 nostrcheck-api.log*
 .VSCodeCounter/*
 installation.md
