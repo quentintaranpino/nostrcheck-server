@@ -19,7 +19,7 @@ import { addNewUsername } from "../lib/register.js";
 import { banEntity, unbanEntity, deleteBannedObjects } from "../lib/security/banned.js";
 import { generateInviteCode } from "../lib/invitations.js";
 import { setAuthCookie } from "../lib/frontend.js";
-import { deleteFile } from "../lib/storage/core.js";
+import { deleteFile, getFilePath } from "../lib/storage/core.js";
 import { isIpAllowed } from "../lib/security/ips.js";
 import { eventStore, ExtendedWebSocket } from "../interfaces/relay.js";
 import { getEventById } from "../lib/relay/utils.js";
@@ -1837,19 +1837,81 @@ const bulkModerateRecords = async (req: Request, res: Response): Promise<Respons
 
 }
 
+/**
+ * Reports whether the stored object of each selected ban is still on storage.
+ *
+ * This cannot be a column of the `banned` query: it is a filesystem stat or a
+ * remote HEAD, one per row. The table paints from SQL and fills this in
+ * afterwards for the rows the operator can actually see, so a page of 25 costs
+ * 25 storage calls and never blocks the render.
+ */
+const getBannedObjectStatus = async (req: Request, res: Response): Promise<Response> => {
+
+	// Check if the request IP is allowed
+	const reqInfo = await isIpAllowed(req);
+	if (reqInfo.banned == true) {
+		logger.warn(`getBannedObjectStatus - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+		return res.status(403).send({"status": "error", "message": reqInfo.comments});
+	}
+
+	// Check if current module is enabled
+	if (!isModuleEnabled("admin", "")) {
+		logger.warn(`getBannedObjectStatus - Attempt to access a non-active module: admin | IP:`, reqInfo.ip);
+		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
+	}
+
+	// Check if authorization header is valid
+	const eventHeader = await parseAuthHeader(req, "getBannedObjectStatus", true, true, true);
+	if (eventHeader.status !== "success") {return res.status(401).send({"status": eventHeader.status, "message" : eventHeader.message});}
+	setAuthCookie(res, eventHeader.authkey);
+
+	if (Array.isArray(req.body.ids) == false || req.body.ids.length == 0) {
+		return res.status(400).send({status: "error", message: "Invalid parameters"});
+	}
+
+	// A page of the table, not the whole table: this is capped so a crafted
+	// request cannot ask for thousands of storage calls in one go.
+	const ids = req.body.ids.slice(0, 200).map((id: any) => Number(id)).filter((id: number) => id > 0);
+	if (ids.length == 0) {
+		return res.status(400).send({status: "error", message: "Invalid parameters"});
+	}
+
+	const objects: {[key: string]: boolean} = {};
+
+	for (const banId of ids) {
+		const banRecord = await dbMultiSelect(["originid", "origintable"], "banned", "id = ?", [banId], true);
+		if (banRecord.length == 0 || banRecord[0].origintable != "mediafiles") continue;
+
+		const fileRecord = await dbMultiSelect(["original_hash"], "mediafiles", "id = ?", [banRecord[0].originid], true);
+		if (fileRecord.length == 0 || !fileRecord[0].original_hash) continue;
+
+		try {
+			const filePath = await getFilePath(fileRecord[0].original_hash);
+			objects[String(banId)] = filePath != "";
+		} catch (error) {
+			logger.error(`getBannedObjectStatus - Cannot check storage for ban ${banId}: ${error}`, "|", reqInfo.ip);
+			continue;
+		}
+	}
+
+	return res.status(200).send({status: "success", message: `${Object.keys(objects).length} object(s) checked`, objects: objects});
+
+}
+
 export {    serverStatus,
             serverUpdates,
-            StopServer, 
-            resetUserPassword, 
-            updateDBRecord, 
-            deleteDBRecord, 
-            insertDBRecord, 
+            StopServer,
+            resetUserPassword,
+            updateDBRecord,
+            deleteDBRecord,
+            insertDBRecord,
             moderateDBRecord,
-            updateSettings, 
+            updateSettings,
             updateSettingsFile,
             getModuleData,
             getModuleCountData,
             banDBRecord,
             getMediaModerationData,
-            bulkModerateRecords
+            bulkModerateRecords,
+            getBannedObjectStatus
         };

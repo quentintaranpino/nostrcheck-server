@@ -23,6 +23,7 @@ import {
     serverUpdates,
     getMediaModerationData,
     bulkModerateRecords,
+    getBannedObjectStatus,
 } from "../controllers/admin.js";
 
 const adminCORS = {
@@ -54,6 +55,7 @@ export const loadAdminEndpoint = async (app: Application, version: string): Prom
     app.post(`${base}/deleterecord`, limiter(), cors(adminCORS), express.json(), deleteDBRecord);
     app.post(`${base}/moderaterecord`, limiter(), cors(adminCORS), express.json(), moderateDBRecord);
     app.post(`${base}/ban`, limiter(), cors(adminCORS), express.json(), banDBRecord);
+    app.post(`${base}/objectstatus`, limiter(), cors(adminCORS), express.json(), getBannedObjectStatus);
 
     // Update settings
     app.post(`${base}/updatesettings`, limiter(), cors(adminCORS), express.json(), updateSettings);
@@ -71,5 +73,6 @@ export const loadAdminEndpoint = async (app: Application, version: string): Prom
 
     // Ban a remote source
     app.post(`${base}/ban`, limiter(), cors(adminCORS), express.json(), banDBRecord);
+    app.post(`${base}/objectstatus`, limiter(), cors(adminCORS), express.json(), getBannedObjectStatus);
 
 };
