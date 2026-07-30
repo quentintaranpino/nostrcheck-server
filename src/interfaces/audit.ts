@@ -39,6 +39,10 @@ const auditEventTypes = [
 	"visibility_changed",
 	"banned",
 	"unbanned",
+	// The object was reported to an authority. `reason` carries the reference of
+	// the filing and `new_value` the date, so this row is the proof; the `reported`
+	// column of `banned` is convenience and can be rewritten, this cannot.
+	"reported",
 	"deleted",
 	"csam_report",
 	"illegal_report",
@@ -49,6 +53,10 @@ type AuditEventType = typeof auditEventTypes[number];
 
 // Events that reach the operator unless config says otherwise. Everything else
 // is recorded and stays in the table.
+//
+// `reported` is deliberately not here: it is something the operator did, not
+// something the server found, so notifying it would be telling them what they
+// just typed.
 const notifiableEventTypes: string[] = ["csam_report", "illegal_report", "banned_hash_reupload", "banned"];
 
 interface AuditEvent {

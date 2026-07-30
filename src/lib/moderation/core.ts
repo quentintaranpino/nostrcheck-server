@@ -91,6 +91,16 @@ const moderateFile = async (originTable: string, originId: string, tenant: strin
 
     if (getConfig(tenant, ["media", "mediainspector", "enabled"]) === false) return false;
 
+    // A hidden file has nothing to approve, and the remote engine would grade the
+    // not-found banner as SAFE and write checked = 1 over a reported blob.
+    if (originTable == "mediafiles") {
+        const fileData = await dbMultiSelect(["active"], originTable, "id = ?", [originId], true);
+        if (fileData.length > 0 && fileData[0].active != 1) {
+            logger.info(`moderateFile - Skipped, record is not active | ${originTable}#${originId}`);
+            return false;
+        }
+    }
+
     // Update the record status to "2" to indicate moderation is in progress
     const updateModerating: boolean = await dbUpdate(originTable, { checked: "2" }, ["id"], [originId]);
     if (!updateModerating) {

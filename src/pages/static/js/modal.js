@@ -18,6 +18,10 @@ const initConfirmModal = async (objectId, ids, action, objectName, value = null,
 
     var alert = new bootstrap.Modal($(objectId + '-confirm-modal'));
     const isBan = action == 'ban';
+    // Marking objects as reported to an authority. Same dialog as the ban on
+    // purpose: one prompt for the whole selection, because one filing covers
+    // several objects and they all carry the same reference.
+    const isReport = action == 'report';
     // One category per dialog, so a bulk ban asks once for the whole selection.
     let selectedCategory = '';
 
@@ -64,6 +68,9 @@ const initConfirmModal = async (objectId, ids, action, objectName, value = null,
                 saveButton.prop('disabled', false);
             });
             body.append('<div class="mt-3">Comment (optional):</div>');
+        } else if (isReport && value != null && enableEditText) {
+            body.append('<br><br><strong>Report reference</strong> (required):');
+            saveButton.prop('disabled', true);
         } else {
             // The button is shared across actions, so it has to be re-enabled.
             saveButton.prop('disabled', false);
@@ -71,10 +78,18 @@ const initConfirmModal = async (objectId, ids, action, objectName, value = null,
 
         if (value != null && enableEditText){
             body.append(  '<input type="text" class="form-control mt-2 mb-2" id="data" placeholder="' +
-                                                                escapeHtml(isBan ? 'optional comment' : action) +
+                                                                escapeHtml(isBan ? 'optional comment' : isReport ? 'Policía Nacional, denuncia 12345' : action) +
                                                                 '" value="' +
                                                                 escapeHtml(value) +
                                                                 '">');
+        }
+
+        // A mark with no reference records nothing, so it gets the same gate the
+        // category puts on a ban.
+        if (isReport) {
+            body.off('input', '#data').on('input', '#data', function () {
+                saveButton.prop('disabled', $(this).val().trim() == '');
+            });
         }
 
         // Clear the modal title and append the title

@@ -108,8 +108,8 @@ let auditlogFields = [
   };
 
   // Which column each event's pair refers to. Events absent from this map either
-  // store words already (banned, unbanned, deleted) or have no transition at all
-  // (uploaded), and pass through untouched.
+  // store words already (banned, unbanned, deleted), a date (reported) or have no
+  // transition at all (uploaded), and pass through untouched.
   const auditEventDomain = {
       classified:         'checked',
       checked_set:        'checked',

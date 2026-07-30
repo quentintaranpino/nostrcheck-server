@@ -256,8 +256,8 @@ const buildPayload = (event: AuditEvent, id: number, createddate: string, dedupe
  *
  * @param event.eventtype - One of the types in `auditEventTypes` (uploaded,
  * classified, checked_set, checked_unset, activated, deactivated, nsfw_set,
- * nsfw_unset, visibility_changed, banned, unbanned, deleted, csam_report,
- * illegal_report, banned_hash_reupload).
+ * nsfw_unset, visibility_changed, banned, unbanned, reported, deleted,
+ * csam_report, illegal_report, banned_hash_reupload).
  * @param event.origintable - Table of the affected record (mediafiles, registered, events, ips).
  * @param event.originid - Id of the affected record.
  * @param event.actor - Who did it: pubkey in hex, or "system" / "classifier". Defaults to "system".

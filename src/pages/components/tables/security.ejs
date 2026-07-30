@@ -42,11 +42,20 @@ let ipsFields = [
   // The category is a closed set now, so bans can finally be grouped by type
   // instead of by whichever of the 32 spellings of the reason was typed that day.
   ['category'         , '60' , 'formatBanCategory' , 'disabled  show text-center               '],
+  // Next to the category because those two are what the list is triaged by:
+  // CSAM that has not been filed yet is the queue. The header says UTC because
+  // the column is stored in UTC, unlike createddate below (local, epoch).
+  ['reported'         , '150', 'formatReported'    , 'disabled  show text-center               ', 'reported (UTC)'],
   ['originid'         , '40' , ''                  , 'disabled   show text-center              '],
   ['origintable'      , '40' , ''                  , 'disabled   show text-center              '],
   ['originkey'        , ''   , 'formatBannedFile'  , 'disabled  show text-center               '],
   ['createddate'      , '200', 'formatTimestamp'   , 'disabled  show text-center               '],
   ['reason'           , ''   , ''                  , 'enabled   show mobile-hide               ', 'comment'],
+  // Read only: the batch action is the only writer, so every reference that gets
+  // into the table has an audit row behind it.
+  ['reportref'        , ''   , 'formatReportRef'   , 'disabled  show mobile-hide               ', 'reference'],
+  // Only there for the toolbar filter, same as the banned flag of the Ips table.
+  ['isreported'       , ''   , 'formatCheckbox'    , 'disabled  hide text-center               '],
   ];
 %>
 
@@ -85,6 +94,97 @@ let ipsFields = [
       return `<span class="badge bg-${severity[category] || 'secondary'}">${escapeHtml(category)}</span>`;
   }
   window.formatBanCategory = formatBanCategory;
+
+  // Not reported is a state, not a missing value, so it says so instead of
+  // leaving the cell empty: this column is a work queue.
+  function formatReported(value, row) {
+      const reported = String(value || '');
+      if (reported === '') return '<span class="text-secondary" title="Not reported to any authority yet">not reported</span>';
+      const reference = String(row.reportref || '');
+      return `<span class="text-success" title="${escapeHtml(reference || 'no reference stored')}"><i class="fa-solid fa-gavel fa-fw"></i> ${escapeHtml(reported)}</span>`;
+  }
+  window.formatReported = formatReported;
+
+  function formatReportRef(value) {
+      const reference = String(value || '');
+      if (reference === '') return '<span class="text-secondary">—</span>';
+      return `<span title="${escapeHtml(reference)}">${escapeHtml(reference.length > 60 ? reference.substring(0, 60) + '…' : reference)}</span>`;
+  }
+  window.formatReportRef = formatReportRef;
+</script>
+
+<script>
+  // Reporting to an authority is one action over a whole selection with a single
+  // filing reference, and it crosses into the audit log, so it does not fit the
+  // positional button list of table.ejs. Injected here like the Reports table does
+  // with its own actions.
+  document.addEventListener('DOMContentLoaded', () => {
+
+    const tableId = '#bannedData';
+    const toolbarSelector = '#bannedData-toolbar';
+
+    const toolbarHTML = `
+      <div class="btn-group mt-2 ms-2" role="group" aria-label="Report to the authorities">
+        <div tabindex="0" data-bs-toggle="tooltip" data-bs-title="Mark as reported to the authorities">
+          <button id="bannedData-button-report" class="btn btn-warning" disabled>
+            <i class="fa-solid fa-gavel fa-fw"></i>
+          </button>
+        </div>
+      </div>
+    `;
+
+    const inject = () => {
+      const toolbar = document.querySelector(toolbarSelector);
+      if (!toolbar) {
+        setTimeout(inject, 100);
+        return;
+      }
+      if (!toolbar.querySelector('#bannedData-button-report')) {
+        toolbar.insertAdjacentHTML('beforeend', toolbarHTML);
+        toolbar.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
+      }
+    };
+    inject();
+
+    const refreshButtonState = () => {
+      const selections = $(tableId).bootstrapTable('getSelections');
+      $('#bannedData-button-report').prop('disabled', selections.length === 0);
+    };
+    $(tableId).on('check.bs.table uncheck.bs.table check-all.bs.table uncheck-all.bs.table load-success.bs.table', refreshButtonState);
+
+    $(document).on('click', '#bannedData-button-report', async () => {
+
+      const selections = $(tableId).bootstrapTable('getSelections');
+      if (selections.length === 0) return;
+      const ids = selections.map(row => row.id);
+
+      // One prompt for the whole selection: the reference is asked once because a
+      // filing covers all of them.
+      const modal = await initConfirmModal(tableId, ids, 'report', 'banned object', '', true);
+      if (modal.result !== true) return;
+      const reference = (modal.value || '').trim();
+      if (reference === '') {
+        showMessage('A report needs a reference', 'alert-warning');
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/v2/admin/bulkmoderate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ table: 'bannedData', ids: ids, field: 'reported', value: reference }),
+        });
+        const data = await response.json();
+        showMessage(escapeHtml(data.message || 'Could not mark the selection as reported'), data.status === 'success' ? 'alert-success' : 'alert-danger');
+      } catch (error) {
+        console.error('banned - report failed', error);
+        showMessage('Could not mark the selection as reported', 'alert-danger');
+      }
+
+      $(tableId).bootstrapTable('refresh');
+    });
+
+  });
 </script>
 
 <% } %>

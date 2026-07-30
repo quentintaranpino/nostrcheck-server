@@ -27,6 +27,8 @@ const pluginConfigBlocklist: string[] = [
 	"payments",
 	"notifications",
 	"server.secretKey",
+	// Still listed after the remote inspector goes: the keys stay in local.json.
+	"media.mediainspector.remote",
 ];
 
 /**

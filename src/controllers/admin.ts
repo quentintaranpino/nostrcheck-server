@@ -1311,6 +1311,51 @@ const readModerationSnapshot = async (table: string, fields: string[], ids: numb
 };
 
 /**
+ * The pubkey and the blob hash of the objects a set of `banned` rows points at.
+ *
+ * A `banned` row is a pointer, so an entry about it has to be recorded against
+ * the file or the user it refers to: that is where a timeline is read from, and
+ * on a CSAM filing the hash is the part that identifies what was reported. Two
+ * queries at most whatever the size of the batch.
+ *
+ * @param origins - originid / origintable pairs read from the `banned` table.
+ * @returns Map of "origintable:originid" to its pubkey and hash, empty on error.
+ */
+const readBannedOriginKeys = async (origins: { originid: string; origintable: string }[]): Promise<Record<string, { pubkey: string; filehash: string }>> => {
+
+    const keys: Record<string, { pubkey: string; filehash: string }> = {};
+
+    const idsOf = (originTable: string): number[] => {
+        const ids = origins.filter(origin => origin.origintable == originTable)
+                           .map(origin => Number(origin.originid))
+                           .filter(id => Number.isInteger(id) && id > 0);
+        return [...new Set(ids)];
+    };
+
+    try {
+        const mediaIds = idsOf("mediafiles");
+        if (mediaIds.length > 0) {
+            const rows = await dbMultiSelect(["id", "pubkey", "original_hash"], "mediafiles", `id IN (${mediaIds.map(() => "?").join(",")})`, mediaIds, false);
+            for (const row of rows) keys[`mediafiles:${row.id}`] = { pubkey: String(row.pubkey || ""), filehash: String(row.original_hash || "") };
+        }
+    } catch (error) {
+        logger.error(`readBannedOriginKeys - Could not read the media origins of ${origins.length} ban(s): ${error}`);
+    }
+
+    try {
+        const userIds = idsOf("registered");
+        if (userIds.length > 0) {
+            const rows = await dbMultiSelect(["id", "hex"], "registered", `id IN (${userIds.map(() => "?").join(",")})`, userIds, false);
+            for (const row of rows) keys[`registered:${row.id}`] = { pubkey: String(row.hex || ""), filehash: "" };
+        }
+    } catch (error) {
+        logger.error(`readBannedOriginKeys - Could not read the user origins of ${origins.length} ban(s): ${error}`);
+    }
+
+    return keys;
+};
+
+/**
  * Records one moderation change in the audit log.
  *
  * A logging failure never aborts the moderation that was already applied, but a
@@ -1478,6 +1523,10 @@ const getMediaModerationData = async (req: Request, res: Response): Promise<Resp
  * burn the rate limit before the batch is done. Field and table go through the
  * same allowlists updateDBRecord uses, and banning is delegated to banEntity.
  *
+ * `reported` is the third special field, next to `banned` and `nsfw`: it marks
+ * rows of the `banned` table as filed with an authority, and `value` carries the
+ * reference of that filing for the whole selection.
+ *
  * @param req - The request object. Body: table, ids, field, value and reason (bans only).
  * @param res - The response object.
  * @returns A promise that resolves to the response object.
@@ -1622,6 +1671,65 @@ const bulkModerateRecords = async (req: Request, res: Response): Promise<Respons
                 previous_value: before ? String(before.nsfw) : "",
                 new_value: String(nsfwFields.nsfw),
                 reason: req.body.reason || "",
+            });
+        }
+
+    } else if (field == "reported") {
+
+        // Reporting adds to the ban, it does not replace it: the object stays
+        // banned and `active` is not touched here.
+        if (table != "banned") {
+            logger.warn(`bulkModerateRecords - reported is only available for banned objects, table: ${table}`, "|", reqInfo.ip);
+            return res.status(400).send({"status": "error", "message": "reported is only available for banned objects"});
+        }
+
+        // One reference for the whole batch: a filing covers several objects at
+        // once and all of them have to point back to the same one.
+        const reference = typeof value == "string" ? value.trim() : "";
+        if (reference == "" || reference.length > 150) {
+            logger.warn(`bulkModerateRecords - Report rejected, reference of ${reference.length} character(s)`, "|", reqInfo.ip);
+            return res.status(400).send({"status": "error", "message": "A report needs a reference of 1 to 150 characters"});
+        }
+
+        // UTC, like auditlog and unlike getNewDate(), which returns the local time
+        // of the box. One instant for the whole batch, because it was one filing.
+        const reportedDate = new Date().toISOString().slice(0, 19).replace("T", " ");
+
+        // reported comes back formatted so it stays the UTC text that is stored: a
+        // raw datetime arrives as a Date and gets reinterpreted on the way out.
+        const snapshot = await readModerationSnapshot(table, ["DATE_FORMAT(reported, '%Y-%m-%d %H:%i:%s') as reported", "reportref", "originid", "origintable"], ids);
+        const originKeys = await readBannedOriginKeys(Object.values(snapshot).map(row => ({originid: String(row.originid || ""), origintable: String(row.origintable || "")})));
+
+        for (const id of ids) {
+
+            const before = snapshot[String(id)];
+            const update = await dbUpdate(table, {"reported": reportedDate, "reportref": reference}, ["id"], [id]);
+            if (!update) {
+                logger.warn(`bulkModerateRecords - Failed to mark record ${id} as reported`, "|", reqInfo.ip);
+                failed.push(id);
+                continue;
+            }
+            processed++;
+
+            // This row is the proof, the column of `banned` is convenience: it is
+            // recorded against the reported object so it shows up in its timeline.
+            const origin = before ? originKeys[`${before.origintable}:${before.originid}`] : undefined;
+            await recordModerationEvent({
+                eventtype: "reported",
+                origintable: before ? String(before.origintable) : table,
+                originid: before ? String(before.originid) : String(id),
+                actor: eventHeader.pubkey,
+                source: "admin",
+                tenant: req.hostname,
+                pubkey: origin ? origin.pubkey : "",
+                ip: reqInfo.ip,
+                filehash: origin ? origin.filehash : "",
+                // A second filing over the same object keeps the first date here
+                // rather than claiming it had never been reported.
+                previous_value: before && before.reported ? String(before.reported) : "not reported",
+                new_value: reportedDate,
+                reason: reference,
+                details: {banid: id, previous_reference: before && before.reportref ? String(before.reportref) : ""},
             });
         }
 

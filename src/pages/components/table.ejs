@@ -188,6 +188,10 @@
             let checkedFilter = tableId === '#reportsData';
             let bannedFilter = false;
 
+            // Banned objects: the ones not filed with an authority yet are the
+            // real to-do list, so the toolbar can hide the rest.
+            let unreportedFilter = false;
+
             // Logger filters
             let debugFilter = false;
             let infoFilter = false;
@@ -241,7 +245,35 @@
                     },
                 };
             };
-            
+
+            // Banned objects need their own toolbar: checked and banned say nothing
+            // about a row that is a ban already.
+            const bannedTableButtons = () => {
+                return {
+                    unreportedButton: {
+                        text: 'unreported',
+                        icon: 'bi-flag-fill',
+                        event: () => {
+                            const unreportedButton = $(tableId).closest('.bootstrap-table').find('[name="unreportedButton"]');
+                            const icon = unreportedButton.find('i')
+                            if (unreportedFilter) {
+                                unreportedFilter = false;
+                                icon.removeClass('text-danger');
+                            } else {
+                                unreportedFilter = true;
+                                icon.addClass('text-danger');
+                            }
+                            $(tableId).bootstrapTable('refresh');
+                        },
+                        attributes: {
+                            title: 'Filter objects not reported to the authorities yet',
+                            id: tableId + '-customShowUnreported',
+                            'data-toggle': 'tooltip'
+                        }
+                    },
+                };
+            };
+
             const loggerButtons = () => {
                 return {
                     debugButton: {
@@ -355,11 +387,14 @@
                 checkOnInit: true,
                 detailFormatter: "detailFormatter",
                 rowStyle: rowStyle,
-                buttons: (tableId === '#registeredData' || tableId === '#filesData' || tableId === '#ipsData' || tableId === '#reportsData' ) ? toolbarButtons() : tableId === '#loggerData' ? loggerButtons() : null,
+                buttons: (tableId === '#registeredData' || tableId === '#filesData' || tableId === '#ipsData' || tableId === '#reportsData' ) ? toolbarButtons() : tableId === '#bannedData' ? bannedTableButtons() : tableId === '#loggerData' ? loggerButtons() : null,
                 queryParams: function (params) {
                     let filters = params.filter ? JSON.parse(params.filter) : {};
                     if (checkedFilter)  {filters.checked = "!1"};
                     if (bannedFilter)  filters.banned = "1";
+                    // isreported is a 0/1 column built in the SELECT, because the
+                    // filter travels as `field = 'value'` and cannot say IS NULL.
+                    if (unreportedFilter) filters.isreported = "0";
                     if (debugFilter) filters.severity = "DEBUG";
                     if (infoFilter) filters.severity = "INFO";
                     if (warnFilter) filters.severity = "WARN";

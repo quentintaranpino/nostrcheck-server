@@ -1,6 +1,6 @@
 {
   "name": "nostrcheck-server",
-  "version": "0.7.1.0135",
+  "version": "0.7.1.0136",
   "description": "",
   "exports": "./index.js",
   "type": "module",

@@ -293,6 +293,8 @@ interface BannedTableStructure extends RowDataPacket{
 	createddate: string;
 	category: string;
 	reason: string;
+	reported: string;
+	reportref: string;
 }
 
 const bannedTableFields: BannedTableStructure = {
@@ -308,12 +310,24 @@ const bannedTableFields: BannedTableStructure = {
 	"category" : "varchar(20)",
 	// Free comment, still optional. It no longer has to carry the category.
 	"reason" : "varchar(150)",
+	// When the object was reported to an authority. NULL means not reported yet,
+	// which is the operator's to-do list. Reporting adds to the ban, it does not
+	// replace it, so `active` is untouched by it.
+	//
+	// datetime in UTC like auditlog, not epoch seconds like createddate above: an
+	// evidence date must not depend on the timezone of the box, and createddate
+	// stays as it is because 488 existing rows are stored that way.
+	"reported" : "datetime",
+	// Reference of the filing ("Policía Nacional, denuncia 12345", "NCMEC
+	// CyberTipline 987654"). Its own column and not `reason`, which is why the ban
+	// exists and answers a different question.
+	"reportref" : "varchar(150)",
 	_indexes: [
 		"INDEX idx_origin (originid, origintable, active)",
-		// No index on category on purpose: the whole table is 488 rows and only
-		// grows one moderation decision at a time, so filtering or grouping by it
-		// is a scan of a few hundred rows. An index here would be rent paid for
-		// nothing.
+		// No index on category or reported on purpose: the whole table is 488 rows
+		// and only grows one moderation decision at a time, so filtering or
+		// grouping by them is a scan of a few hundred rows. An index here would be
+		// rent paid for nothing.
 	],
 	constructor: {
 		name: 'RowDataPacket',

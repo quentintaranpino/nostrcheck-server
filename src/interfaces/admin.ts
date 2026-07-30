@@ -248,6 +248,11 @@ const moduleDataWhereFields: { [key: string]: [string] } = {
                         "banned.origintable, " +
                         "banned.category, " +
                         "banned.reason, " +
+                        // Searchable so a filing reference finds every object that
+                        // went in with it, which is the question a follow-up from
+                        // the authority arrives as.
+                        "banned.reportref, " +
+                        "banned.reported, " +
                         "banned.createddate"],
     "invites":          ["invitations.id, " +
                         "invitations.originid, " +
@@ -377,6 +382,16 @@ const moduleDataSelectFields: { [key: string]: string } = {
                         "           (SELECT ips.ip FROM ips WHERE ips.id = banned.originid and banned.origintable = 'ips' LIMIT 1) " +
                         "         ) as originkey, " +
                         "banned.createddate, " +
+                        // Formatted here so the UTC text stored in the column
+                        // travels as text: a raw datetime comes back as a Date and
+                        // gets reinterpreted in the timezone of whoever reads it.
+                        "DATE_FORMAT(banned.reported, '%Y-%m-%d %H:%i') as reported, " +
+                        // The "unreported" filter needs something it can compare.
+                        // dbSelectModuleData concatenates `field = 'value'` into the
+                        // WHERE, so IS NULL has to arrive as a 0/1 column, the same
+                        // trick the banned flag of the other tables uses.
+                        "CASE WHEN banned.reported IS NULL THEN 0 ELSE 1 END as isreported, " +
+                        "banned.reportref, " +
                         "banned.reason ",
     "register":         "invitations.id, " +
                         "invitations.active, " +
