@@ -77,8 +77,5 @@ export const loadAdminEndpoint = async (app: Application, version: string): Prom
 
     // Ban a remote source
     app.post(`${base}/ban`, limiter(), cors(adminCORS), express.json(), banDBRecord);
-    app.post(`${base}/objectstatus`, limiter(), cors(adminCORS), express.json(), getBannedObjectStatus);
-    app.post(`${base}/deleteobject`, limiter(), cors(adminCORS), express.json(), deleteBannedObject);
-    app.post(`${base}/deleteobjects`, limiter(), cors(adminCORS), express.json(), deleteBannedObjectsBulk);
 
 };
