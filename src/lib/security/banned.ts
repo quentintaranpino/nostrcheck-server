@@ -8,6 +8,7 @@ import { getResource } from "../frontend.js";
 import { generateVideoFromImage } from "../utils.js";
 import { initRedis } from "../redis/client.js";
 import { logAuditEvent } from "../audit/core.js";
+import { deleteFile } from "../storage/core.js";
 
 const redisCore = await initRedis(0, false);
 
@@ -236,6 +237,94 @@ const unbanEntity = async (originId: number, originTable: string, actor?: string
 };
 
 /**
+ * Deletes the stored objects of a banned media file, keeping every database row.
+ *
+ * Bans are resolved by `original_hash` and cover every row that shares it, so
+ * deletion follows the same boundary: one hash, every filename it produced,
+ * processed variants included. Leaving those behind would keep bytes on disk
+ * under an active ban.
+ *
+ * The rows stay: `mediafiles`, `banned` and the audit trail are the record that
+ * the file existed and what was done with it. Only the bytes go.
+ *
+ * @param originId - Id of any `mediafiles` row of the hash.
+ * @param actor - Who ordered it: pubkey in hex, or "system".
+ * @param source - admin | user | system | report. Defaults to "admin".
+ * @param reason - Free text stored in the audit row.
+ * @returns `{status, message, deleted, failed}` with the object counts.
+ */
+const deleteBannedObjects = async (originId: number, actor?: string, source?: string, reason?: string): Promise<{status: "success" | "error", message: string, deleted: number, failed: number}> => {
+
+	if (!isModuleEnabled("security", "")) return { status: "error", message: "Security module is not enabled", deleted: 0, failed: 0 };
+
+	if (originId == 0 || originId == null) {
+		return { status: "error", message: "Invalid parameters", deleted: 0, failed: 0 };
+	}
+
+	const originRecord = await dbMultiSelect(["original_hash"], "mediafiles", "id = ?", [originId], true);
+	if (originRecord.length == 0 || !originRecord[0].original_hash) {
+		return { status: "error", message: "Record not found", deleted: 0, failed: 0 };
+	}
+	const originalHash = originRecord[0].original_hash;
+
+	// Same query the ban path uses to purge the cache: one hash, every row, every
+	// filename. Deleting only the selected row's file leaves processed variants.
+	const hashRecords = await dbMultiSelect(["id", "filename"], "mediafiles", "original_hash = ?", [originalHash], false);
+	if (hashRecords.length == 0) {
+		return { status: "error", message: "No records found for that hash", deleted: 0, failed: 0 };
+	}
+
+	const seenFilenames: string[] = [];
+	let deleted = 0;
+	let failed = 0;
+
+	for (const record of hashRecords) {
+		if (!record.filename || seenFilenames.includes(record.filename)) continue;
+		seenFilenames.push(record.filename);
+
+		let removed = false;
+		try {
+			removed = await deleteFile(record.filename);
+		} catch (error) {
+			logger.error(`deleteBannedObjects - Cannot delete object: ${record.filename} with error: ${error}`);
+			removed = false;
+		}
+
+		if (removed == false) {
+			// The ban is the protection, deletion is hygiene: a storage failure is
+			// logged and the rest of the hash still gets cleaned.
+			failed++;
+			logger.warn(`deleteBannedObjects - Object not deleted: ${record.filename} | hash: ${originalHash}`);
+			continue;
+		}
+
+		deleted++;
+		await logAuditEvent({
+			eventtype: "deleted",
+			origintable: "mediafiles",
+			originid: record.id,
+			actor: actor,
+			source: source || "admin",
+			filehash: originalHash,
+			previous_value: record.filename,
+			new_value: "deleted from storage",
+			action: "object deleted, database record kept",
+			reason: reason || "",
+			details: {hash: originalHash, filename: record.filename, rows: hashRecords.length},
+		});
+	}
+
+	logger.info(`deleteBannedObjects - hash: ${originalHash} | deleted: ${deleted} | failed: ${failed}`);
+
+	return {
+		status: failed > 0 && deleted == 0 ? "error" : "success",
+		message: `${deleted} object(s) deleted, ${failed} failed`,
+		deleted: deleted,
+		failed: failed,
+	};
+};
+
+/**
  * Checks if an entity is banned.
  * @param id - The ID of the entity to check.
  * @param table - The table where the entity is stored.
@@ -356,4 +445,4 @@ const loadBannedEntities = async (): Promise<void> => {
 };
 
 
-export { banEntity, unbanEntity, isEntityBanned, getBannedFileBanner };
+export { banEntity, unbanEntity, isEntityBanned, getBannedFileBanner, deleteBannedObjects };
