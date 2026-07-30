@@ -16,7 +16,7 @@ import { dbCountModuleData, dbCountTableRows, dbCountMonthModuleData, dbCountBuc
 import { getBalance, getUnpaidTransactionsBalance } from "../lib/payments/core.js";
 import { getModerationQueueLength, moderateFile } from "../lib/moderation/core.js";
 import { addNewUsername } from "../lib/register.js";
-import { banEntity, unbanEntity } from "../lib/security/banned.js";
+import { banEntity, unbanEntity, deleteBannedObjects } from "../lib/security/banned.js";
 import { generateInviteCode } from "../lib/invitations.js";
 import { setAuthCookie } from "../lib/frontend.js";
 import { deleteFile } from "../lib/storage/core.js";
@@ -1245,8 +1245,21 @@ const banDBRecord = async (req: Request, res: Response): Promise<Response> => {
         return res.status(500).send({status: "error", message: banResult.message});
     }
 
+    // Deleting the object is a separate action from banning it, and the ban is
+    // what protects the server: a storage failure here is reported in the message
+    // and never turns a successful ban into an error. Only media files have
+    // objects to delete.
+    let deleteMessage = "";
+    if (req.body.deleteContent == true && table == "mediafiles") {
+        const deleteResult = await deleteBannedObjects(req.body.id, eventHeader.pubkey, "admin", req.body.reason || banCategory);
+        deleteMessage = ` ${deleteResult.message}`;
+        if (deleteResult.failed > 0) {
+            logger.warn(`banDBRecord - Record banned but ${deleteResult.failed} object(s) not deleted`, "|", reqInfo.ip);
+        }
+    }
+
     logger.info(`banDBRecord - Record banned succesfully`, "|", reqInfo.ip);
-    return res.status(200).send({status: "success", message: banResult.message});
+    return res.status(200).send({status: "success", message: banResult.message + deleteMessage});
         
 }
 
