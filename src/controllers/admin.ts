@@ -1947,6 +1947,67 @@ const deleteBannedObject = async (req: Request, res: Response): Promise<Response
 
 }
 
+/**
+ * Deletes the stored objects of a selection of bans.
+ *
+ * Same shape as the report action of the banned objects view: one confirmation
+ * for the whole selection. Every object still gets its own audit row, written by
+ * deleteBannedObjects. Ids beyond the first 200 are dropped, same cap and same
+ * reasoning as getBannedObjectStatus: this loops sequentially, and each ban can
+ * itself fan out into several storage deletes (one per distinct filename sharing
+ * the hash), so an uncapped array is an uncapped number of blocking storage calls.
+ */
+const deleteBannedObjectsBulk = async (req: Request, res: Response): Promise<Response> => {
+
+	// Check if the request IP is allowed
+	const reqInfo = await isIpAllowed(req);
+	if (reqInfo.banned == true) {
+		logger.warn(`deleteBannedObjectsBulk - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+		return res.status(403).send({"status": "error", "message": reqInfo.comments});
+	}
+
+	// Check if current module is enabled
+	if (!isModuleEnabled("admin", "")) {
+		logger.warn(`deleteBannedObjectsBulk - Attempt to access a non-active module: admin | IP:`, reqInfo.ip);
+		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
+	}
+
+	// Check if authorization header is valid
+	const eventHeader = await parseAuthHeader(req, "deleteBannedObjectsBulk", true, true, true);
+	if (eventHeader.status !== "success") {return res.status(401).send({"status": eventHeader.status, "message" : eventHeader.message});}
+	setAuthCookie(res, eventHeader.authkey);
+
+	if (Array.isArray(req.body.ids) == false || req.body.ids.length == 0) {
+		return res.status(400).send({status: "error", message: "Invalid parameters"});
+	}
+
+	// Same cap as objectstatus: a page of the table, not the whole table.
+	const ids = req.body.ids.slice(0, 200).map((id: any) => Number(id)).filter((id: number) => id > 0);
+	if (ids.length == 0) {
+		return res.status(400).send({status: "error", message: "Invalid parameters"});
+	}
+
+	let deleted = 0;
+	let failed = 0;
+	let skipped = 0;
+
+	for (const banId of ids) {
+		const banRecord = await dbMultiSelect(["originid", "origintable", "reason"], "banned", "id = ?", [banId], true);
+		if (banRecord.length == 0 || banRecord[0].origintable != "mediafiles") {
+			skipped++;
+			continue;
+		}
+		const deleteResult = await deleteBannedObjects(Number(banRecord[0].originid), eventHeader.pubkey, "admin", banRecord[0].reason || "");
+		deleted += deleteResult.deleted;
+		failed += deleteResult.failed;
+	}
+
+	logger.info(`deleteBannedObjectsBulk - ${ids.length} ban(s) | deleted: ${deleted} | failed: ${failed} | skipped: ${skipped}`, "|", reqInfo.ip);
+
+	return res.status(200).send({status: "success", message: `${deleted} object(s) deleted, ${failed} failed, ${skipped} without a stored object`});
+
+}
+
 export {    serverStatus,
             serverUpdates,
             StopServer,
@@ -1963,5 +2024,6 @@ export {    serverStatus,
             getMediaModerationData,
             bulkModerateRecords,
             getBannedObjectStatus,
-            deleteBannedObject
+            deleteBannedObject,
+            deleteBannedObjectsBulk
         };

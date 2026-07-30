@@ -221,6 +221,13 @@ let ipsFields = [
           </button>
         </div>
       </div>
+      <div class="btn-group mt-2 ms-2" role="group" aria-label="Delete stored objects">
+        <div tabindex="0" data-bs-toggle="tooltip" data-bs-title="Delete the stored files of the selection, keep the records">
+          <button id="bannedData-button-deleteobjects" class="btn btn-danger" disabled>
+            <i class="fa-solid fa-eraser fa-fw"></i>
+          </button>
+        </div>
+      </div>
     `;
 
     const inject = () => {
@@ -229,7 +236,7 @@ let ipsFields = [
         setTimeout(inject, 100);
         return;
       }
-      if (!toolbar.querySelector('#bannedData-button-report')) {
+      if (!toolbar.querySelector('#bannedData-button-report') || !toolbar.querySelector('#bannedData-button-deleteobjects')) {
         toolbar.insertAdjacentHTML('beforeend', toolbarHTML);
         toolbar.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
       }
@@ -239,6 +246,7 @@ let ipsFields = [
     const refreshButtonState = () => {
       const selections = $(tableId).bootstrapTable('getSelections');
       $('#bannedData-button-report').prop('disabled', selections.length === 0);
+      $('#bannedData-button-deleteobjects').prop('disabled', selections.length === 0);
     };
     $(tableId).on('check.bs.table uncheck.bs.table check-all.bs.table uncheck-all.bs.table load-success.bs.table', refreshButtonState);
 
@@ -269,6 +277,33 @@ let ipsFields = [
       } catch (error) {
         console.error('banned - report failed', error);
         showMessage('Could not mark the selection as reported', 'alert-danger');
+      }
+
+      $(tableId).bootstrapTable('refresh');
+    });
+
+    $(document).on('click', '#bannedData-button-deleteobjects', async () => {
+
+      const selections = $(tableId).bootstrapTable('getSelections');
+      if (selections.length === 0) return;
+      const ids = selections.map(row => row.id);
+
+      // The count is in the dialog because this is irreversible and the operator
+      // may have select-all pressed without noticing how much it caught.
+      const modal = await initConfirmModal(tableId, ids, 'delete the stored files of', 'banned object', '', false);
+      if (modal.result !== true) return;
+
+      try {
+        const response = await fetch('/api/v2/admin/deleteobjects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: ids }),
+        });
+        const data = await response.json();
+        showMessage(escapeHtml(data.message || 'Could not delete the objects'), data.status === 'success' ? 'alert-success' : 'alert-danger');
+      } catch (error) {
+        console.error('banned - bulk object delete failed', error);
+        showMessage('Could not delete the objects', 'alert-danger');
       }
 
       $(tableId).bootstrapTable('refresh');
