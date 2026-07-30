@@ -54,6 +54,10 @@ let ipsFields = [
   // Read only: the batch action is the only writer, so every reference that gets
   // into the table has an audit row behind it.
   ['reportref'        , ''   , 'formatReportRef'   , 'disabled  show mobile-hide               ', 'reference'],
+  // Not a column of the query: whether the bytes are still on storage is a
+  // filesystem call, so the cell is filled in after the table paints. See the
+  // objectstatus script below.
+  ['objectstatus'     , '90' , 'formatObjectStatus', 'disabled  show text-center               ', 'object'],
   // Only there for the toolbar filter, same as the banned flag of the Ips table.
   ['isreported'       , ''   , 'formatCheckbox'    , 'disabled  hide text-center               '],
   ];
@@ -111,6 +115,92 @@ let ipsFields = [
       return `<span title="${escapeHtml(reference)}">${escapeHtml(reference.length > 60 ? reference.substring(0, 60) + '…' : reference)}</span>`;
   }
   window.formatReportRef = formatReportRef;
+</script>
+
+<script>
+  // Placeholder until the storage answer arrives. The cell is keyed by ban id so
+  // the fill can find it without re-rendering the table.
+  function formatObjectStatus(value, row) {
+      return `<span class="object-status text-secondary" data-ban-id="${escapeHtml(String(row.id))}">…</span>`;
+  }
+  window.formatObjectStatus = formatObjectStatus;
+
+  document.addEventListener('DOMContentLoaded', () => {
+
+    const tableId = '#bannedData';
+
+    // One request per painted page, for the visible rows only. A page of 25 is 25
+    // storage calls; the whole table would be over a thousand and would block.
+    const fillObjectStatus = async () => {
+
+      const cells = document.querySelectorAll('#bannedData .object-status');
+      if (cells.length === 0) return;
+
+      const ids = Array.from(cells).map(cell => Number(cell.dataset.banId)).filter(id => id > 0);
+      if (ids.length === 0) return;
+
+      let data;
+      try {
+        const response = await fetch('/api/v2/admin/objectstatus', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: ids }),
+        });
+        data = await response.json();
+      } catch (error) {
+        console.error('banned - object status failed', error);
+        return;
+      }
+
+      if (!data || data.status !== 'success' || !data.objects) return;
+
+      cells.forEach(cell => {
+        const present = data.objects[cell.dataset.banId];
+        if (present === undefined) {
+          // Not a media-file ban: there is no object to talk about.
+          cell.className = 'object-status text-secondary';
+          cell.textContent = '—';
+          return;
+        }
+        if (present === true) {
+          cell.className = 'object-status';
+          cell.innerHTML = '<button type="button" class="btn btn-sm btn-outline-danger object-delete" ' +
+                           'data-ban-id="' + escapeHtml(cell.dataset.banId) + '" ' +
+                           'title="Delete the stored file, keep the record">on storage</button>';
+        } else {
+          cell.className = 'object-status text-secondary';
+          cell.textContent = 'deleted';
+        }
+      });
+    };
+
+    $(tableId).on('post-body.bs.table', fillObjectStatus);
+
+    $(document).on('click', '.object-delete', async function () {
+
+      const banId = Number($(this).data('ban-id'));
+      if (!banId) return;
+
+      const modal = await initConfirmModal(tableId, [banId], 'delete the stored file of', 'banned object', '', false);
+      if (modal.result !== true) return;
+
+      try {
+        const response = await fetch('/api/v2/admin/deleteobject', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: banId }),
+        });
+        const data = await response.json();
+        showMessage(escapeHtml(data.message || 'Could not delete the object'), data.status === 'success' ? 'alert-success' : 'alert-danger');
+      } catch (error) {
+        console.error('banned - object delete failed', error);
+        showMessage('Could not delete the object', 'alert-danger');
+      }
+
+      $(tableId).bootstrapTable('refresh');
+    });
+
+  });
 </script>
 
 <script>
