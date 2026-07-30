@@ -1898,6 +1898,55 @@ const getBannedObjectStatus = async (req: Request, res: Response): Promise<Respo
 
 }
 
+/**
+ * Deletes the stored object of one ban, from the banned objects view.
+ *
+ * Takes a `banned.id` because that is what the row in that table is keyed by;
+ * the media file id is resolved from it. The record is never removed, only the
+ * bytes, and `deleteBannedObjects` writes the audit row.
+ */
+const deleteBannedObject = async (req: Request, res: Response): Promise<Response> => {
+
+	// Check if the request IP is allowed
+	const reqInfo = await isIpAllowed(req);
+	if (reqInfo.banned == true) {
+		logger.warn(`deleteBannedObject - Attempt to access ${req.path} with unauthorized IP:`, reqInfo.ip);
+		return res.status(403).send({"status": "error", "message": reqInfo.comments});
+	}
+
+	// Check if current module is enabled
+	if (!isModuleEnabled("admin", "")) {
+		logger.warn(`deleteBannedObject - Attempt to access a non-active module: admin | IP:`, reqInfo.ip);
+		return res.status(403).send({"status": "error", "message": "Module is not enabled"});
+	}
+
+	// Check if authorization header is valid
+	const eventHeader = await parseAuthHeader(req, "deleteBannedObject", true, true, true);
+	if (eventHeader.status !== "success") {return res.status(401).send({"status": eventHeader.status, "message" : eventHeader.message});}
+	setAuthCookie(res, eventHeader.authkey);
+
+	const banId = Number(req.body.id);
+	if (!banId || banId < 1) {
+		return res.status(400).send({status: "error", message: "Invalid parameters"});
+	}
+
+	const banRecord = await dbMultiSelect(["originid", "origintable", "reason"], "banned", "id = ?", [banId], true);
+	if (banRecord.length == 0) {
+		logger.warn(`deleteBannedObject - Ban not found: ${banId}`, "|", reqInfo.ip);
+		return res.status(404).send({status: "error", message: "Ban not found"});
+	}
+	if (banRecord[0].origintable != "mediafiles") {
+		return res.status(400).send({status: "error", message: "That ban has no stored object"});
+	}
+
+	const deleteResult = await deleteBannedObjects(Number(banRecord[0].originid), eventHeader.pubkey, "admin", banRecord[0].reason || "");
+
+	logger.info(`deleteBannedObject - ban: ${banId} | ${deleteResult.message}`, "|", reqInfo.ip);
+
+	return res.status(deleteResult.status == "error" ? 500 : 200).send({status: deleteResult.status, message: deleteResult.message});
+
+}
+
 export {    serverStatus,
             serverUpdates,
             StopServer,
@@ -1913,5 +1962,6 @@ export {    serverStatus,
             banDBRecord,
             getMediaModerationData,
             bulkModerateRecords,
-            getBannedObjectStatus
+            getBannedObjectStatus,
+            deleteBannedObject
         };
