@@ -399,6 +399,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // autoplayMaxBytes never streams inside the grid at all.
     const maxConcurrentVideos = 6;
     const autoplayMaxBytes = 15 * 1024 * 1024;
+    const videoPlaybackRate = 5;
     const storeAutoplay = 'moderationGalleryAutoplay';
     const storeSafetyBlur = 'moderationGallerySafetyBlur';
 
@@ -808,6 +809,8 @@ document.addEventListener('DOMContentLoaded', () => {
             video.playsInline = true;
             video.preload = 'none';
             video.setAttribute('poster', '/static/resources/loading-video.webp');
+            // Same rate as the hosted files viewer: a tile is for judging, not watching.
+            video.addEventListener('loadedmetadata', () => { video.playbackRate = videoPlaybackRate; });
             // src is attached on demand by the observer, never up front.
             video.dataset.src = fileUrl(row);
             fragment.appendChild(video);
