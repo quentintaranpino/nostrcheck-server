@@ -39,6 +39,10 @@ const startServer = async () => {
     const { initAudit } = await import("./lib/audit/core.js");
     await initAudit();
 
+    // Release records the previous run left mid-moderation
+    const { cleanStuckModeration } = await import("./lib/moderation/core.js");
+    await cleanStuckModeration();
+
     // Initialise plugins
     const { initPlugins } = await import("./lib/plugins/core.js");
     await initPlugins("");

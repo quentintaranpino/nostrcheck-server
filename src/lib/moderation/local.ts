@@ -11,6 +11,9 @@ import { getConfig } from '../config/core.js';
 
 let localModel: PythonShell | null = null;
 
+const START_TIMEOUT = 30000;
+const KILL_GRACE = 5000;
+
 /**
  * Start the local AI moderation server using a Python virtual environment
  * @returns {Promise<boolean>}
@@ -52,24 +55,50 @@ const localEngineStart = async (): Promise<boolean> => {
         }
 
 
+        // Settle once: without this the queue (concurrency 1) waits forever when the
+        // port is already taken by an orphaned python, which never writes to stdout.
+        let settled = false;
+        const settle = (value: boolean) => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(startTimer);
+            resolve(value);
+        };
+
+        const startTimer = setTimeout(() => {
+            logger.error(`localEngineStart - Local AI moderation server did not start in ${START_TIMEOUT}ms.`);
+            localEngineStop();
+            settle(false);
+        }, START_TIMEOUT);
+
         localModel.on('message', (message) => {
             logger.debug(`localEngineStart - ${message}`);
             logger.debug(`localEngineStart - Local AI moderation server started successfully.`);
-            resolve(true); 
+            settle(true);
             return;
+        });
+
+        // Python writes the bind error here, not to stdout.
+        localModel.on('stderr', (stderr) => {
+            logger.debug(`localEngineStart - ${stderr}`);
+            if (stderr.toString().includes("Address already in use") || stderr.toString().includes("EADDRINUSE")) {
+                logger.error(`localEngineStart - Port 3001 already in use, another instance is still running.`);
+                localEngineStop();
+                settle(false);
+            }
         });
 
         localModel.on('error', (err) => {
             logger.error(`localEngineStart - Local AI moderation server failed to start with error: ${err}`);
             localModel = null;
-            reject(false); 
+            settle(false);
             return;
         });
 
         localModel.on('close', () => {
             logger.debug('localEngineStart - Local AI moderation server stopped.');
             localModel = null;
-			resolve(false);
+			settle(false);
             return;
         });
     });
@@ -84,6 +113,8 @@ const localEngineStop = () => {
         logger.debug(`localEngineStop - AI server already stopped.`);
         return;
     }
+    const pid = localModel.childProcess?.pid;
+
     try {
         localModel.terminate();
     } catch (e) {
@@ -91,6 +122,20 @@ const localEngineStop = () => {
     } finally {
         localModel = null;
         logger.debug(`localEngineStop - Local AI moderation server stopped.`);
+    }
+
+    // terminate() sends SIGTERM and flask with a loaded model does not always die,
+    // leaving an orphan holding port 3001 and its model in memory.
+    if (pid) {
+        setTimeout(() => {
+            try {
+                process.kill(pid, 0);
+                process.kill(pid, 'SIGKILL');
+                logger.warn(`localEngineStop - Server did not exit, killed pid ${pid}`);
+            } catch {
+                // already gone
+            }
+        }, KILL_GRACE);
     }
 };
 
@@ -147,8 +192,13 @@ const sendRequest = async (modelName: string, endpoint: string,  filePath: strin
         } else {
             logger.error(`sendRequest - There was an error running the model script: ${error}`);
         }
-        // Stop the local model if it fails.
-        localEngineStop();
+
+        // Only stop the model when the server itself is unreachable. A 4xx/5xx on one
+        // file used to kill it for every file behind it, and the next one paid a cold
+        // start plus model load inside the same 60s budget.
+        const engineDown = error instanceof AggregateError || (axios.isAxiosError(error) && !error.response);
+        if (engineDown) localEngineStop();
+
         return endpoint === "classify" ? "99:Unknown" : "No classes found";
     }
 }

@@ -116,4 +116,29 @@ const getModerationQueueLength = (): number => {
     return moderationQueue.length();
 }
 
-export { moderateFile, getModerationQueueLength };
+/**
+ * Returns records left at checked = 2 to pending.
+ * The queue lives in memory, so a restart strands whatever was in it.
+ *
+ * @returns A Promise resolving to the number of records released.
+ */
+const cleanStuckModeration = async (): Promise<number> => {
+
+    const stuck = await dbMultiSelect(["id"], "mediafiles", "checked = 2", [], false);
+    if (stuck.length == 0) return 0;
+
+    let released = 0;
+    for (const record of stuck) {
+        const update = await dbUpdate("mediafiles", { checked: "0" }, ["id"], [record.id]);
+        if (!update) {
+            logger.error(`cleanStuckModeration - Failed to release record | ${record.id}`);
+            continue;
+        }
+        released++;
+    }
+
+    logger.info(`cleanStuckModeration - Released ${released} record(s) stuck in moderation`);
+    return released;
+}
+
+export { moderateFile, getModerationQueueLength, cleanStuckModeration };
