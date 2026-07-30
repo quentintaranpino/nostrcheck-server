@@ -664,6 +664,15 @@ const headMedia = async (req: Request, res: Response): Promise<Response> => {
 		return res.status(404).send();
 	}
 
+	// Banned before storage: a banned hash has to answer "banned" whether or not
+	// the bytes are still there. Deleting the object of a banned file is normal
+	// housekeeping, and it must not turn a 403 into a 404.
+	if (await isEntityBanned(fileData[0].id, "mediafiles")) {
+		logger.warn(`headMedia - 403 Forbidden - file is banned: ${hash}`, "|", reqInfo.ip);
+		res.setHeader("X-Reason", "File is banned");
+		return res.status(403).send();
+	}
+
 	// Check if file exist on storage server
 	const filePath = await getFilePath(hash);
 	if (filePath == "") {
@@ -693,13 +702,6 @@ const headMedia = async (req: Request, res: Response): Promise<Response> => {
 			res.setHeader("X-Reason", `Invoice (${transaction.satoshi}) for hash: ${hash}`);
 			return res.status(402).send()
 		}
-	}
-
-	// Banned ?
-	if (await isEntityBanned(fileData[0].id, "mediafiles")) {
-		logger.warn(`headMedia - 403 Forbidden - file is banned: ${hash}`, "|", reqInfo.ip);
-		res.setHeader("X-Reason", "File is banned");
-		return res.status(403).send();
 	}
 
 	// Same rule getMediabyURL applies: an inactive file must not be confirmed either,
