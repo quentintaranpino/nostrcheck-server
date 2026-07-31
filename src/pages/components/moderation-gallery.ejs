@@ -870,6 +870,23 @@ document.addEventListener('DOMContentLoaded', () => {
             // A tile is for judging, not watching; the toolbar selector decides
             // how fast, live for the streams already running too.
             video.addEventListener('loadedmetadata', () => { video.playbackRate = state.videoSpeed; });
+            // The queue holds plenty of junk that declares video/mp4 and isn't
+            // (verified: the served bytes hash to the filename and still have no
+            // ftyp box). When the decoder gives up, say so on the card instead
+            // of leaving the poster to sit there looking like a loading bug.
+            video.addEventListener('error', () => {
+                const code = video.error ? video.error.code : 0;
+                // 3 = decode, 4 = source not supported. A network error (2)
+                // keeps the poster: a hiccup is not a broken file. No src means
+                // stopVideo just detached it, which fires this event too.
+                if ((code !== 3 && code !== 4) || !video.getAttribute('src')) return;
+                const tile = video.closest('.mod-tile');
+                if (tile) {
+                    releaseTileVideo(tile);
+                    tile.querySelector('.mod-play')?.remove();
+                }
+                video.replaceWith(fallbackCard(row, 'fa-file-circle-xmark', 'not a playable video'));
+            });
             // src is attached on demand by the observer, never up front.
             video.dataset.src = fileUrl(row);
             fragment.appendChild(video);
