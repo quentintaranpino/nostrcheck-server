@@ -78,6 +78,16 @@ const modTriggerTabId = typeof triggerTabId !== 'undefined' ? triggerTabId : '';
       <input class="form-check-input" type="checkbox" role="switch" id="moderationGallery-autoplay" checked>
       <label class="form-check-label small" for="moderationGallery-autoplay" title="Plays the videos in view, muted and looping. Files over 15 MB never autoplay, open them in the viewer instead.">Autoplay video</label>
     </div>
+    <div class="d-flex align-items-center gap-1">
+      <label class="form-label small mb-0" for="moderationGallery-speed" title="Playback rate for the autoplaying tiles. Applies to the ones already running too.">Speed</label>
+      <select id="moderationGallery-speed" class="form-select form-select-sm w-auto">
+        <option value="1">1&times;</option>
+        <option value="1.5">1.5&times;</option>
+        <option value="2" selected>2&times;</option>
+        <option value="3">3&times;</option>
+        <option value="5">5&times;</option>
+      </select>
+    </div>
     <div class="form-check form-switch mb-0">
       <input class="form-check-input" type="checkbox" role="switch" id="moderationGallery-safetyblur">
       <label class="form-check-label small" for="moderationGallery-safetyblur" title="Blurs everything not reviewed yet. Hover a card to reveal it. Handy while sharing your screen.">Blur unreviewed</label>
@@ -423,12 +433,18 @@ document.addEventListener('DOMContentLoaded', () => {
     // tail into the hundreds of MB, so autoplay is capped both ways: at most
     // maxConcurrentVideos streams at a time, and anything fatter than
     // autoplayMaxBytes never streams inside the grid at all.
-    const maxConcurrentVideos = 6;
+    // Ten streams is about two rows at the default tile size: enough that the
+    // row under the cursor and the next one both move, still far from letting a
+    // screenful of 60 videos stream at once.
+    const maxConcurrentVideos = 10;
     const autoplayMaxBytes = 15 * 1024 * 1024;
-    const videoPlaybackRate = 5;
+    // 2x by default: fast enough to triage, slow enough to see what happens.
+    // The toolbar selector goes up to the old 5x.
+    const videoSpeedDefault = 2;
     const storeAutoplay = 'moderationGalleryAutoplay';
     const storeSafetyBlur = 'moderationGallerySafetyBlur';
     const storeFilters = 'moderationGalleryFilters';
+    const storeVideoSpeed = 'moderationGalleryVideoSpeed';
 
     const state = {
         status: 'pending',
@@ -443,6 +459,7 @@ document.addEventListener('DOMContentLoaded', () => {
         started: false,
         needFacets: true,
         autoplay: true,
+        videoSpeed: videoSpeedDefault,
         aborter: null,
         metaAborter: null,  // the count+facets call aborts with the grid it belongs to
         rows: new Map(),        // id -> row data
@@ -468,6 +485,7 @@ document.addEventListener('DOMContentLoaded', () => {
         selectNone: document.getElementById('moderationGallery-select-none'),
         clearSpent: document.getElementById('moderationGallery-clear-spent'),
         autoplay: document.getElementById('moderationGallery-autoplay'),
+        speed: document.getElementById('moderationGallery-speed'),
         safetyBlur: document.getElementById('moderationGallery-safetyblur'),
         counter: document.getElementById('moderationGallery-counter'),
         bulkbar: document.getElementById('moderationGallery-bulkbar'),
@@ -634,6 +652,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // rootMargin widens the eligibility box past the viewport edges: a top row
+    // half under the sticky navbar or a card just entering from below still
+    // counts as in view, so the first rows play instead of flickering in and
+    // out at the boundary. The concurrency cap is what actually limits cost.
     state.videoObserver = new IntersectionObserver((entries) => {
         for (const entry of entries) {
             if (entry.isIntersecting) {
@@ -644,7 +666,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         reconcileVideos();
-    }, { threshold: 0.25 });
+    }, { threshold: 0.1, rootMargin: '200px 0px' });
 
     // Scrolling through a screenful of videos doesn't change what intersects,
     // but it does change which ones are nearest the middle.
@@ -839,8 +861,9 @@ document.addEventListener('DOMContentLoaded', () => {
             video.playsInline = true;
             video.preload = 'none';
             video.setAttribute('poster', '/static/resources/loading-video.webp');
-            // Same rate as the hosted files viewer: a tile is for judging, not watching.
-            video.addEventListener('loadedmetadata', () => { video.playbackRate = videoPlaybackRate; });
+            // A tile is for judging, not watching; the toolbar selector decides
+            // how fast, live for the streams already running too.
+            video.addEventListener('loadedmetadata', () => { video.playbackRate = state.videoSpeed; });
             // src is attached on demand by the observer, never up front.
             video.dataset.src = fileUrl(row);
             fragment.appendChild(video);
@@ -1750,6 +1773,14 @@ document.addEventListener('DOMContentLoaded', () => {
         reconcileVideos();
     });
 
+    el.speed.addEventListener('change', () => {
+        const speed = Number(el.speed.value);
+        state.videoSpeed = Number.isFinite(speed) && speed > 0 ? speed : videoSpeedDefault;
+        try { localStorage.setItem(storeVideoSpeed, String(state.videoSpeed)); } catch (e) { /* storage blocked */ }
+        // Live change: the streams already running pick the new rate up now.
+        for (const video of state.videosPlaying) video.playbackRate = state.videoSpeed;
+    });
+
     el.safetyBlur.addEventListener('change', () => {
         el.grid.classList.toggle('mod-safety-blur', el.safetyBlur.checked);
         try { localStorage.setItem(storeSafetyBlur, el.safetyBlur.checked ? '1' : '0'); } catch (e) { /* storage blocked */ }
@@ -1812,10 +1843,12 @@ document.addEventListener('DOMContentLoaded', () => {
         let autoplayPref = null;
         let blurPref = null;
         let filtersPref = null;
+        let speedPref = null;
         try {
             autoplayPref = localStorage.getItem(storeAutoplay);
             blurPref = localStorage.getItem(storeSafetyBlur);
             filtersPref = localStorage.getItem(storeFilters);
+            speedPref = localStorage.getItem(storeVideoSpeed);
         } catch (e) {
             // Storage blocked, keep the defaults.
         }
@@ -1824,6 +1857,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const safetyBlur = blurPref === '1';
         el.safetyBlur.checked = safetyBlur;
         el.grid.classList.toggle('mod-safety-blur', safetyBlur);
+
+        // Only speeds the selector offers: a stray stored value would set a rate
+        // with no visible option selected.
+        if (speedPref !== null && el.speed.querySelector(`option[value="${CSS.escape(speedPref)}"]`)) {
+            state.videoSpeed = Number(speedPref);
+            el.speed.value = speedPref;
+        }
 
         if (filtersPref !== null) {
             try {
