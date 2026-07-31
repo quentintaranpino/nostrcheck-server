@@ -76,7 +76,7 @@ const modTriggerTabId = typeof triggerTabId !== 'undefined' ? triggerTabId : '';
     <button id="moderationGallery-clear-spent" class="btn btn-outline-secondary btn-sm d-none" type="button" title="Remove the processed cards from the grid. Nothing moves until you press this.">Clear processed</button>
     <div class="form-check form-switch mb-0">
       <input class="form-check-input" type="checkbox" role="switch" id="moderationGallery-autoplay" checked>
-      <label class="form-check-label small" for="moderationGallery-autoplay" title="Plays the videos in view, muted and looping. Files over 15 MB never autoplay, open them in the viewer instead.">Autoplay video</label>
+      <label class="form-check-label small" for="moderationGallery-autoplay" title="Plays the videos in view, muted and looping. Files over 120 MB stay static: click the card to open them in the viewer.">Autoplay video</label>
     </div>
     <div class="d-flex align-items-center gap-1">
       <label class="form-label small mb-0" for="moderationGallery-speed" title="Playback rate for the autoplaying tiles. Applies to the ones already running too.">Speed</label>
@@ -239,6 +239,8 @@ const modTriggerTabId = typeof triggerTabId !== 'undefined' ? triggerTabId : '';
     z-index: 1;
   }
   .mod-fallback i { font-size: 1.6rem; }
+  /* The only part of a tile body that isn't selection: it opens the viewer. */
+  .mod-fallback-playable { cursor: zoom-in; }
   .mod-fallback .mod-fallback-label {
     font-size: 0.68rem;
     line-height: 1.15;
@@ -441,7 +443,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // row under the cursor and the next one both move, still far from letting a
     // screenful of 60 videos stream at once.
     const maxConcurrentVideos = 10;
-    const autoplayMaxBytes = 15 * 1024 * 1024;
+    // 15 MB left too much of the queue static, and a static card is a card that
+    // can't be judged: the tile click selects, so "click to play" was a promise
+    // the grid never kept. 120 MB covers all but the extreme tail; the transfer
+    // is aborted the moment the card leaves the eligibility box, so what a card
+    // costs is what got buffered while it was on screen, not the file size.
+    const autoplayMaxBytes = 120 * 1024 * 1024;
     // 2x by default: fast enough to triage, slow enough to see what happens.
     // The toolbar selector goes up to the old 5x.
     const videoSpeedDefault = 2;
@@ -722,7 +729,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // The uploader's own switch, now unrelated to nsfw.
             if (!isFlagOn(row.visibility)) marks.push('<i class="fa-solid fa-lock text-secondary" title="Hidden by the uploader (visibility = 0)"></i>');
             if (mediaKind(row.mimetype) === 'video' && Number(row.filesize) > autoplayMaxBytes) {
-                marks.push('<span class="mod-chip mod-chip-big" title="Too big to preview in the grid, click to watch it in the viewer">BIG</span>');
+                marks.push('<span class="mod-chip mod-chip-big" title="Too big to stream in the grid, click the card to watch it in the viewer">BIG</span>');
             }
             // Notification state. Its own shape (an envelope) so it never reads
             // as one of the moderation flags, and the failed one shouts.
@@ -793,7 +800,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const fallbackCard = (row, iconClass, extraLabel) => {
         const fallback = document.createElement('div');
-        fallback.className = 'mod-fallback';
+        // "click to play" has to mean it: the class routes the click to the
+        // viewer instead of to selection.
+        fallback.className = extraLabel === 'click to play' ? 'mod-fallback mod-fallback-playable' : 'mod-fallback';
         const icon = document.createElement('i');
         icon.className = `fa-solid ${iconClass}`;
         fallback.appendChild(icon);
@@ -1639,7 +1648,14 @@ document.addEventListener('DOMContentLoaded', () => {
         // Tile body: selection. It is the constant gesture in batch triage, so it
         // gets the whole surface; opening the viewer is the occasional one and has
         // its own button.
-        if (!event.target.closest('.mod-btn-zoom')) {
+        //
+        // Exception: a card with nothing to look at (over the autoplay ceiling, or
+        // a type with no preview) says "click to play", and on those the fallback
+        // itself opens the viewer. Selection still works from the checkbox and the
+        // rest of the tile.
+        if (event.target.closest('.mod-fallback-playable')) {
+            // falls through to the viewer below
+        } else if (!event.target.closest('.mod-btn-zoom')) {
             if (event.shiftKey && lastSelectedId !== null && lastSelectedId !== id) {
                 selectRange(lastSelectedId, id);
                 return;
