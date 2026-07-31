@@ -12,7 +12,7 @@ import { dbDelete, dbInsert, dbMultiSelect, dbSimpleSelect, dbUpdate } from "../
 import { allowedFieldNames, allowedFieldNamesAndValues, allowedTableNames, moduleDataReturnMessage, moduleDataKeys, moduleDataIndex, recordKeyFields, banCategoryNames, mediaModerationFilters, mediaModerationStatus, mediaModerationNsfwFields, notificationStatusRow } from "../interfaces/admin.js";
 import { parseAuthHeader} from "../lib/authorization.js";
 import { npubToHex } from "../lib/nostr/NIP19.js";
-import { dbCountModuleData, dbCountTableRows, dbCountMonthModuleData, dbCountBucketModuleData, dbSelectModuleData, dbSelectMediaModerationData, dbSelectMediaModerationFacets, dbSelectNotificationStatusBulk } from "../lib/admin.js";
+import { dbCountModuleData, dbCountTableRows, dbCountMonthModuleData, dbCountBucketModuleData, dbSelectModuleData, dbSelectMediaModerationData, dbCountMediaModeration, dbSelectMediaModerationFacets, dbSelectNotificationStatusBulk } from "../lib/admin.js";
 import { getBalance, getUnpaidTransactionsBalance } from "../lib/payments/core.js";
 import { getModerationQueueLength, moderateFile } from "../lib/moderation/core.js";
 import { addNewUsername } from "../lib/register.js";
@@ -1434,7 +1434,7 @@ const getNotificationStatus = async (origintable: string, ids: number[]): Promis
 /**
  * Retrieves a page of media files for the moderation gallery.
  *
- * @param req - The request object. Query: status, mimetype, pubkey, cursor, limit, order, facets.
+ * @param req - The request object. Query: status, mimetype, pubkey, cursor, limit (0 = metadata only), order, facets, count.
  * @param res - The response object.
  * @returns A promise that resolves to the response object.
  */
@@ -1464,9 +1464,10 @@ const getMediaModerationData = async (req: Request, res: Response): Promise<Resp
     const requestedStatus = typeof req.query.status === "string" ? req.query.status : "";
     const status = mediaModerationStatus.includes(requestedStatus) ? requestedStatus : "pending";
 
-    // Mimetype. Either an exact type or a "image/*" style group.
+    // Mimetype. An exact type, a "image/*" style group, or "visual" (the
+    // gallery's image-or-video lens, resolved in mediaModerationWhere).
     const requestedMimetype = typeof req.query.mimetype === "string" ? req.query.mimetype : "";
-    const mimetype = /^[a-zA-Z0-9.+-]+\/([a-zA-Z0-9.+-]+|\*)$/.test(requestedMimetype) ? requestedMimetype : "";
+    const mimetype = requestedMimetype === "visual" || /^[a-zA-Z0-9.+-]+\/([a-zA-Z0-9.+-]+|\*)$/.test(requestedMimetype) ? requestedMimetype : "";
     if (requestedMimetype != "" && mimetype == "") {
         logger.warn(`getMediaModerationData - Invalid mimetype filter: ${requestedMimetype}`, "|", reqInfo.ip);
         return res.status(400).send({"status": "error", "message": "Invalid mimetype filter"});
@@ -1485,42 +1486,48 @@ const getMediaModerationData = async (req: Request, res: Response): Promise<Resp
 
     const filters : mediaModerationFilters = {status, mimetype, pubkey};
     const cursor = Number(req.query.cursor) || 0;
-    const limit = Number(req.query.limit) || 60;
+    const limitRaw = Number(req.query.limit);
+    // limit=0 is the metadata call: facets and count without touching a page.
+    const limit = Number.isFinite(limitRaw) && limitRaw >= 0 ? limitRaw : 60;
     const order = typeof req.query.order === "string" ? req.query.order : "DESC";
 
-    const data = await dbSelectMediaModerationData(filters, cursor, limit, order);
+    const data = limit === 0 ? { rows: [] as Record<string, unknown>[] } : await dbSelectMediaModerationData(filters, cursor, limit, order);
 
-    // Notification state for the page, in one lookup instead of one per tile.
-    const notifications = await getNotificationStatus("mediafiles", data.rows.map(row => Number(row.id)));
+    if (data.rows.length > 0) {
+        // Notification state for the page, in one lookup instead of one per tile.
+        const notifications = await getNotificationStatus("mediafiles", data.rows.map(row => Number(row.id)));
 
-    // A manual retry writes the auditlog row by id. The audit layer's status map
-    // now carries that id, so this normally resolves nothing; it stays as the
-    // safety net for any reader that doesn't supply one, and it only asks about
-    // rows that could actually be retried (almost none in a healthy queue).
-    const pendingRetry = Object.keys(notifications).filter(key => {
-        const status = notifications[key].status;
-        return notifications[key].id === 0 && status !== "" && status !== "sent";
-    });
-    if (pendingRetry.length > 0) {
-        const retryTargets = await dbSelectNotificationStatusBulk("mediafiles", pendingRetry.map(key => Number(key)));
-        for (const key of pendingRetry) {
-            if (retryTargets[key] && retryTargets[key].id > 0) notifications[key].id = retryTargets[key].id;
+        // A manual retry writes the auditlog row by id. The audit layer's status map
+        // now carries that id, so this normally resolves nothing; it stays as the
+        // safety net for any reader that doesn't supply one, and it only asks about
+        // rows that could actually be retried (almost none in a healthy queue).
+        const pendingRetry = Object.keys(notifications).filter(key => {
+            const status = notifications[key].status;
+            return notifications[key].id === 0 && status !== "" && status !== "sent";
+        });
+        if (pendingRetry.length > 0) {
+            const retryTargets = await dbSelectNotificationStatusBulk("mediafiles", pendingRetry.map(key => Number(key)));
+            for (const key of pendingRetry) {
+                if (retryTargets[key] && retryTargets[key].id > 0) notifications[key].id = retryTargets[key].id;
+            }
+        }
+
+        for (const row of data.rows) {
+            row.notification = notifications[String(row.id)] || null;
         }
     }
 
-    for (const row of data.rows) {
-        row.notification = notifications[String(row.id)] || null;
-    }
-
-    // Facets are only worth a couple of GROUP BY scans when the toolbar asks
-    // for them (first load and whenever the status bucket changes).
+    // Count and facets never ride with a page: both scan the whole predicate and
+    // the grid must paint in the time a LIMIT takes. The gallery asks for them in
+    // a parallel limit=0 call and fills the toolbar when they land.
+    const total = req.query.count === "1" ? await dbCountMediaModeration(filters) : -1;
     const facets = req.query.facets === "1" ? await dbSelectMediaModerationFacets(filters) : undefined;
 
-    logger.info(`getMediaModerationData - Data retrieved succesfully, status: ${status} | total: ${data.total}`, "|", reqInfo.ip);
+    logger.info(`getMediaModerationData - Data retrieved succesfully, status: ${status} | rows: ${data.rows.length} | total: ${total}`, "|", reqInfo.ip);
     return res.status(200).send({
         status: "success",
         message: "Moderation data retrieved succesfully",
-        total: data.total,
+        total,
         cursor,
         limit,
         rows: data.rows,

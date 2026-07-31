@@ -31,7 +31,11 @@ const modTriggerTabId = typeof triggerTabId !== 'undefined' ? triggerTabId : '';
     </div>
     <div class="col-12 col-md-3 col-lg-2">
       <label for="moderationGallery-mimetype" class="form-label mb-1">Type</label>
+      <%# "Image & video" is the default lens: 4 of every 5 pending files are
+          visual and the rest (JSON, text) has nothing to look at. The facets
+          rebuild this list on load; these two options are the pre-facets set. %>
       <select id="moderationGallery-mimetype" class="form-select form-select-sm">
+        <option value="visual" selected>Image &amp; video</option>
         <option value="">All types</option>
       </select>
     </div>
@@ -130,10 +134,28 @@ const modTriggerTabId = typeof triggerTabId !== 'undefined' ? triggerTabId : '';
     overflow: hidden;
     border: 2px solid transparent;
     border-radius: 6px;
-    background: #1a1a1a;
+    /* Theme token, not a hardcoded dark: the tile surface only shows while an
+       image is in flight or behind a fallback, and a fixed #1a1a1a turned the
+       whole grid into a black slab on the light theme. */
+    background: var(--bs-tertiary-bg);
     /* The card selects; the zoom button opens it. */
     cursor: pointer;
     transition: opacity 0.25s ease;
+  }
+
+  /* First-load placeholders: the grid shape appears immediately and the real
+     tiles replace it, so a slow count or a cold cache never looks like a hang. */
+  .mod-tile.mod-skeleton {
+    border-color: transparent;
+    cursor: default;
+    animation: mod-skeleton-pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes mod-skeleton-pulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.55; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .mod-tile.mod-skeleton { animation: none; opacity: 0.7; }
   }
   .mod-tile .mod-btn-zoom { cursor: zoom-in; }
   .mod-tile.is-pending  { border-color: #ffc107; }
@@ -195,8 +217,10 @@ const modTriggerTabId = typeof triggerTabId !== 'undefined' ? triggerTabId : '';
     gap: 4px;
     padding: 4px;
     text-align: center;
-    color: #cfcfcf;
-    background: #2b3035;
+    /* Theme tokens for the same reason as .mod-tile: a fallback card is page
+       surface, not media, and it has to follow data-bs-theme. */
+    color: var(--bs-secondary-color);
+    background: var(--bs-secondary-bg);
     position: relative;
     z-index: 1;
   }
@@ -325,8 +349,10 @@ const modTriggerTabId = typeof triggerTabId !== 'undefined' ? triggerTabId : '';
     gap: 8px;
     padding: 8px;
     text-align: center;
-    background: rgba(33,37,41,0.92);
-    color: #dee2e6;
+    /* Covers the whole tile (the media under it is display:none), so it can be
+       a plain opaque theme surface instead of a fixed dark veil. */
+    background: var(--bs-tertiary-bg);
+    color: var(--bs-body-color);
     z-index: 7;
   }
   .mod-spent-what {
@@ -402,19 +428,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const videoPlaybackRate = 5;
     const storeAutoplay = 'moderationGalleryAutoplay';
     const storeSafetyBlur = 'moderationGallerySafetyBlur';
+    const storeFilters = 'moderationGalleryFilters';
 
     const state = {
         status: 'pending',
-        mimetype: '',
+        // The default lens: the operator's real work is what can be judged by
+        // looking. "All types" is one click away and remembered once chosen.
+        mimetype: 'visual',
         pubkey: '',
         cursor: 0,          // last id received, the queue pages by id not offset
-        total: 0,
+        total: null,        // per-filter count, null until the metadata call lands
         loading: false,
         exhausted: false,
         started: false,
         needFacets: true,
         autoplay: true,
         aborter: null,
+        metaAborter: null,  // the count+facets call aborts with the grid it belongs to
         rows: new Map(),        // id -> row data
         selected: new Set(),    // ids
         spent: new Map(),       // id -> {field, previous} for the processed slots
@@ -927,8 +957,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (state.globalPending.visual > 0 && state.globalPending.visual < state.globalPending.total) {
                 parts.push(`${count(state.globalPending.visual)} of them image or video`);
             }
-            if (state.total !== state.globalPending.total) parts.push(`${count(state.total)} in this filter`);
-        } else {
+            // null means the metadata call hasn't landed yet: say nothing rather
+            // than a zero that reads as an empty filter.
+            if (state.total !== null && state.total !== state.globalPending.total) parts.push(`${count(state.total)} in this filter`);
+        } else if (state.total !== null) {
             parts.push(`${count(state.total)} ${bucket}`);
         }
 
@@ -1004,8 +1036,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const resetGrid = (needFacets) => {
         state.aborter?.abort();
         state.aborter = null;
+        state.metaAborter?.abort();
+        state.metaAborter = null;
         state.cursor = 0;
-        state.total = 0;
+        state.total = null;
         state.loading = false;
         state.exhausted = false;
         state.needFacets = needFacets === true;
@@ -1027,11 +1061,80 @@ document.addEventListener('DOMContentLoaded', () => {
         refreshCounter();
     };
 
+    // First-load placeholders. The count and the facets can take seconds on a
+    // cold cache; a grid-shaped set of pulsing cells says "working" where the
+    // old lone spinner said "maybe hung".
+    const renderSkeletons = () => {
+        const fragment = document.createDocumentFragment();
+        for (let i = 0; i < 18; i++) {
+            const tile = document.createElement('div');
+            tile.className = 'mod-tile mod-skeleton';
+            tile.setAttribute('aria-hidden', 'true');
+            fragment.appendChild(tile);
+        }
+        el.grid.appendChild(fragment);
+    };
+
+    const clearSkeletons = () => {
+        el.grid.querySelectorAll('.mod-skeleton').forEach(node => node.remove());
+    };
+
+    // Count and facets in their own request, never blocking the page. Everything
+    // here scans the whole predicate (the pending bucket is an inequality plus a
+    // NOT EXISTS over ~100k rows); the toolbar fills in when it lands and the
+    // grid has long been painted.
+    const fetchMeta = async () => {
+
+        state.metaAborter?.abort();
+        state.metaAborter = new AbortController();
+
+        const params = new URLSearchParams();
+        params.set('status', state.status);
+        params.set('limit', '0');
+        params.set('count', '1');
+        if (state.mimetype) params.set('mimetype', state.mimetype);
+        if (state.pubkey) params.set('pubkey', state.pubkey);
+        if (state.needFacets) params.set('facets', '1');
+
+        let payload;
+        try {
+            payload = await fetchJSON(`/api/v2/admin/mediamoderation?${params}`, {
+                method: 'GET',
+                credentials: 'include',
+                signal: state.metaAborter.signal,
+            });
+            if (!payload || payload.status !== 'success') return;
+        } catch (err) {
+            // The page request already reports failures; a toolbar that keeps
+            // its previous numbers is not worth a second banner.
+            if (err.name !== 'AbortError') console.error('moderation gallery - meta fetch failed', err);
+            return;
+        }
+
+        if (Number(payload.total) >= 0) state.total = Number(payload.total);
+
+        if (state.needFacets && payload.facets) {
+            renderFacets(payload.facets);
+            // Rides with the facets, so the incremental scroll never asks for it.
+            if (payload.facets.pending) state.globalPending = { total: Number(payload.facets.pending.total) || 0, visual: Number(payload.facets.pending.visual) || 0 };
+            state.needFacets = false;
+        }
+
+        refreshCounter();
+    };
+
     const loadPage = async () => {
 
         if (state.loading || state.exhausted) return;
         state.loading = true;
-        el.spinner.classList.remove('d-none');
+
+        const firstPage = state.cursor === 0;
+        if (firstPage && state.rows.size === 0) {
+            renderSkeletons();
+            fetchMeta();
+        } else {
+            el.spinner.classList.remove('d-none');
+        }
         el.more.classList.add('d-none');
 
         state.aborter?.abort();
@@ -1043,7 +1146,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (state.cursor > 0) params.set('cursor', String(state.cursor));
         if (state.mimetype) params.set('mimetype', state.mimetype);
         if (state.pubkey) params.set('pubkey', state.pubkey);
-        if (state.needFacets) params.set('facets', '1');
 
         let payload;
         try {
@@ -1062,6 +1164,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (err.name === 'AbortError') return;
             console.error('moderation gallery - fetch failed', err);
             state.loading = false;
+            clearSkeletons();
             el.spinner.classList.add('d-none');
             // Never reload or redirect on a server failure, only say what happened.
             const detail = err.serverUnavailable
@@ -1075,14 +1178,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         clearError();
-        state.total = Number(payload.total) || 0;
-
-        if (state.needFacets && payload.facets) {
-            renderFacets(payload.facets);
-            // Rides with the facets, so the incremental scroll never asks for it.
-            if (payload.facets.pending) state.globalPending = { total: Number(payload.facets.pending.total) || 0, visual: Number(payload.facets.pending.visual) || 0 };
-            state.needFacets = false;
-        }
+        clearSkeletons();
 
         const rows = Array.isArray(payload.rows) ? payload.rows : [];
         const fragment = document.createDocumentFragment();
@@ -1111,6 +1207,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const currentMimetype = state.mimetype;
         el.mimetype.innerHTML = '';
+        // "Image & video" leads and is the default: it is the subset a human can
+        // judge by looking, and what the counter calls the real work.
+        const visualTypes = document.createElement('option');
+        visualTypes.value = 'visual';
+        visualTypes.textContent = 'Image & video';
+        el.mimetype.appendChild(visualTypes);
         const allTypes = document.createElement('option');
         allTypes.value = '';
         allTypes.textContent = 'All types';
@@ -1572,15 +1674,27 @@ document.addEventListener('DOMContentLoaded', () => {
         refreshCounter();
     };
 
+    // What the operator chose yesterday is what they want today: status and type
+    // survive the session, like autoplay and the safety blur already do.
+    const persistFilters = () => {
+        try {
+            localStorage.setItem(storeFilters, JSON.stringify({ status: state.status, mimetype: state.mimetype }));
+        } catch (e) { /* storage blocked */ }
+    };
+
     el.status.addEventListener('change', () => {
         state.status = el.status.value;
-        state.mimetype = '';
+        // The type lens survives the bucket change: whoever is triaging images
+        // keeps triaging images. The facets refresh will drop an exact type that
+        // doesn't exist in the new bucket.
+        persistFilters();
         resetGrid(true);
         loadPage();
     });
 
     el.mimetype.addEventListener('change', () => {
         state.mimetype = el.mimetype.value;
+        persistFilters();
         resetGrid(false);
         loadPage();
     });
@@ -1697,9 +1811,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const restorePreferences = () => {
         let autoplayPref = null;
         let blurPref = null;
+        let filtersPref = null;
         try {
             autoplayPref = localStorage.getItem(storeAutoplay);
             blurPref = localStorage.getItem(storeSafetyBlur);
+            filtersPref = localStorage.getItem(storeFilters);
         } catch (e) {
             // Storage blocked, keep the defaults.
         }
@@ -1708,6 +1824,30 @@ document.addEventListener('DOMContentLoaded', () => {
         const safetyBlur = blurPref === '1';
         el.safetyBlur.checked = safetyBlur;
         el.grid.classList.toggle('mod-safety-blur', safetyBlur);
+
+        if (filtersPref !== null) {
+            try {
+                const stored = JSON.parse(filtersPref);
+                if (typeof stored.status === 'string' && el.status.querySelector(`option[value="${CSS.escape(stored.status)}"]`)) {
+                    state.status = stored.status;
+                    el.status.value = stored.status;
+                }
+                if (typeof stored.mimetype === 'string') {
+                    // The facets haven't arrived yet, so an exact stored type has
+                    // no option to select: create it, renderFacets rebuilds later.
+                    if (stored.mimetype !== '' && !el.mimetype.querySelector(`option[value="${CSS.escape(stored.mimetype)}"]`)) {
+                        const option = document.createElement('option');
+                        option.value = stored.mimetype;
+                        option.textContent = stored.mimetype;
+                        el.mimetype.appendChild(option);
+                    }
+                    state.mimetype = stored.mimetype;
+                    el.mimetype.value = stored.mimetype;
+                }
+            } catch (e) {
+                // Malformed entry, keep the defaults.
+            }
+        }
     };
 
     const start = () => {

@@ -279,7 +279,12 @@ const mediaModerationWhere = (filters: mediaModerationFilters): { clause: string
 	}
 
 	if (filters.mimetype != "") {
-		if (filters.mimetype.endsWith("/*")) {
+		if (filters.mimetype == "visual") {
+			// "visual" is not a real mimetype but the gallery's default lens:
+			// what a human can judge by looking at it. Kept server side so the
+			// filtered count and the page agree on what it means.
+			clauses.push("(mediafiles.mimetype LIKE 'image/%' OR mediafiles.mimetype LIKE 'video/%')");
+		} else if (filters.mimetype.endsWith("/*")) {
 			clauses.push("mediafiles.mimetype LIKE ?");
 			params.push(filters.mimetype.replace("/*", "/%"));
 		} else {
@@ -356,9 +361,11 @@ const dbCountPendingOverview = async (): Promise<{ total: number; visual: number
  * @param cursor - Last id of the previous page, 0 for the first page.
  * @param limit - Rows to return (1-200).
  * @param order - "ASC" or "DESC", anything else falls back to "DESC".
- * @returns Total matching rows and the requested page.
+ * @returns The requested page. Counting is dbCountMediaModeration's job: the
+ *          page must paint in the time a LIMIT takes, never in the time a
+ *          COUNT over the whole predicate takes.
  */
-const dbSelectMediaModerationData = async (filters: mediaModerationFilters, cursor: number, limit: number, order: string): Promise<{ total: number; rows: Record<string, unknown>[] }> => {
+const dbSelectMediaModerationData = async (filters: mediaModerationFilters, cursor: number, limit: number, order: string): Promise<{ rows: Record<string, unknown>[] }> => {
 
 	const { clause, params } = mediaModerationWhere(filters);
 	const safeCursor = Number.isFinite(cursor) && cursor > 0 ? Math.floor(cursor) : 0;
@@ -372,7 +379,6 @@ const dbSelectMediaModerationData = async (filters: mediaModerationFilters, curs
 		pageParams.push(safeCursor);
 	}
 
-	const totalResult = await dbMultiSelect(["COUNT(*) as total"], "mediafiles", clause, params, true);
 	const rows = await dbMultiSelect(mediaModerationSelectFields,
 									"mediafiles",
 									`${pageClause} ORDER BY mediafiles.id ${safeOrder}`,
@@ -382,7 +388,22 @@ const dbSelectMediaModerationData = async (filters: mediaModerationFilters, curs
 
 	logger.debug(`dbSelectMediaModerationData - status: ${filters.status} | mimetype: ${filters.mimetype} | pubkey: ${filters.pubkey} | cursor: ${safeCursor} | rows: ${rows.length}`);
 
-	return { total: totalResult.length > 0 ? Number(totalResult[0].total) : 0, rows: rows || [] };
+	return { rows: rows || [] };
+};
+
+/**
+ * Exact count of what the current filter matches. Split from the page reader so
+ * the gallery can ask for it asynchronously: the pending predicate is an
+ * inequality plus a NOT EXISTS, a full scan the first paint must never wait on.
+ *
+ * @param filters - status bucket, mimetype and pubkey.
+ * @returns Matching rows.
+ */
+const dbCountMediaModeration = async (filters: mediaModerationFilters): Promise<number> => {
+
+	const { clause, params } = mediaModerationWhere(filters);
+	const counted = await dbMultiSelect(["COUNT(*) as total"], "mediafiles", clause, params, true);
+	return counted.length > 0 ? Number(counted[0].total) || 0 : 0;
 };
 
 /**
@@ -395,6 +416,19 @@ const dbSelectMediaModerationData = async (filters: mediaModerationFilters, curs
  * @returns Mimetypes and uploaders with their counts, most files first.
  */
 const dbSelectMediaModerationFacets = async (filters: mediaModerationFilters): Promise<{ mimetypes: Record<string, unknown>[]; pubkeys: Record<string, unknown>[]; pending: { total: number; visual: number } }> => {
+
+	// Two GROUP BY scans over the whole bucket. Memoised like the counts: the
+	// figures move slower than the operator, and a stale-by-45s toolbar beats
+	// paying both scans on every status flip.
+	const cacheKey = `admincount:v1:facets:${filters.status}`;
+	const cached = await countCacheGet(cacheKey);
+	if (cached !== null) {
+		try {
+			return JSON.parse(cached);
+		} catch (error) {
+			logger.debug(`dbSelectMediaModerationFacets - discarding malformed cache entry ${cacheKey}: ${error}`);
+		}
+	}
 
 	const { clause, params } = mediaModerationWhere({ status: filters.status, mimetype: "", pubkey: "" });
 
@@ -420,7 +454,9 @@ const dbSelectMediaModerationFacets = async (filters: mediaModerationFilters): P
 	// status change and refresh. The scroll never asks for either.
 	const pending = await dbCountPendingOverview();
 
-	return { mimetypes: mimetypes || [], pubkeys: pubkeys || [], pending };
+	const result = { mimetypes: mimetypes || [], pubkeys: pubkeys || [], pending };
+	await countCacheSet(cacheKey, JSON.stringify(result));
+	return result;
 };
 
 // null = not probed yet. Installations that haven't migrated simply get no
@@ -492,4 +528,4 @@ const dbSelectNotificationStatusBulk = async (origintable: string, ids: number[]
 	return result;
 };
 
-export { dbCountModuleData, dbCountTableRows, dbSelectModuleData, dbCountMonthModuleData, dbCountBucketModuleData, dbSelectMediaModerationData, dbSelectMediaModerationFacets, dbSelectNotificationStatusBulk };
+export { dbCountModuleData, dbCountTableRows, dbSelectModuleData, dbCountMonthModuleData, dbCountBucketModuleData, dbSelectMediaModerationData, dbCountMediaModeration, dbSelectMediaModerationFacets, dbSelectNotificationStatusBulk };
