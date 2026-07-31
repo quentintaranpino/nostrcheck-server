@@ -133,6 +133,10 @@ const modTriggerTabId = typeof triggerTabId !== 'undefined' ? triggerTabId : '';
 <%- include('./modals/confirm-modal', {"objectId":"moderationGallery"}); %>
 
 <style>
+  /* The tab-shown scroll targets the wrapper; without this the sticky navbar
+     swallows the heading. */
+  #moderationGallery { scroll-margin-top: 4.25rem; }
+
   .mod-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(var(--mod-tile, 300px), 1fr));
@@ -652,10 +656,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // rootMargin widens the eligibility box past the viewport edges: a top row
-    // half under the sticky navbar or a card just entering from below still
-    // counts as in view, so the first rows play instead of flickering in and
-    // out at the boundary. The concurrency cap is what actually limits cost.
+    // rootMargin widens the eligibility box past the viewport edges: 120px up
+    // keeps a row half under the sticky navbar playing, 400px down starts the
+    // stream before the card is on screen, so it is already moving when it
+    // arrives. Offscreen candidates rank last for the concurrency slots (the
+    // winners sort by distance to the viewport centre), so they never steal a
+    // stream from a card the operator is actually looking at.
     state.videoObserver = new IntersectionObserver((entries) => {
         for (const entry of entries) {
             if (entry.isIntersecting) {
@@ -666,7 +672,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         reconcileVideos();
-    }, { threshold: 0.1, rootMargin: '200px 0px' });
+    }, { threshold: 0.1, rootMargin: '120px 0px 400px 0px' });
 
     // Scrolling through a screenful of videos doesn't change what intersects,
     // but it does change which ones are nearest the middle.
@@ -1901,7 +1907,16 @@ document.addEventListener('DOMContentLoaded', () => {
     if (triggerTabId !== '') {
         const tabButton = document.getElementById(triggerTabId);
         if (tabButton) {
-            tabButton.addEventListener('shown.bs.tab', start);
+            tabButton.addEventListener('shown.bs.tab', () => {
+                start();
+                // The pane sits a full viewport below the dashboard header, so
+                // opening the tab used to show everything except the queue and
+                // nothing autoplayed. Land the operator on the gallery instead.
+                const wrapper = document.getElementById('moderationGallery');
+                if (wrapper && wrapper.getBoundingClientRect().top > window.innerHeight * 0.4) {
+                    wrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
             // Leaving the tab hides the grid, nothing should keep streaming.
             tabButton.addEventListener('hide.bs.tab', stopAllVideos);
             if (tabButton.classList.contains('active')) start();
