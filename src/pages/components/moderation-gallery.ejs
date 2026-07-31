@@ -33,9 +33,13 @@ const modTriggerTabId = typeof triggerTabId !== 'undefined' ? triggerTabId : '';
       <label for="moderationGallery-mimetype" class="form-label mb-1">Type</label>
       <%# "Image & video" is the default lens: 4 of every 5 pending files are
           visual and the rest (JSON, text) has nothing to look at. The facets
-          rebuild this list on load; these two options are the pre-facets set. %>
+          rebuild this list on load and append the exact types with their counts;
+          these five are the named lenses, always in the same order. %>
       <select id="moderationGallery-mimetype" class="form-select form-select-sm">
         <option value="visual" selected>Image &amp; video</option>
+        <option value="image/*">Images</option>
+        <option value="video/*">Videos</option>
+        <option value="audio/*">Audio</option>
         <option value="">All types</option>
       </select>
     </div>
@@ -241,6 +245,15 @@ const modTriggerTabId = typeof triggerTabId !== 'undefined' ? triggerTabId : '';
   .mod-fallback i { font-size: 1.6rem; }
   /* The only part of a tile body that isn't selection: it opens the viewer. */
   .mod-fallback-playable { cursor: zoom-in; }
+  /* Audio card: the player sits above the action bar, never under it. */
+  .mod-audio audio {
+    width: 92%;
+    max-width: 260px;
+    height: 32px;
+    margin-top: 4px;
+    position: relative;
+    z-index: 5;
+  }
   .mod-fallback .mod-fallback-label {
     font-size: 0.68rem;
     line-height: 1.15;
@@ -452,6 +465,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2x by default: fast enough to triage, slow enough to see what happens.
     // The toolbar selector goes up to the old 5x.
     const videoSpeedDefault = 2;
+    // Losing a playback slot only pauses, it doesn't throw the buffer away: the
+    // public gallery works that way and its tiles always show something. Above
+    // this size the transfer is worth aborting, below it re-buffering the same
+    // few MB on every scroll costs more than holding them.
+    const detachBytes = 25 * 1024 * 1024;
     const storeAutoplay = 'moderationGalleryAutoplay';
     const storeSafetyBlur = 'moderationGallerySafetyBlur';
     const storeFilters = 'moderationGalleryFilters';
@@ -600,24 +618,40 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ------------------------------------------------------------------ video
 
-    const startVideo = (video) => {
+    // Attaching the src is not the same as playing it. With preload='metadata'
+    // this alone gets the first frame on screen, which is all a card that isn't
+    // one of the closest to the centre needs.
+    const attachVideo = (video) => {
         if (!video.isConnected) return;
         if (!video.getAttribute('src')) video.setAttribute('src', video.dataset.src || '');
+    };
+
+    const startVideo = (video) => {
+        if (!video.isConnected) return;
+        attachVideo(video);
         state.videosPlaying.add(video);
         video.closest('.mod-tile')?.classList.add('is-playing');
         const played = video.play();
         if (played && typeof played.catch === 'function') played.catch(() => {});
     };
 
-    // Pausing is not enough, the browser keeps pulling the rest of the file.
-    // Dropping the src and calling load() is what actually aborts the transfer
-    // and releases what was buffered.
-    const stopVideo = (video) => {
+    // Two levels, because they answer different questions.
+    //
+    // Pausing keeps the buffer: the card stays on the frame it reached and
+    // resumes instantly. That is what losing a playback slot means, and it is
+    // what the public gallery does for every tile.
+    //
+    // Releasing drops the src and calls load(), which is the only thing that
+    // actually aborts the transfer. Reserved for cards that left the viewport
+    // altogether, and for big files where holding the buffer is the expensive
+    // part.
+    const stopVideo = (video, release) => {
         state.videosPlaying.delete(video);
         video.closest('.mod-tile')?.classList.remove('is-playing');
         try {
             video.pause();
-            if (video.getAttribute('src')) {
+            const heavy = Number(video.dataset.filesize) > detachBytes;
+            if ((release === true || heavy) && video.getAttribute('src')) {
                 video.removeAttribute('src');
                 video.load();
             }
@@ -626,40 +660,53 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // Leaving the tab or hiding the page: release everything, nothing should keep
+    // downloading behind the operator's back.
     const stopAllVideos = () => {
-        for (const video of [...state.videosPlaying]) stopVideo(video);
+        for (const video of [...state.videosPlaying]) stopVideo(video, true);
         state.videosPlaying.clear();
     };
 
-    // Of everything on screen, only the cards closest to the middle of the
-    // viewport get to stream. The rest sit on their poster.
+    // Everything in view gets its src, so every card shows its first frame. Only
+    // the ones closest to the middle of the viewport get to *stream*; the rest
+    // sit on a real frame of their own file instead of on the loading poster.
     const reconcileVideos = () => {
-
-        if (!state.autoplay || document.hidden) {
-            stopAllVideos();
-            return;
-        }
 
         // Tiles dropped mid-session can leave detached elements behind.
         for (const video of [...state.videosInView]) {
             if (!video.isConnected) state.videosInView.delete(video);
         }
 
+        // Autoplay off still means "show me the files", not "show me posters":
+        // the frame is the whole point of a thumbnail grid.
+        if (!state.autoplay || document.hidden) {
+            stopAllVideos();
+            if (!document.hidden) {
+                for (const video of state.videosInView) attachVideo(video);
+            }
+            return;
+        }
+
         const centre = window.innerHeight / 2;
-        const winners = new Set([...state.videosInView]
+        const ranked = [...state.videosInView]
             .map(video => {
                 const rect = video.getBoundingClientRect();
                 return { video, distance: Math.abs(rect.top + (rect.height / 2) - centre) };
             })
-            .sort((a, b) => a.distance - b.distance)
-            .slice(0, maxConcurrentVideos)
-            .map(item => item.video));
+            .sort((a, b) => a.distance - b.distance);
 
+        const winners = new Set(ranked.slice(0, maxConcurrentVideos).map(item => item.video));
+
+        // Still in view, just not one of the closest: pause and keep the buffer.
         for (const video of [...state.videosPlaying]) {
-            if (!winners.has(video)) stopVideo(video);
+            if (!winners.has(video)) stopVideo(video, false);
         }
-        for (const video of winners) {
-            if (!state.videosPlaying.has(video)) startVideo(video);
+        for (const item of ranked) {
+            if (winners.has(item.video)) {
+                if (!state.videosPlaying.has(item.video)) startVideo(item.video);
+            } else {
+                attachVideo(item.video);
+            }
         }
     };
 
@@ -674,8 +721,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (entry.isIntersecting) {
                 state.videosInView.add(entry.target);
             } else {
+                // Out of the eligibility box entirely: release the transfer.
                 state.videosInView.delete(entry.target);
-                stopVideo(entry.target);
+                stopVideo(entry.target, true);
             }
         }
         reconcileVideos();
@@ -704,7 +752,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const video = tile.querySelector('video.mod-media');
         if (!video) return;
         state.videosInView.delete(video);
-        stopVideo(video);
+        stopVideo(video, true);
         state.videoObserver?.unobserve(video);
     };
 
@@ -874,8 +922,17 @@ document.addEventListener('DOMContentLoaded', () => {
             video.muted = true;
             video.loop = true;
             video.playsInline = true;
-            video.preload = 'none';
+            // 'metadata', like the public gallery: the browser fetches the header
+            // and first frame, so a card that never wins a playback slot still
+            // shows the video instead of the loading poster forever. 'none' was
+            // why most tiles in a screenful stayed blank; only 10 of ~17 videos
+            // can stream at once and the rest were left with no src at all.
+            video.preload = 'metadata';
+            // stopVideo needs the size to decide whether to keep the buffer.
+            video.dataset.filesize = String(Number(row.filesize) || 0);
             video.setAttribute('poster', '/static/resources/loading-video.webp');
+            // The first frame arriving is what replaces the poster.
+            video.addEventListener('loadeddata', () => video.classList.add('is-loaded'), { once: true });
             // A tile is for judging, not watching; the toolbar selector decides
             // how fast, live for the streams already running too.
             video.addEventListener('loadedmetadata', () => { video.playbackRate = state.videoSpeed; });
@@ -896,7 +953,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 video.replaceWith(fallbackCard(row, 'fa-file-circle-xmark', 'not a playable video'));
             });
-            // src is attached on demand by the observer, never up front.
+            // src is attached by the observer on first intersection (same as the
+            // public gallery): 60 tiles asking for metadata at once is the one
+            // thing 'metadata' must not be allowed to mean.
             video.dataset.src = fileUrl(row);
             fragment.appendChild(video);
 
@@ -907,10 +966,34 @@ document.addEventListener('DOMContentLoaded', () => {
             return fragment;
         }
 
-        // Audio and everything else: icon plus metadata, the file itself only
-        // opens in the viewer.
-        const icons = { audio: 'fa-music', other: 'fa-file-lines' };
-        fragment.appendChild(fallbackCard(row, icons[kind] || icons.other));
+        // Audio gets real controls, like the public gallery: judging a sound file
+        // means hearing it, and the viewer round trip for every one of them is
+        // what made the audio bucket unworkable. preload='none' so a screenful
+        // of them costs nothing until one is pressed.
+        if (kind === 'audio') {
+            const wrap = document.createElement('div');
+            wrap.className = 'mod-fallback mod-audio';
+            const icon = document.createElement('i');
+            icon.className = 'fa-solid fa-music';
+            wrap.appendChild(icon);
+            const meta = document.createElement('div');
+            meta.className = 'mod-fallback-label';
+            meta.textContent = [row.mimetype, formatSize(row.filesize)].filter(Boolean).join(' · ');
+            wrap.appendChild(meta);
+            const audio = document.createElement('audio');
+            audio.preload = 'none';
+            audio.controls = true;
+            audio.src = fileUrl(row);
+            // The controls are the one part of the card body that isn't selection.
+            audio.addEventListener('click', (event) => event.stopPropagation());
+            wrap.appendChild(audio);
+            fragment.appendChild(wrap);
+            return fragment;
+        }
+
+        // Everything else: icon plus metadata, the file itself only opens in the
+        // viewer.
+        fragment.appendChild(fallbackCard(row, 'fa-file-lines'));
         return fragment;
     };
 
@@ -1262,25 +1345,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const currentMimetype = state.mimetype;
         el.mimetype.innerHTML = '';
-        // "Image & video" leads and is the default: it is the subset a human can
-        // judge by looking, and what the counter calls the real work.
-        const visualTypes = document.createElement('option');
-        visualTypes.value = 'visual';
-        visualTypes.textContent = 'Image & video';
-        el.mimetype.appendChild(visualTypes);
-        const allTypes = document.createElement('option');
-        allTypes.value = '';
-        allTypes.textContent = 'All types';
-        el.mimetype.appendChild(allTypes);
-
-        // Group shortcuts first, they are what an operator actually reaches for.
-        for (const group of ['image/*', 'video/*', 'audio/*']) {
+        // The named lenses, same order as the static markup: "Image & video"
+        // leads because it is the subset a human can judge by looking, and what
+        // the counter calls the real work.
+        for (const lens of [['visual', 'Image & video'], ['image/*', 'Images'], ['video/*', 'Videos'], ['audio/*', 'Audio'], ['', 'All types']]) {
             const option = document.createElement('option');
-            option.value = group;
-            option.textContent = group;
+            option.value = lens[0];
+            option.textContent = lens[1];
             el.mimetype.appendChild(option);
         }
 
+        // Then the exact types the bucket actually holds, with their counts.
         for (const item of (facets.mimetypes || [])) {
             const option = document.createElement('option');
             option.value = String(item.mimetype || '');
