@@ -117,6 +117,10 @@ const modTriggerTabId = typeof triggerTabId !== 'undefined' ? triggerTabId : '';
     <button id="moderationGallery-bulk-enable" class="btn btn-primary btn-sm" type="button"><i class="fa-solid fa-eye me-1"></i>Activate</button>
     <button id="moderationGallery-bulk-disable" class="btn btn-warning btn-sm" type="button"><i class="fa-solid fa-eye-slash me-1"></i>Deactivate</button>
     <button id="moderationGallery-bulk-ban" class="btn btn-danger btn-sm" type="button"><i class="fa-solid fa-triangle-exclamation me-1"></i>Ban</button>
+    <%# Outline, not solid danger: it sits next to Ban and the two must not look
+        interchangeable. Ban is reversible and keeps the evidence; this one is
+        neither. %>
+    <button id="moderationGallery-bulk-delete" class="btn btn-outline-danger btn-sm" type="button" title="Delete the files and their records for good. Cannot be undone."><i class="fa-solid fa-trash me-1"></i>Delete</button>
     <button id="moderationGallery-bulk-retry" class="btn btn-info btn-sm" type="button" title="Put pending or failed notifications for the selection back in the queue"><i class="fa-solid fa-paper-plane me-1"></i>Retry notification</button>
     <%# Outline secondary, not light: the bar is a light surface now. %>
     <button id="moderationGallery-bulk-close" class="btn btn-outline-secondary btn-sm ms-1" type="button" title="Clear selection"><i class="fa-solid fa-xmark"></i></button>
@@ -327,6 +331,9 @@ const modTriggerTabId = typeof triggerTabId !== 'undefined' ? triggerTabId : '';
     .mod-chip-failed { animation: none; }
   }
 
+  /* Shared strip built by window.mediaActionBar. The public gallery reveals it
+     on hover; here it is always on, so it gets the tile's bottom edge and its
+     own translucent backing over the media. */
   .mod-actions {
     position: absolute;
     bottom: 0;
@@ -339,6 +346,20 @@ const modTriggerTabId = typeof triggerTabId !== 'undefined' ? triggerTabId : '';
     padding: 3px;
     background: rgba(0,0,0,0.55);
     z-index: 4;
+  }
+  /* Delete sits next to Ban and must not read as another shade of the same
+     action: outline until pressed, solid on hover, so the destructive one is
+     the one you have to aim at. */
+  .mod-actions .media-btn-delete {
+    background: transparent;
+    border-color: #dc3545;
+    color: #ff8b95;
+  }
+  .mod-actions .media-btn-delete:hover,
+  .mod-actions .media-btn-delete:focus-visible {
+    background: #dc3545;
+    border-color: #dc3545;
+    color: #fff;
   }
   /* Big enough to hit without aiming. Four buttons at 36px plus gaps fit inside
      the smallest tile (225px) with room to spare, and the bar stays an overlay so
@@ -1016,47 +1037,23 @@ document.addEventListener('DOMContentLoaded', () => {
         badges.className = 'mod-badges';
         tile.appendChild(badges);
 
-        const actions = document.createElement('div');
-        actions.className = 'mod-actions';
-
-        const checkedButton = document.createElement('button');
-        checkedButton.type = 'button';
-        checkedButton.className = 'btn btn-success mod-btn-checked';
-        checkedButton.innerHTML = '<i class="fa-solid fa-check"></i>';
-        actions.appendChild(checkedButton);
-
-        const nsfwButton = document.createElement('button');
-        nsfwButton.type = 'button';
-        nsfwButton.className = 'btn mod-btn-nsfw';
-        nsfwButton.innerHTML = '<i class="fa-solid fa-mask"></i>';
-        actions.appendChild(nsfwButton);
-
-        const activeButton = document.createElement('button');
-        activeButton.type = 'button';
-        activeButton.className = 'btn btn-secondary mod-btn-active';
-        actions.appendChild(activeButton);
-
-        const banButton = document.createElement('button');
-        banButton.type = 'button';
-        banButton.className = 'btn btn-danger mod-btn-ban';
-        banButton.title = 'Ban file';
-        banButton.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i>';
-        actions.appendChild(banButton);
-
-        // Always on the bar, never hover-only: a control that appears on hover
-        // doesn't exist on a touch screen and gets found by accident on a mouse.
-        const zoomButton = document.createElement('button');
-        zoomButton.type = 'button';
-        zoomButton.className = 'btn btn-dark mod-btn-zoom';
-        zoomButton.title = 'Open the file in the viewer (moderate and step through with the keyboard)';
-        zoomButton.innerHTML = '<i class="fa-solid fa-magnifying-glass-plus"></i>';
-        actions.appendChild(zoomButton);
-
-        const retryButton = document.createElement('button');
-        retryButton.type = 'button';
-        retryButton.className = 'btn btn-info mod-btn-retry d-none';
-        retryButton.innerHTML = '<i class="fa-solid fa-paper-plane"></i>';
-        actions.appendChild(retryButton);
+        // window.mediaActionBar (static/js/media-action-bar.js) is the strip the
+        // public gallery uses too: same variants, same icons, same markup. The
+        // legacy mod-btn-* classes ride along because the click router and the
+        // per-state code already select on them.
+        //
+        // reveal: 'always' and not the public gallery's hover fade: a control that
+        // appears on hover doesn't exist on a touch screen, and in batch triage
+        // the bar IS the work surface.
+        const actions = window.mediaActionBar.build([
+            { kind: 'checked', className: 'mod-btn-checked', title: 'Mark as reviewed' },
+            { kind: 'nsfw',    className: 'mod-btn-nsfw',    title: 'Reviewed and hidden from the public listings' },
+            { kind: 'active',  className: 'mod-btn-active' },
+            { kind: 'ban',     className: 'mod-btn-ban',     title: 'Ban file' },
+            { kind: 'delete',  className: 'mod-btn-delete',  title: 'Delete the file and its record for good. Cannot be undone.' },
+            { kind: 'zoom',    className: 'mod-btn-zoom',    title: 'Open the file in the viewer (moderate and step through with the keyboard)' },
+            { kind: 'retry',   className: 'mod-btn-retry',   hidden: true },
+        ], { reveal: 'always', className: 'mod-actions' });
 
         tile.appendChild(actions);
 
@@ -1642,6 +1639,76 @@ document.addEventListener('DOMContentLoaded', () => {
         return true;
     };
 
+    // Deletes the row and, when no other record shares the filename, the stored
+    // object too. There is no undo and no spent slot to restore from: the tile
+    // leaves the grid because the file no longer exists.
+    //
+    // /deleterecord takes one id per call (it has to resolve the filename and
+    // check for other rows sharing it before touching the disk), so this is a
+    // loop and not a bulk endpoint. Kept sequential on purpose: a hundred
+    // parallel unlinks is not a thing worth building.
+    const deleteFiles = async (ids) => {
+
+        if (ids.length === 0) return;
+
+        const modal = await confirmAction(ids, 'permanently delete', false);
+        if (modal.result !== true) return;
+
+        setBusy(ids, true);
+
+        let deleted = 0;
+        let lastError = '';
+        const failed = new Set();
+
+        for (const id of ids) {
+            try {
+                const response = await fetch('/api/v2/admin/deleterecord', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ table: tableKey, id: String(id) }),
+                });
+                const payload = await response.json().catch(() => null);
+                if (!response.ok || !payload || payload.status !== 'success') {
+                    lastError = payload?.message || `HTTP ${response.status}`;
+                    failed.add(id);
+                    continue;
+                }
+                deleted++;
+            } catch (err) {
+                console.error('moderation gallery - delete failed', err);
+                lastError = err.message;
+                failed.add(id);
+            }
+        }
+
+        setBusy(ids, false);
+
+        for (const id of ids) {
+            if (failed.has(id)) continue;
+            const row = state.rows.get(id);
+            if (row && isGlobalPending(row)) trackGlobalPending({ ...row, checked: 1 }, true);
+            // No spent slot: the record is gone, there is nothing left to show or
+            // undo. The tile goes with it.
+            state.selected.delete(id);
+            state.spent.delete(id);
+            state.rows.delete(id);
+            const tile = tileOf(id);
+            if (tile) {
+                releaseTileVideo(tile);
+                tile.remove();
+            }
+            if (state.total !== null && state.total > 0) state.total--;
+        }
+
+        refreshBulkbar();
+        refreshCounter();
+        el.empty.classList.toggle('d-none', state.rows.size > 0);
+
+        if (failed.size > 0) toast(`${failed.size} file(s) could not be deleted${lastError ? ': ' + lastError : ''}`, 'alert-danger');
+        if (deleted > 0) toast(`${deleted} file(s) deleted for good`, 'alert-success');
+    };
+
     // Puts the notice of each file back to pending so the sweep takes it again.
     // Writes to auditlog, not to mediafiles, so the ids on the wire are audit row
     // ids and not file ids.
@@ -1707,6 +1774,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (event.target.closest('.mod-btn-active')) {
             await applyAction([id], 'active', isFlagOn(row.active) ? 0 : 1);
+            return;
+        }
+
+        if (event.target.closest('.mod-btn-delete')) {
+            await deleteFiles([id]);
             return;
         }
 
@@ -1938,6 +2010,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('moderationGallery-bulk-ban').addEventListener('click', async () => {
         await banFiles([...state.selected]);
+    });
+
+    document.getElementById('moderationGallery-bulk-delete').addEventListener('click', async () => {
+        await deleteFiles([...state.selected]);
     });
 
     document.getElementById('moderationGallery-bulk-retry').addEventListener('click', async () => {
