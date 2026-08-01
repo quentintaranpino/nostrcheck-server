@@ -260,6 +260,12 @@ const mediaModerationWhere = (filters: mediaModerationFilters): { clause: string
 			// gallery badges each tile so the two never look alike.
 			clauses.push("mediafiles.checked = 1");
 			break;
+		case "safe":
+			// The other half of "checked": reviewed and kept public. This is the
+			// bucket to sweep for false safes, files marked reviewed that should
+			// have been flagged nsfw.
+			clauses.push("mediafiles.checked = 1 AND mediafiles.nsfw <> 1");
+			break;
 		case "nsfw":
 			// Its own flag now, so the uploader's visibility switch no longer
 			// leaks into this bucket.

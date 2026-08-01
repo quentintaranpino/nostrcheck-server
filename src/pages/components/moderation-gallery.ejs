@@ -22,6 +22,7 @@ const modTriggerTabId = typeof triggerTabId !== 'undefined' ? triggerTabId : '';
       <select id="moderationGallery-status" class="form-select form-select-sm">
         <option value="pending" selected>Pending review</option>
         <option value="checked">Checked (NSFW included)</option>
+        <option value="safe">Safe (checked, not NSFW)</option>
         <option value="nsfw">NSFW (hidden from listings)</option>
         <option value="active">Active</option>
         <option value="inactive">Inactive</option>
@@ -611,6 +612,7 @@ document.addEventListener('DOMContentLoaded', () => {
         switch (state.status) {
             case 'pending':  return !isFlagOn(row.checked) && !isFlagOn(row.banned);
             case 'checked':  return isFlagOn(row.checked);
+            case 'safe':     return isFlagOn(row.checked) && !isNsfw(row);
             case 'nsfw':     return isNsfw(row);
             case 'active':   return isFlagOn(row.active);
             case 'inactive': return !isFlagOn(row.active);
@@ -1427,7 +1429,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const undo = document.createElement('button');
         undo.type = 'button';
-        undo.className = 'btn btn-outline-light btn-sm mod-btn-undo';
+        // outline-secondary, not outline-light: the panel sits on a theme
+        // surface, and a light outline disappears on the light theme.
+        undo.className = 'btn btn-outline-secondary btn-sm mod-btn-undo';
         undo.innerHTML = '<i class="fa-solid fa-rotate-left me-1"></i>Undo';
         undo.title = 'Put this file back the way it was';
         panel.appendChild(undo);

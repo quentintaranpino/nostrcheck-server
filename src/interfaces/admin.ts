@@ -119,7 +119,9 @@ const banCategoryNames: string[] = banCategories.map(category => category.name);
 // "nsfw" is its own column now, and it overlaps "checked" on purpose: flagging a
 // file is a review decision, so an nsfw file is also a checked one. The gallery
 // tells them apart with its own badge.
-const mediaModerationStatus = ["pending", "checked", "nsfw", "active", "inactive", "banned", "all"];
+// "safe" is the complement inside checked: reviewed and NOT nsfw, the bucket to
+// audit for false safes.
+const mediaModerationStatus = ["pending", "checked", "safe", "nsfw", "active", "inactive", "banned", "all"];
 
 // Fields the "nsfw" action writes, and the value each one takes. The flag never
 // travels alone: marking also sets checked = 1 because deciding a file is nsfw
