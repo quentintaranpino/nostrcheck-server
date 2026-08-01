@@ -132,6 +132,12 @@ const modTriggerTabId = typeof triggerTabId !== 'undefined' ? triggerTabId : '';
 
   <div id="moderationGallery-grid" class="mod-grid mt-3" role="list"></div>
 
+  <%# Floating date of the row under the viewport centre: the grid pages
+      newest-first, so this is "how far back have I got". Updated on scroll,
+      hidden whenever no tile sits at the probe point (other tab, viewer open,
+      empty grid). %>
+  <div id="moderationGallery-datemark" class="mod-datemark d-none" aria-hidden="true"></div>
+
   <div class="d-flex justify-content-center align-items-center py-4 gap-3">
     <div id="moderationGallery-spinner" class="spinner-border text-secondary d-none" role="status"><span class="visually-hidden">Loading…</span></div>
     <button id="moderationGallery-more" class="btn btn-outline-secondary d-none" type="button">Load more</button>
@@ -433,6 +439,30 @@ const modTriggerTabId = typeof triggerTabId !== 'undefined' ? triggerTabId : '';
     z-index: 6;
   }
 
+  /* The date under the viewport centre while scrolling the grid. Fixed and
+     bottom-centred: the top belongs to the navbar and the bulk bar. It is a
+     read-only marker, so pointer-events: none keeps it out of the way of the
+     tile it floats over (elementFromPoint skips it too). z-index under the
+     navbar (1020), over the cards and the spent panels. */
+  .mod-datemark {
+    position: fixed;
+    bottom: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 4px 12px;
+    border-radius: 999px;
+    background: var(--bs-tertiary-bg);
+    color: var(--bs-body-color);
+    border: 1px solid var(--bs-border-color);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+    z-index: 1010;
+  }
+
   /* Only position and layout live here; the surface is default-bg + rounded +
      shadow-sm in the markup. display stays in CSS so Bootstrap's .d-none (which is
      !important) can still hide it, and the top offset clears the sticky navbar.
@@ -546,6 +576,7 @@ document.addEventListener('DOMContentLoaded', () => {
         spinner: document.getElementById('moderationGallery-spinner'),
         more: document.getElementById('moderationGallery-more'),
         sentinel: document.getElementById('moderationGallery-sentinel'),
+        datemark: document.getElementById('moderationGallery-datemark'),
     };
 
     if (!el.grid) return;
@@ -752,6 +783,37 @@ document.addEventListener('DOMContentLoaded', () => {
         reconcileVideos();
     }, { threshold: 0.1, rootMargin: '120px 0px 400px 0px' });
 
+    // Which day the operator is looking at, so a long session has a landmark:
+    // the grid pages newest-first, so the date under the centre is how far back
+    // the sweep has reached. Probes the viewport with elementFromPoint instead
+    // of walking the tiles: the grid can hold thousands of cards and this runs
+    // on every scroll frame.
+    const updateDatemark = () => {
+        const rect = el.grid.getBoundingClientRect();
+        if (el.grid.childElementCount === 0 || rect.bottom < 0 || rect.top > window.innerHeight) {
+            el.datemark.classList.add('d-none');
+            return;
+        }
+        let row = null;
+        // Three probes around the middle, spread on both axes: a single point
+        // can land in the gap between two columns for the whole scroll.
+        for (const [fx, fy] of [[0.5, 0.5], [0.3, 0.45], [0.7, 0.55]]) {
+            const target = document.elementFromPoint(rect.left + rect.width * fx, window.innerHeight * fy);
+            const tile = target && target.closest ? target.closest('.mod-tile') : null;
+            if (!tile) continue;
+            row = state.rows.get(Number(tile.dataset.id));
+            if (row) break;
+        }
+        if (!row || !row.date) {
+            // No tile at any probe: another tab on top, the viewer open, or an
+            // empty stretch. A stale date is worse than none.
+            el.datemark.classList.add('d-none');
+            return;
+        }
+        el.datemark.textContent = String(row.date).slice(0, 10);
+        el.datemark.classList.remove('d-none');
+    };
+
     // Scrolling through a screenful of videos doesn't change what intersects,
     // but it does change which ones are nearest the middle.
     window.addEventListener('scroll', () => {
@@ -760,6 +822,7 @@ document.addEventListener('DOMContentLoaded', () => {
         requestAnimationFrame(() => {
             state.scrollScheduled = false;
             reconcileVideos();
+            updateDatemark();
         });
     }, { passive: true });
 
@@ -1193,6 +1256,7 @@ document.addEventListener('DOMContentLoaded', () => {
         el.grid.innerHTML = '';
         el.empty.classList.add('d-none');
         el.more.classList.add('d-none');
+        el.datemark.classList.add('d-none');
         clearError();
         refreshBulkbar();
         refreshCounter();
@@ -1338,6 +1402,7 @@ document.addEventListener('DOMContentLoaded', () => {
         el.empty.classList.toggle('d-none', state.rows.size > 0);
         refreshCounter();
         reconcileVideos();
+        updateDatemark();
     };
 
     const renderFacets = (facets) => {
