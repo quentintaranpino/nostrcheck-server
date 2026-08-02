@@ -107,6 +107,12 @@ const deleteFile = async (fileName: string, forceLocal : boolean = false) : Prom
             return await deleteLocalFile(filePath);
         }
 
+        // Not on disk (cleaned by hand, lost, or a null localPath): there is
+        // nothing left to unlink, and failing here pins the database record
+        // forever. Deleting something already gone is a success.
+        logger.info(`deleteFile - File not found on disk, treating as already deleted: ${fileName}`);
+        return true;
+
     }
 
     if (getConfig(null, ["storage", "type"]) === "remote") {
