@@ -307,12 +307,24 @@ const mediaModerationWhere = (filters: mediaModerationFilters): { clause: string
 	// Upload date window. The controller validated the shape (YYYY-MM-DD), here
 	// they only ever travel as bound parameters against the raw datetime column,
 	// never through DATE(): that would throw the index away on a 300k row table.
+	//
+	// Each date bound also becomes an id bound, resolved by an uncorrelated
+	// subquery (one instant idx_date probe). Without it the optimizer sees
+	// ORDER BY id DESC LIMIT n and walks the primary key backwards from the
+	// newest row until it reaches the window: for an old month that is millions
+	// of rows and the request dies in the proxy. id is AUTO_INCREMENT and date
+	// is set at insert, so the id window brackets the date window and the date
+	// clause itself trims the stragglers exactly.
 	if (filters.since != "") {
 		clauses.push("mediafiles.date >= ?");
+		params.push(`${filters.since} 00:00:00`);
+		clauses.push("mediafiles.id >= (SELECT COALESCE(MIN(m2.id), 0) FROM mediafiles m2 WHERE m2.date >= ?)");
 		params.push(`${filters.since} 00:00:00`);
 	}
 	if (filters.until != "") {
 		clauses.push("mediafiles.date <= ?");
+		params.push(`${filters.until} 23:59:59`);
+		clauses.push("mediafiles.id <= (SELECT COALESCE(MAX(m2.id), 0) FROM mediafiles m2 WHERE m2.date <= ?)");
 		params.push(`${filters.until} 23:59:59`);
 	}
 

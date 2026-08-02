@@ -137,7 +137,11 @@ const mediafilesTableFields: MediafilesTableStructure = {
 		// table starts with pubkey or mimetype (idx_filename_hash_pubkey has pubkey
 		// third, which a lookup cannot use).
 		"INDEX idx_pubkey (pubkey)",
-		"INDEX idx_mimetype (mimetype)"
+		"INDEX idx_mimetype (mimetype)",
+		// The moderation gallery's date window resolves its id bounds with
+		// MIN(id)/MAX(id) over a date range; without this index each of those
+		// probes is a full scan.
+		"INDEX idx_date (date)"
 	],
 	constructor: {
 		name: 'RowDataPacket',
