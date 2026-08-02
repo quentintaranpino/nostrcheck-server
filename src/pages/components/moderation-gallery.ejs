@@ -1548,13 +1548,18 @@ document.addEventListener('DOMContentLoaded', () => {
         let lastError = '';
 
         for (const field of steps) {
-            const { processed, failed: rejected, lastError: error } = await postBulk(tableKey, [id], field, previous[field]);
+            // Clamp to the values the server accepts. A file caught mid-scan
+            // carries checked = 2 (the inspector's in-flight state) and that is
+            // not restorable: back to 0 means back to the queue, which is what
+            // undo promises.
+            const restoreValue = Number(previous[field]) === 1 ? 1 : 0;
+            const { processed, failed: rejected, lastError: error } = await postBulk(tableKey, [id], field, restoreValue);
             if (processed === 0 || rejected.has(id)) {
                 failed = true;
                 lastError = error;
                 break;
             }
-            row[field] = Number(previous[field]);
+            row[field] = restoreValue;
         }
 
         setBusy([id], false);
@@ -1575,7 +1580,9 @@ document.addEventListener('DOMContentLoaded', () => {
             tile.querySelector('.mod-spent')?.remove();
             applyTileState(tile, row);
         }
-        if (matchesStatus(row)) state.total++;
+        // total can still be null if the metadata call hasn't landed: null + 1
+        // is 1 in JavaScript and the counter would claim "1 pending".
+        if (matchesStatus(row) && state.total !== null) state.total++;
         refreshCounter();
         reconcileVideos();
         toast('File restored', 'alert-success');
