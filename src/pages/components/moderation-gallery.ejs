@@ -57,6 +57,17 @@ const modTriggerTabId = typeof triggerTabId !== 'undefined' ? triggerTabId : '';
         <button id="moderationGallery-pubkey-clear" class="btn btn-outline-secondary" type="button" title="Clear pubkey filter"><i class="fa-solid fa-xmark"></i></button>
       </div>
     </div>
+    <div class="col-12 col-md-4 col-lg-3">
+      <%# One month is one gesture: fill the first box and leave the second empty.
+          Filling the second turns it into a range, both ends inclusive. %>
+      <label for="moderationGallery-datefrom" class="form-label mb-1">Month (or range)</label>
+      <div class="input-group input-group-sm">
+        <input id="moderationGallery-datefrom" type="month" class="form-control" title="Only this month. Fill the second box to make it a range.">
+        <span class="input-group-text">to</span>
+        <input id="moderationGallery-dateto" type="month" class="form-control" title="Optional end of the range, inclusive">
+        <button id="moderationGallery-date-clear" class="btn btn-outline-secondary" type="button" title="Clear date filter"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+    </div>
     <div class="col-6 col-md-2 col-lg-1">
       <label for="moderationGallery-size" class="form-label mb-1">Tiles</label>
       <%# Two fewer columns per row than the previous M (200px gave 6 on Jaume's
@@ -533,6 +544,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // looking. "All types" is one click away and remembered once chosen.
         mimetype: 'visual',
         pubkey: '',
+        since: '',          // "YYYY-MM-DD" or '', both derived from the month boxes
+        until: '',
         cursor: 0,          // last id received, the queue pages by id not offset
         total: null,        // per-filter count, null until the metadata call lands
         loading: false,
@@ -560,6 +573,9 @@ document.addEventListener('DOMContentLoaded', () => {
         uploader: document.getElementById('moderationGallery-uploader'),
         pubkey: document.getElementById('moderationGallery-pubkey'),
         pubkeyClear: document.getElementById('moderationGallery-pubkey-clear'),
+        dateFrom: document.getElementById('moderationGallery-datefrom'),
+        dateTo: document.getElementById('moderationGallery-dateto'),
+        dateClear: document.getElementById('moderationGallery-date-clear'),
         size: document.getElementById('moderationGallery-size'),
         refresh: document.getElementById('moderationGallery-refresh'),
         selectAll: document.getElementById('moderationGallery-select-all'),
@@ -1295,6 +1311,8 @@ document.addEventListener('DOMContentLoaded', () => {
         params.set('count', '1');
         if (state.mimetype) params.set('mimetype', state.mimetype);
         if (state.pubkey) params.set('pubkey', state.pubkey);
+        if (state.since) params.set('since', state.since);
+        if (state.until) params.set('until', state.until);
         if (state.needFacets) params.set('facets', '1');
 
         let payload;
@@ -1347,6 +1365,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (state.cursor > 0) params.set('cursor', String(state.cursor));
         if (state.mimetype) params.set('mimetype', state.mimetype);
         if (state.pubkey) params.set('pubkey', state.pubkey);
+        if (state.since) params.set('since', state.since);
+        if (state.until) params.set('until', state.until);
 
         let payload;
         try {
@@ -2008,6 +2028,39 @@ document.addEventListener('DOMContentLoaded', () => {
         clearError();
         resetGrid(false);
         loadPage();
+    });
+
+    // The month boxes become a day window here, so the server only ever deals
+    // in plain days. First box alone = exactly that month; both = the range,
+    // ends inclusive; second box alone = everything up to the end of that month.
+    const monthStart = (ym) => `${ym}-01`;
+    const monthEnd = (ym) => {
+        const [year, month] = ym.split('-').map(Number);
+        return `${ym}-${String(new Date(year, month, 0).getDate()).padStart(2, '0')}`;
+    };
+
+    const applyDateFilter = () => {
+        let from = el.dateFrom.value;
+        let to = el.dateTo.value;
+        // An inverted range is a typo, not a request for nothing: swap it.
+        if (from && to && to < from) {
+            [from, to] = [to, from];
+            el.dateFrom.value = from;
+            el.dateTo.value = to;
+        }
+        state.since = from ? monthStart(from) : '';
+        state.until = to ? monthEnd(to) : (from ? monthEnd(from) : '');
+        resetGrid(false);
+        loadPage();
+    };
+
+    el.dateFrom.addEventListener('change', applyDateFilter);
+    el.dateTo.addEventListener('change', applyDateFilter);
+    el.dateClear.addEventListener('click', () => {
+        if (el.dateFrom.value === '' && el.dateTo.value === '') return;
+        el.dateFrom.value = '';
+        el.dateTo.value = '';
+        applyDateFilter();
     });
 
     el.size.addEventListener('change', () => {

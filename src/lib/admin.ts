@@ -304,6 +304,18 @@ const mediaModerationWhere = (filters: mediaModerationFilters): { clause: string
 		params.push(filters.pubkey);
 	}
 
+	// Upload date window. The controller validated the shape (YYYY-MM-DD), here
+	// they only ever travel as bound parameters against the raw datetime column,
+	// never through DATE(): that would throw the index away on a 300k row table.
+	if (filters.since != "") {
+		clauses.push("mediafiles.date >= ?");
+		params.push(`${filters.since} 00:00:00`);
+	}
+	if (filters.until != "") {
+		clauses.push("mediafiles.date <= ?");
+		params.push(`${filters.until} 23:59:59`);
+	}
+
 	return { clause: clauses.length > 0 ? clauses.join(" AND ") : "1=1", params };
 };
 
@@ -328,7 +340,7 @@ const mediaModerationWhere = (filters: mediaModerationFilters): { clause: string
  */
 const dbCountPendingOverview = async (): Promise<{ total: number; visual: number }> => {
 
-	const { clause, params } = mediaModerationWhere({ status: "pending", mimetype: "", pubkey: "" });
+	const { clause, params } = mediaModerationWhere({ status: "pending", mimetype: "", pubkey: "", since: "", until: "" });
 	const visualClause = `${clause} AND (mediafiles.mimetype LIKE 'image/%' OR mediafiles.mimetype LIKE 'video/%')`;
 
 	const readCount = async (cacheKey: string, whereClause: string): Promise<number> => {
@@ -436,7 +448,7 @@ const dbSelectMediaModerationFacets = async (filters: mediaModerationFilters): P
 		}
 	}
 
-	const { clause, params } = mediaModerationWhere({ status: filters.status, mimetype: "", pubkey: "" });
+	const { clause, params } = mediaModerationWhere({ status: filters.status, mimetype: "", pubkey: "", since: "", until: "" });
 
 	const mimetypes = await dbMultiSelect(["mediafiles.mimetype", "COUNT(*) as 'count'"],
 										"mediafiles",

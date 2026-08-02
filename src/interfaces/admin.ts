@@ -137,6 +137,8 @@ interface mediaModerationFilters {
     status: string;
     mimetype: string;
     pubkey: string;
+    since: string;   // "YYYY-MM-DD" or "" (inclusive, from midnight)
+    until: string;   // "YYYY-MM-DD" or "" (inclusive, to 23:59:59)
 }
 
 // What the gallery needs to know about a notification: which row to retry, how

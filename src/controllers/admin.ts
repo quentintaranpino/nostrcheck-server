@@ -1484,7 +1484,23 @@ const getMediaModerationData = async (req: Request, res: Response): Promise<Resp
         return res.status(400).send({"status": "error", "message": "Invalid pubkey filter"});
     }
 
-    const filters : mediaModerationFilters = {status, mimetype, pubkey};
+    // Upload date window. Both ends optional and inclusive; the shape is checked
+    // here so the SQL layer only ever sees a well formed day or nothing. The
+    // calendar validity (2026-02-31) is MySQL's problem: an impossible day just
+    // matches nothing.
+    const parseDay = (value: unknown): string | null => {
+        if (value === undefined) return "";
+        if (typeof value !== "string" || value.trim() === "") return "";
+        return /^\d{4}-\d{2}-\d{2}$/.test(value.trim()) ? value.trim() : null;
+    };
+    const since = parseDay(req.query.since);
+    const until = parseDay(req.query.until);
+    if (since === null || until === null) {
+        logger.warn(`getMediaModerationData - Invalid date filter`, "|", reqInfo.ip);
+        return res.status(400).send({"status": "error", "message": "Invalid date filter, expected YYYY-MM-DD"});
+    }
+
+    const filters : mediaModerationFilters = {status, mimetype, pubkey, since, until};
     const cursor = Number(req.query.cursor) || 0;
     const limitRaw = Number(req.query.limit);
     // limit=0 is the metadata call: facets and count without touching a page.
