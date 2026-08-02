@@ -1755,7 +1755,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     method: 'POST',
                     credentials: 'include',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ table: tableKey, id: String(id) }),
+                    // The endpoint rejects anything but a JSON number for id.
+                    body: JSON.stringify({ table: tableKey, id: Number(id) }),
                 });
                 const payload = await response.json().catch(() => null);
                 if (!response.ok || !payload || payload.status !== 'success') {
