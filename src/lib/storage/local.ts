@@ -2,6 +2,7 @@ import fs from "fs";
 import { logger } from "../logger.js";
 import crypto from "crypto";
 import { getConfig } from "../config/core.js";
+import sharp from "sharp";
 
 const createLocalFolder = async (path: string) : Promise<boolean> => {
     try {
@@ -95,6 +96,69 @@ const saveTmpFile = async (filename : string, buffer: Express.Multer.File["buffe
 
 }
 
+// Thumbnail widths a client may ask for. A closed list, so nobody can fill
+// the disk asking for every width between 1 and 4000.
+const thumbnailWidths = [200, 400, 800];
+const thumbnailJobs = new Map<string, Promise<string>>();
+
+/**
+ * Get the path of a webp thumbnail for an image, generating it next to the
+ * original the first time. Square and centred, the same crop the grid tiles
+ * show with object-fit: cover. Animated files keep only their first frame.
+ * @param filePath The path of the original file
+ * @param width The thumbnail width, one of thumbnailWidths
+ * @returns The thumbnail path, or "" if the original can't be decoded
+ */
+const getLocalThumbnail = async (filePath: string, width: number) : Promise<string> => {
+
+    const thumbPath = `${filePath}.t${width}.webp`;
+    if (fs.existsSync(thumbPath)) return thumbPath;
+
+    // Same thumbnail asked twice at once: the second one waits for the first
+    const running = thumbnailJobs.get(thumbPath);
+    if (running) return running;
+
+    const job = (async () => {
+        const tmpPath = `${thumbPath}.${crypto.randomBytes(4).toString("hex")}.tmp`;
+        try {
+            const image = sharp(filePath, { pages: 1, limitInputPixels: getConfig(null, ["media", "maxInputPixels"]) });
+            const { width: w = width, height: h = width } = await image.metadata();
+            // Never upscale: a 100px image or a 4000x300 panorama crops at its short side
+            const side = Math.min(width, w, h);
+            await image
+                .rotate()
+                .resize({ width: side, height: side, fit: "cover" })
+                .webp({ quality: 75 })
+                .toFile(tmpPath);
+            await fs.promises.rename(tmpPath, thumbPath);
+            return thumbPath;
+        } catch (err) {
+            logger.warn(`getLocalThumbnail - Unable to generate thumbnail for ${filePath}: ${err}`);
+            await fs.promises.unlink(tmpPath).catch(() => {});
+            return "";
+        } finally {
+            thumbnailJobs.delete(thumbPath);
+        }
+    })();
+
+    thumbnailJobs.set(thumbPath, job);
+    return job;
+}
+
+/**
+ * Delete every thumbnail of a file. A missing thumbnail is not an error.
+ * @param filePath The path of the original file
+ */
+const deleteLocalThumbnails = async (filePath: string) : Promise<void> => {
+    for (const width of thumbnailWidths) {
+        try {
+            await fs.promises.unlink(`${filePath}.t${width}.webp`);
+        } catch (err: any) {
+            if (err.code != "ENOENT") logger.error(`deleteLocalThumbnails - Error deleting thumbnail: ${filePath}.t${width}.webp with error: ${err}`);
+        }
+    }
+}
+
 export { 
     createLocalFolder, 
     getLocalFolder,
@@ -103,5 +167,8 @@ export {
     deleteLocalFile, 
     getLocalFile, 
     writeLocalFile,
-    saveTmpFile 
+    saveTmpFile,
+    thumbnailWidths,
+    getLocalThumbnail,
+    deleteLocalThumbnails
 };

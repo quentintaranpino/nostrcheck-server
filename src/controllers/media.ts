@@ -18,7 +18,7 @@ import { PrepareNIP96_event, PrepareNIP96_listEvent } from "../lib/nostr/NIP96.j
 import { generateQRCode, getNewDate, parseBoolean } from "../lib/utils.js";
 import { generateBlurhash, generatefileHashfrombuffer, hashString } from "../lib/hash.js";
 import { deleteFile, getFilePath } from "../lib/storage/core.js";
-import { saveTmpFile } from "../lib/storage/local.js";
+import { getLocalThumbnail, saveTmpFile, thumbnailWidths } from "../lib/storage/local.js";
 import { getRemoteFile } from "../lib/storage/remote.js";
 import { Transaction } from "../interfaces/payments.js";
 import { checkTransaction, collectInvoice, getInvoice, updateAccountId } from "../lib/payments/core.js";
@@ -1575,6 +1575,21 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		}
 
 		logger.debug(`getMediabyURL - Media file found successfully: ${req.url}`, "|", reqInfo.ip, "|", "cached:", cachedStatus ? true : false);
+		// Grid thumbnails (?w=400). Served after every check above, so a banned or
+		// unpaid file can't leak through its thumbnail.
+		const thumbWidth = Number(req.query.w);
+		if (fileType.startsWith("image/") && thumbnailWidths.includes(thumbWidth)) {
+			const thumbPath = await getLocalThumbnail(fileName, thumbWidth);
+			if (thumbPath != "") {
+				try {
+					const thumbStat = await fs.promises.stat(thumbPath);
+					return serveFile(req, res, thumbPath, thumbStat.size, "image/webp", reqInfo.ip, adminOnly);
+				} catch (err) {
+					logger.warn(`getMediabyURL - Thumbnail vanished, serving the original: ${thumbPath}: ${err}`, "|", reqInfo.ip);
+				}
+			}
+		}
+
 		// A banned, inactive or unpaid file only reaches an admin. Never let a shared cache keep it.
 		return serveFile(req, res, fileName, fileSize, fileType, reqInfo.ip, adminOnly);
 
