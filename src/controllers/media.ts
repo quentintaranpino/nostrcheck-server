@@ -1173,7 +1173,6 @@ const serveBuffer = (req: Request, res: Response, buffer: Buffer, mime: string, 
 	}
 
 	res.setHeader("Content-Type", mime);
-	res.setHeader("Vary", "Origin, Cookie");
 
 	if (prefix === "video" || prefix === "audio") {
 		res.setHeader("Accept-Ranges", "bytes");
@@ -1242,7 +1241,6 @@ const serveFile = (req: Request, res: Response, filePath: string, size: number, 
 	}
 
 	res.setHeader("Content-Type", mime);
-	res.setHeader("Vary", "Origin, Cookie");
 
 	let start = 0;
 	let end = size - 1;
@@ -1373,6 +1371,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 	}
 
 	let adminRequest = false;
+	let adminOnly = false;
 	let loggedPubkey = "";
 
 	if (req.cookies?.authkey) {
@@ -1447,6 +1446,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		let isBanned = await isEntityBanned(filedata[0].id, "mediafiles");
 		const pubkeyId = await dbMultiSelect(["id"], "registered", "hex = ?", [filedata[0].pubkey], true);
 		if (pubkeyId.length > 0 && (await isEntityBanned(pubkeyId[0].id, "registered") == true)) {isBanned = true}
+		if (isBanned && adminRequest == true) {adminOnly = true}
 		if (isBanned && adminRequest == false) {
 			logger.debug(`getMediabyURL - 403 Forbidden - ${req.url} | File is banned: ${filedata[0].original_hash}`, reqInfo.ip);
 			const bannedBanner = await getBannedFileBanner(req.hostname, fileType);
@@ -1455,6 +1455,7 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			return serveBuffer(req, res, bannedBanner.buffer, bannedBanner.type, true);
 		}
 
+		if (filedata[0].active != "1" && adminRequest == true) {adminOnly = true}
 		if (filedata[0].active != "1" && adminRequest == false) {
 			logger.debug(`getMediabyURL - 401 File not active - ${req.url}`, "returning not found media file |", reqInfo.ip, "|", "cached:", cachedStatus ? true : false);
 			const notFoundBanner = await getNotFoundFileBanner(req.hostname, fileType);
@@ -1486,7 +1487,9 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		}
 
 		// If the GET request has no authorization, we return a QR code with the payment request.
-		if (isModuleEnabled("payments", "") && transaction.paymentHash != "" && transaction.isPaid == false &&  adminRequest == false) {
+		const isUnpaid = isModuleEnabled("payments", "") && transaction.paymentHash != "" && transaction.isPaid == false;
+		if (isUnpaid && adminRequest == true) {adminOnly = true}
+		if (isUnpaid && adminRequest == false) {
 			logger.debug(`getMediabyURL - 200 Paid media file ${req.url}`, "|", reqInfo.ip, "|", "cached:", cachedStatus ? true : false);
 			const qrCode = await generateQRCode(transaction.paymentRequest, 
 									"Invoice amount: " + transaction.satoshi + " sats", 
@@ -1572,7 +1575,8 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		}
 
 		logger.debug(`getMediabyURL - Media file found successfully: ${req.url}`, "|", reqInfo.ip, "|", "cached:", cachedStatus ? true : false);
-		return serveFile(req, res, fileName, fileSize, fileType, reqInfo.ip);
+		// A banned, inactive or unpaid file only reaches an admin. Never let a shared cache keep it.
+		return serveFile(req, res, fileName, fileSize, fileType, reqInfo.ip, adminOnly);
 
 	} else if (mediaLocation == "remote") {
 
