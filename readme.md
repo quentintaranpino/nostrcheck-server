@@ -144,6 +144,19 @@ See multi-tenancy [here](https://github.com/quentintaranpino/nostrcheck-server/w
 - [x] BUD09 - Blob Report
 - [x] BUD11 - Nostr Authorization
 
+### BUD07 payments
+
+When the payments module is enabled, an unpaid file answers `402 Payment Required` with:
+
+- `X-Lightning`: a BOLT11 invoice for the file.
+- `X-Lightning-Amount`: the invoice amount in satoshis. It is not part of BUD07 and only repeats the amount
+  inside the invoice, for clients that don't decode BOLT11.
+- `X-Reason`: a human-readable description.
+
+Clients retry the `PUT` or `GET` request with the payment preimage (64 hex characters) in the `X-Lightning`
+request header. A preimage that is malformed, unknown, expired or for another file gets `400 Bad Request`
+with an `X-Reason` header, as BUD07 requires. One payment unlocks the file for everyone.
+
 ## Supported Lightning LUD's
 
 - [x] LUD06 - payRequest base spec

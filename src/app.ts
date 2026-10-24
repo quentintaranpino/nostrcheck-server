@@ -17,16 +17,16 @@ app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({
   origin: "*",
   methods: "GET,HEAD,PUT,POST,DELETE,OPTIONS",
-  allowedHeaders: "Authorization,Content-Type,X-Cashu,X-Lightning,X-Lightning-Amount,X-Content-Length,X-Content-Type,X-Sha-256,X-Content-Transform,*",
-  exposedHeaders: "Authorization,Content-Type,X-Cashu,X-Lightning,X-Lightning-Amount,WWW-Authenticate,X-Reason,*",
+  allowedHeaders: "Authorization,Content-Type,X-Lightning,X-Lightning-Amount,X-Content-Length,X-Content-Type,X-Sha-256,X-Content-Transform,*",
+  exposedHeaders: "Authorization,Content-Type,X-Lightning,X-Lightning-Amount,WWW-Authenticate,X-Reason,*",
   maxAge: 86400,
 }));
 
 app.options('*', cors({
   origin: "*",
   methods: "GET,HEAD,PUT,POST,DELETE,OPTIONS",
-  allowedHeaders: "Authorization,Content-Type,X-Cashu,X-Lightning,X-Lightning-Amount,X-Content-Length,X-Content-Type,X-Sha-256,X-Content-Transform,*",
-  exposedHeaders: "Authorization,Content-Type,X-Cashu,X-Lightning,X-Lightning-Amount,WWW-Authenticate,X-Reason,*",
+  allowedHeaders: "Authorization,Content-Type,X-Lightning,X-Lightning-Amount,X-Content-Length,X-Content-Type,X-Sha-256,X-Content-Transform,*",
+  exposedHeaders: "Authorization,Content-Type,X-Lightning,X-Lightning-Amount,WWW-Authenticate,X-Reason,*",
   maxAge: 86400,
 }));
 
