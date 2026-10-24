@@ -12,6 +12,7 @@ interface Invoice {
     transactionid: number;
     accountid: number;
     preimage: string;
+    arkAddress?: string;
 }
 
 const emptyInvoice: Invoice = {
@@ -41,6 +42,7 @@ interface Transaction {
     expiryDate: any;
     paidDate: any;
     comments: any;
+    arkAddress?: string;
 }
 
 const emptyTransaction: Transaction = {
@@ -95,10 +97,30 @@ interface MacaroonResult  extends ResultMessagev2 {
 }
 
 
+interface PaymentProvider {
+    generateInvoice: (satoshi: number) => Promise<Invoice>;
+    isInvoicePaid: (paymentHash: string) => Promise<{paiddate : string, preimage : string}>;
+    // Set to false if the provider doesn't need payments.LNAddress.
+    requiresLNAddress?: boolean;
+    // Native Ark payments (Blossom X-Ark), for providers that are Ark wallets.
+    ark?: ArkPaymentProvider;
+}
+
+interface ArkPaymentProvider {
+    // Whether the operator turned Ark payments on.
+    enabled: () => boolean;
+    // A fresh, never used Ark address of the server's wallet ("" on error).
+    newAddress: () => Promise<string>;
+    // Satoshis received on the address and settled in the wallet, -1 on error.
+    received: (address: string, sync?: boolean) => Promise<number>;
+    // Bring the wallet up to date with the Ark server before checking many addresses.
+    sync: () => Promise<void>;
+}
+
 const tableCalculateMode: { [key: string]: "normal" | "reversed" } = {
     "registered": "reversed",
     "mediafiles": "normal",
    
 };
 
-export { Invoice, emptyInvoice, Transaction, emptyTransaction, accounts, paymentResultMessage, invoiceReturnMessage, amountReturnMessage, Macaroon, MacaroonResult, tableCalculateMode}
+export { Invoice, emptyInvoice, Transaction, emptyTransaction, accounts, paymentResultMessage, invoiceReturnMessage, amountReturnMessage, Macaroon, MacaroonResult, PaymentProvider, ArkPaymentProvider, tableCalculateMode}

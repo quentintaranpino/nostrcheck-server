@@ -7,14 +7,14 @@
   <form class="form mx-auto">
     <p>
       In this section, you can configure the LN payment provider of your server.
-      Currently only Nostr Wallet Connect and LNBits are supported.
+      Currently Nostr Wallet Connect, LNBits and barkd (Bark) are supported.
     </p>
 
     <%- include('field', {
       type: 'select',
       name: 'payments.paymentProvider',
       label: 'Payment provider',
-      description: 'Choose the payment provider: LNbits or Nostr wallet connect.',
+      description: 'Choose the payment provider: LNbits, Nostr wallet connect or barkd.',
       value: globalCfg.paymentProvider,
       globalValue: globalCfg.paymentProvider,
       options: Object.keys(globalCfg.paymentProviders || {}).map(p => ({ value: p, label: p })),
@@ -100,6 +100,41 @@
       globalValue: globalCfg.paymentProviders?.nwc?.url,
       placeholder: 'nwc://...',
       required: true,
+      overridable: false
+    }) %>
+
+    <h5 class="mt-4">barkd (Bark)</h5>
+    <%- include('field', {
+      type: 'text',
+      name: 'payments.paymentProviders.barkd.url',
+      label: 'barkd URL',
+      description: 'URL of the barkd REST daemon (Bark wallet). Lightning invoices are received through the Ark server\'s Lightning gateway. barkd listens on port 3000 by default, the same as this server, so run it on another port.',
+      value: globalCfg.paymentProviders?.barkd?.url,
+      globalValue: globalCfg.paymentProviders?.barkd?.url,
+      placeholder: 'http://127.0.0.1:3535',
+      required: true,
+      overridable: false
+    }) %>
+
+    <%- include('field', {
+      type: 'password',
+      name: 'payments.paymentProviders.barkd.authToken',
+      label: 'barkd auth token',
+      description: 'Bearer token for the barkd REST API.',
+      value: globalCfg.paymentProviders?.barkd?.authToken,
+      globalValue: globalCfg.paymentProviders?.barkd?.authToken,
+      placeholder: 'Auth token',
+      required: false,
+      overridable: false
+    }) %>
+
+    <%- include('field', {
+      type: 'checkbox',
+      name: 'payments.paymentProviders.barkd.ark',
+      label: 'Accept Ark payments (X-Ark)',
+      description: 'Also offer a fresh Ark address per unpaid file, so wallets on the same Ark server can pay directly, off-chain.',
+      value: globalCfg.paymentProviders?.barkd?.ark,
+      globalValue: globalCfg.paymentProviders?.barkd?.ark,
       overridable: false
     }) %>
 

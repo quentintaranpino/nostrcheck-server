@@ -189,6 +189,7 @@ const transactionsTableFields: TransactionsTableStructure = {
 	accountid: "varchar(12) NOT NULL",
 	paymentrequest: "varchar(1637)",
 	paymenthash: "varchar(64)",
+	arkaddress: "varchar(255)",
 	satoshi: "int(11) NOT NULL",
 	paid: "boolean NOT NULL DEFAULT 0",
 	preimage: "varchar(64)",
@@ -198,6 +199,7 @@ const transactionsTableFields: TransactionsTableStructure = {
 	comments: "varchar(150)",
 	_indexes: [
 		"INDEX idx_transactions_id (id)",
+		"INDEX idx_transactions_arkaddress (arkaddress)",
 	],
 	constructor: {
 		name: 'RowDataPacket',

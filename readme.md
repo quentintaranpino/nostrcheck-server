@@ -20,7 +20,7 @@ Nostrcheck Server is a comprehensive solution for managing and offering services
 - **Hosting of Multimedia Files:** Fully compatible with NIP94, NIP96, and Blossom🌸 for uploading and sharing content.
 - **Nostr relay:** The server can act as a Nostr relay, allowing admins to manage their own Nostr relay.
 - **Lightning Redirects:** Allow your users to redirect payments to their Lightning wallets using their Nostraddress.
-- **Full LN Integration:** Compatible with **Nostr Wallet Connect** and **LNBits**, enabling LN payments for file uploads, downloads, and user registrations.
+- **Full LN Integration:** Compatible with **Nostr Wallet Connect**, **LNBits** and **barkd** (Bark, Lightning and Ark), enabling LN payments for file uploads, downloads, and user registrations.
 - **Advanced User Management:** Control profiles, invitations, and permissions.
 - **Plugin Module:** Customize and extend server functionalities with plugins. (WoT, etc).
 - **Public Gallery and Directory:** The public gallery displays files uploaded by users, while the directory showcases user profiles from the community.
@@ -143,6 +143,50 @@ See multi-tenancy [here](https://github.com/quentintaranpino/nostrcheck-server/w
 - [x] BUD07 - Paid upload and download
 - [x] BUD09 - Blob Report
 - [x] BUD11 - Nostr Authorization
+
+### BUD07 payments
+
+When the payments module is enabled, an unpaid file answers `402 Payment Required` with:
+
+- `X-Lightning`: a BOLT11 invoice for the file.
+- `X-Lightning-Amount`: the invoice amount in satoshis. It is not part of BUD07 and only repeats the amount
+  inside the invoice, for clients that don't decode BOLT11.
+- `X-Reason`: a human-readable description.
+
+Clients retry the `PUT` or `GET` request with the payment preimage (64 hex characters) in the `X-Lightning`
+request header. A preimage that is malformed, unknown, expired or for another file gets `400 Bad Request`
+with an `X-Reason` header, as BUD07 requires. One payment unlocks the file for everyone.
+
+#### Payment providers
+
+`payments.paymentProvider` selects the wallet: `lnbits`, `nwc` (Nostr Wallet Connect) or `barkd`.
+
+`barkd` is the REST daemon of the [Bark](https://gitlab.com/ark-bitcoin/bark) wallet (tested with bark-rest 0.8.0).
+Lightning invoices are received through the Ark server's Lightning gateway, so no Lightning node is needed.
+It doesn't use `payments.LNAddress`.
+
+```json
+"paymentProviders": {
+  "barkd": {
+    "url": "http://127.0.0.1:3535",
+    "authToken": "<barkd auth token>",
+    "ark": true
+  }
+}
+```
+
+- `url`: barkd's address. barkd listens on port 3000 by default, the same as this server, so start it on another port.
+- `authToken`: sent as `Authorization: Bearer <token>`.
+- `ark`: also accept native Ark payments ([`X-Ark`](https://github.com/hzrd149/blossom/pull/116), draft). Each unpaid
+  file gets its own Ark address, and the 402 carries `X-Ark: bitcoin:?ark=<address>&lightning=<invoice>&amount=<btc>`,
+  a BIP-321 URI with the same invoice as `X-Lightning`. A client can pass it unchanged to its wallet (NWC-321 `pay`):
+  a wallet on the same Ark server pays the address and the client retries with the address in the `X-Ark` request
+  header; any other wallet pays the invoice and the client retries with the preimage in `X-Lightning`.
+  The payments to the address that are settled in the wallet must add up to the price; the address is then redeemed
+  once and unlocks the file. Payments are also picked up every `invoicePaidInterval` seconds, like invoices.
+
+A Bark wallet also works with `nwc`: point `paymentProviders.nwc.url` at a Bark NWC wallet service
+(Lightning only, no `X-Ark`).
 
 ## Supported Lightning LUD's
 
