@@ -1,6 +1,27 @@
+import { escape } from "mysql2/promise";
 import { ModuleDataTables, moduleDataSelectFields, moduleDataWhereFields } from "../interfaces/admin.js";
 import { dbMultiSelect, dbSelect, dbSimpleSelect } from "./database/core.js";
 import { logger } from "./logger.js";
+
+/**
+ * The columns a module's admin list is allowed to sort, search or filter on. Same set the
+ * search clause already trusts, reused here so sort/filter can't name a column outside it.
+ */
+const moduleDataColumns = (module: string): string[] => {
+	const fields = moduleDataWhereFields[module];
+	if (!fields) {return [];}
+	return fields.join(',').split(',').map(field => field.trim());
+}
+
+/** A sort column from the request, or undefined if it isn't one of the module's own columns. */
+const safeSortColumn = (module: string, sort: string): string | undefined => {
+	return sort && moduleDataColumns(module).includes(sort) ? sort : undefined;
+}
+
+/** A sort direction from the request, defaulting to DESC for anything that isn't ASC. */
+const safeSortOrder = (order: string): string => {
+	return order?.trim().toUpperCase() === "ASC" ? "ASC" : "DESC";
+}
 
 const dbCountModuleData = async (module: string, field = ""): Promise<number> => {
 	const table = ModuleDataTables[module];
@@ -45,19 +66,22 @@ async function dbSelectModuleData(module:string, offset:number, limit:number, or
 	fieldsLogic = moduleDataSelectFields[module];
 	fromLogic = `FROM ${table}`;
     if (search) {
-        const fieldsArray = moduleDataWhereFields[module].join(',').split(',');
-        const fields = fieldsArray.map(field => `COALESCE(${field.trim()}, '')`).join(", ");
-        whereLogic += `AND CONCAT(${fields}) LIKE "%${search}%"`;
+        const fieldsArray = moduleDataColumns(module);
+        const fields = fieldsArray.map(field => `COALESCE(${field}, '')`).join(", ");
+        whereLogic += `AND CONCAT(${fields}) LIKE ${escape(`%${search}%`)}`;
     } else {
         whereLogic = "WHERE (1=1) ";
     }
-	sort? sortLogic = `ORDER BY ${sort} ${order}`: sortLogic = `ORDER BY ${table}.id ${order}`;
+	const sortColumn = safeSortColumn(module, sort);
+	const sortOrder = safeSortOrder(order);
+	sortLogic = sortColumn ? `ORDER BY ${sortColumn} ${sortOrder}` : `ORDER BY ${table}.id ${sortOrder}`;
 	limitLogic = `LIMIT ${offset} , ${limit}`;
 
 	if (filter && filter.length > 0){
+		const filterColumns = moduleDataColumns(module);
 		for (const item of filter) {
-			if (item.field && item.value) {
-				item.value.startsWith("!") ? whereLogic += ` AND ${item.field} != '${item.value.split("!")[1]}'` : whereLogic += ` AND ${item.field} = '${item.value}'`;
+			if (item.field && item.value && filterColumns.includes(item.field)) {
+				item.value.startsWith("!") ? whereLogic += ` AND ${item.field} != ${escape(item.value.split("!")[1])}` : whereLogic += ` AND ${item.field} = ${escape(item.value)}`;
 			}
 		}
 	}
@@ -78,4 +102,4 @@ async function dbSelectModuleData(module:string, offset:number, limit:number, or
 	return result;
 }
 
-export { dbCountModuleData, dbSelectModuleData, dbCountMonthModuleData };
+export { dbCountModuleData, dbSelectModuleData, dbCountMonthModuleData, moduleDataColumns, safeSortColumn, safeSortOrder };
