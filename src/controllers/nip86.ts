@@ -12,6 +12,7 @@ import { banEntity, unbanEntity } from "../lib/security/banned.js";
 import { dbInsert, dbMultiSelect } from "../lib/database/core.js";
 import { setRelayEventBan, setRelayPubkeyBan } from "../lib/relay/bans.js";
 import { eventStore } from "../interfaces/relay.js";
+import { storeEvents } from "../lib/relay/database.js";
 
 type RpcResult = { result?: unknown, error?: string };
 
@@ -96,10 +97,15 @@ const banEvent = async (params: unknown[], admin: string): Promise<RpcResult> =>
 	const id = String(params[0] ?? "").toLowerCase();
 	if (!HEX64.test(id)) return { error: "invalid event id" };
 
-	const row = await dbMultiSelect(["id"], "events", "event_id = ?", [id], true);
-	if (row.length == 0) {
-		return { error: eventStore.pending?.has(id) ? "event not stored yet, try again in a minute" : "event not found" };
+	let row = await dbMultiSelect(["id"], "events", "event_id = ?", [id], true);
+	// A ban points at the DB row. An event still waiting for the flush (up to a minute, or the
+	// whole store load after a restart) is stored now; the flush skips it later as a duplicate.
+	const pendingEvent = eventStore.pending?.get(id);
+	if (row.length == 0 && pendingEvent) {
+		await storeEvents(pendingEvent);
+		row = await dbMultiSelect(["id"], "events", "event_id = ?", [id], true);
 	}
+	if (row.length == 0) return { error: "event not found" };
 	const result = await banEntity(Number(row[0].id), "events", reasonOf(params[1]), admin, "admin", BAN_CATEGORY);
 	if (result.status != "success") return { error: result.message };
 
