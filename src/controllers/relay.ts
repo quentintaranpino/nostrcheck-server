@@ -4,7 +4,7 @@ import { Request, Response } from "express";
 
 import { subscriptions, addSubscription, removeAllSubscriptions, removeSubscription, socketSafeSend, checkWSConnectionRate } from "../lib/relay/core.js";
 import { compressEvent, fillEventMetadata, getEventById, getEventsByTimerange, validateFilter, parseRelayMessage, getChunkSize, filterEarlyDiscard } from "../lib/relay/utils.js";
-import { initEvents } from "../lib/relay/database.js";
+import { deactivateSupersededDB, getArchivedEventsDB, getEventsByIdDB, getNewestReplaceableDB, initEvents, isEventStoredDB, storeEvents, vanishPubkeyDB } from "../lib/relay/database.js";
 
 import { isEventValid } from "../lib/nostr/core.js";
 import { logger } from "../lib/logger.js";
@@ -13,7 +13,7 @@ import { isEntityBanned } from "../lib/security/banned.js";
 import { isEphemeral, isReplaceable } from "../lib/nostr/NIP01.js";
 import { executePlugins } from "../lib/plugins/core.js";
 import { validatePow } from "../lib/nostr/NIP13.js";
-import { allowedTags, eventStore, ExtendedWebSocket, MetadataEvent, RelayStatusMessage } from "../interfaces/relay.js";
+import { allowedTags, EventIndex, eventStore, ExtendedWebSocket, MetadataEvent, RelayStatusMessage } from "../interfaces/relay.js";
 import { isBase64 } from "../lib/utils.js";
 import { AuthEvent } from "../interfaces/nostr.js";
 import { dbMultiSelect, dbUpdate } from "../lib/database/core.js";
@@ -298,6 +298,14 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
     return;
   }
 
+  // Events older than the memory horizon live only in the DB.
+  const isArchived = eventStore.memoryHorizon > 0 && event.created_at < eventStore.memoryHorizon && !isEphemeral(event.kind);
+  if (!existing && isArchived && await isEventStoredDB(event.id)) {
+    logger.debug(`handleEvent - Duplicate archived event: ${event.id}`);
+    await socketSafeSend(socket, ["OK", event.id, false, "duplicate: already have this event"]);
+    return;
+  }
+
   // Ephemeral events
   if (isEphemeral(event.kind)) {
     subscriptions.forEach((clientSubscriptions) => {
@@ -309,15 +317,26 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
 
   // Replaceable events
   if (isReplaceable(event.kind)) {
-    const replacementCandidates = Array.from(eventStore.eventIndex.entries())
-    .filter(([_id, entry]) =>
-      entry.kind === event.kind &&
-      entry.pubkey === event.pubkey &&
-      (isIsolated && entry.tenantid === event.tenantid)
-    );
+    // Newest stored version in memory. Outside isolated mode any tenant's version counts;
+    // the old condition only matched in isolated mode, so nothing was ever replaced.
+    let oldEventEntry: [string, EventIndex] | null = null;
+    for (const [id, entry] of eventStore.eventIndex) {
+      if (entry.kind !== event.kind || entry.pubkey !== event.pubkey) continue;
+      if (isIsolated && entry.tenantid !== event.tenantid) continue;
+      if (!oldEventEntry || entry.created_at > oldEventEntry[1].created_at) oldEventEntry = [id, entry];
+    }
 
-    if (replacementCandidates.length > 0) {
-      const oldEventEntry = replacementCandidates[0];
+    // Not in memory: an older-than-horizon version may still be the current one in the DB.
+    if (!oldEventEntry && eventStore.memoryHorizon > 0) {
+      const newestStored = await getNewestReplaceableDB(event.pubkey, event.kind, isIsolated ? event.tenantid : undefined);
+      if (newestStored !== null && newestStored >= event.created_at) {
+        logger.debug(`handleEvent - Rejected replaceable event older than the stored one: ${event.id}`);
+        await socketSafeSend(socket, ["OK", event.id, false, "rejected: replaceable event is older or equal to existing event"]);
+        return;
+      }
+    }
+
+    if (oldEventEntry) {
       const oldEvent = await getEventById(oldEventEntry[0], eventStore);
 
       // If the event is not processed yet, we delete it and accept the new one
@@ -379,16 +398,24 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
       return;
     }
 
+    // Events past the memory horizon are looked up in the DB.
+    const notInMemory = receivedEventsToDelete.filter(id => !eventStore.pending.has(id) && !eventStore.eventIndex.has(id));
+    const archivedToDelete = eventStore.memoryHorizon > 0 && notInMemory.length > 0
+      ? await getEventsByIdDB(notInMemory, isIsolated ? event.tenantid : undefined)
+      : [];
+
     const eventsToDelete = (
       await Promise.all(
         receivedEventsToDelete.map(async id => {
           const candidate =
             eventStore.pending.get(id) ??
-            (eventStore.eventIndex.has(id) ? await getEventById(id, eventStore) : null);
+            (eventStore.eventIndex.has(id) ? await getEventById(id, eventStore) : null) ??
+            archivedToDelete.find(e => e.id === id) ??
+            null;
           if (!candidate) return null;
-    
+
           if (isIsolated && candidate.tenantid !== event.tenantid) return null;
-    
+
           return candidate;
         })
     )).filter(
@@ -459,6 +486,11 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
       e.kind !== 62
     );
 
+    // Older events are not in memory; remove them straight from the DB.
+    if (eventStore.memoryHorizon > 0) {
+      await vanishPubkeyDB(event.pubkey, event.created_at, isIsolated ? event.tenantid : undefined);
+    }
+
     returnMessage = "deleted: events successfully deleted (kind 62)";
 
     // Add events to pendingDelete
@@ -522,8 +554,21 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
     clientSubs.forEach(listener => listener(event));
   });
 
-  // Save the event to memory
+  // Replaced versions past the memory horizon are only in the DB.
+  if (isReplaceable(event.kind) && eventStore.memoryHorizon > 0) {
+    await deactivateSupersededDB(event, isIsolated ? event.tenantid : undefined);
+  }
+
   event = await fillEventMetadata(event);
+
+  // Old events go straight to the DB and stay out of memory.
+  if (isArchived) {
+    const stored = await storeEvents(event);
+    await socketSafeSend(socket, ["OK", event.id, stored > 0, stored > 0 ? returnMessage : "error: could not store event"]);
+    return;
+  }
+
+  // Save the event to memory
   event = await compressEvent(event);
   const expiration = expirationTag ? Number(expirationTag[1]) : undefined;
   eventStore.eventIndex.set(event.id, {
@@ -552,6 +597,80 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
 
   return;
   
+};
+
+// Same default as workers/getEvents.ts when a filter has no since.
+const DEFAULT_SINCE_SECONDS = 86400 * 90;
+
+const isAddressable = (kind: number) => kind >= 30000 && kind < 40000;
+
+const isExpiredEvent = (event: Event, now: number): boolean => {
+  const tag = event.tags.find(t => t[0] === "expiration");
+  if (!tag || tag.length < 2) return false;
+  const expiration = Number(tag[1]);
+  return Number.isFinite(expiration) && expiration < now;
+};
+
+// Keeps only the newest version of each replaceable / addressable event.
+const collapseReplaceable = (events: Event[]): Event[] => {
+  const keyOf = (e: Event): string | null => {
+    if (isReplaceable(e.kind)) return `${e.pubkey}:${e.kind}`;
+    if (isAddressable(e.kind)) return `${e.pubkey}:${e.kind}:${e.tags.find(t => t[0] === "d")?.[1] ?? ""}`;
+    return null;
+  };
+  const newest = new Map<string, Event>();
+  for (const e of events) {
+    const key = keyOf(e);
+    if (!key) continue;
+    const current = newest.get(key);
+    if (!current || e.created_at > current.created_at || (e.created_at === current.created_at && e.id < current.id)) {
+      newest.set(key, e);
+    }
+  }
+  return events.filter(e => {
+    const key = keyOf(e);
+    return !key || newest.get(key) === e;
+  });
+};
+
+/**
+ * Completes the in-memory results with events older than the memory horizon, read from the DB.
+ * The worker scans memory from max(since, now - 90 days); everything older than that and
+ * the horizon comes from the DB, as long as the filter is selective and still wants events.
+ */
+const addArchivedEvents = async (filters: Filter[], memoryEvents: Event[], maxLimit: number, tenantid?: number): Promise<Event[]> => {
+
+  const horizon = eventStore.memoryHorizon;
+  if (!horizon) return memoryEvents;
+
+  const now = Math.floor(Date.now() / 1000);
+  const seen = new Set(memoryEvents.map(e => e.id));
+  const archived: Event[] = [];
+
+  for (const filter of filters) {
+    const scannedFrom = filter.since !== undefined ? filter.since : now - DEFAULT_SINCE_SECONDS;
+    const createdBefore = Math.max(scannedFrom, horizon);
+    if (filter.since !== undefined && filter.since >= createdBefore) continue;
+
+    const filterLimit = Math.min(filter.limit !== undefined ? filter.limit : maxLimit, maxLimit);
+    let wanted = filterLimit - memoryEvents.filter(e => matchFilter(filter, e)).length;
+    if (filter.ids && filter.ids.length > 0) {
+      wanted = Math.min(wanted, filter.ids.filter(id => !seen.has(id)).length);
+    }
+    if (wanted <= 0) continue;
+
+    const rows = await getArchivedEventsDB(filter, createdBefore, wanted, tenantid);
+    for (const row of rows) {
+      if (seen.has(row.id) || isExpiredEvent(row, now)) continue;
+      seen.add(row.id);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { metadata, tenantid: _tenantid, ...event } = row;
+      archived.push(event);
+    }
+  }
+
+  if (archived.length === 0) return memoryEvents;
+  return collapseReplaceable([...memoryEvents, ...archived]).slice(0, maxLimit);
 };
 
 // Handle REQ or COUNT
@@ -605,8 +724,10 @@ const handleReqOrCount = async (socket: ExtendedWebSocket, subId: string, filter
     return;
   }
 
-  // Early discard filters that not match the event store (pubkey or id)
-  if (type === "REQ" && filterEarlyDiscard(filters, eventStore)) {
+  // Early discard filters that not match the event store (pubkey or id). With a memory
+  // horizon the ids/authors may still be in the DB, so only the memory lookup is skipped.
+  const memoryDiscard = type === "REQ" && filterEarlyDiscard(filters, eventStore);
+  if (memoryDiscard && !eventStore.memoryHorizon) {
     logger.debug(`handleReqOrCount - Filter early discard: ${subId}`);
     await socketSafeSend(socket, ["EOSE", subId]);
     return;
@@ -615,12 +736,14 @@ const handleReqOrCount = async (socket: ExtendedWebSocket, subId: string, filter
   const maxLimit = Math.min(Number(getConfig(socket.reqInfo.domain, ["relay", "limitation", "max_limit"])) || 5000, 5000);
 
   const isIsolated = getConfig(socket.reqInfo.domain, ["relay","isolated"]) === true;
+  const clientFilters = [...filters];
   if (isIsolated) {
     filters.push({tenantid: socket.reqInfo.domainId } as any);
   }
 
   try {
-   const eventsList = await getEvents(filters, maxLimit, eventStore.sharedDBChunks);
+   const memoryEvents = memoryDiscard ? [] : await getEvents(filters, maxLimit, eventStore.sharedDBChunks);
+   const eventsList = await addArchivedEvents(clientFilters, memoryEvents, maxLimit, isIsolated ? socket.reqInfo.domainId : undefined);
 
     if (type === "COUNT") {
       await socketSafeSend(socket, ["COUNT", subId, { count: eventsList.length }]);

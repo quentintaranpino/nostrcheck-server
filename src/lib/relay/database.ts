@@ -1,10 +1,11 @@
-import { Event } from "nostr-tools";
-import { dbBulkInsert, dbDelete, dbSimpleSelect, dbUpdate} from "../database/core.js";
+import { Event, Filter } from "nostr-tools";
+import { ResultSetHeader } from "mysql2/promise";
+import { connect, dbBulkInsert, dbDelete, dbSimpleSelect, dbUpdate} from "../database/core.js";
 import { logger } from "../logger.js";
 import { CHUNK_SIZE, EventIndex, MetadataEvent, eventStore } from "../../interfaces/relay.js";
 import { decompressEvent, encodeChunk } from "./utils.js";
 import { safeJSONParse } from "../utils.js";
-import { isModuleEnabled } from "../config/core.js";
+import { getConfig, isModuleEnabled } from "../config/core.js";
 
 const initEvents = async (): Promise<boolean> => {
   if (!isModuleEnabled("relay", "")) return false;
@@ -18,6 +19,10 @@ const initEvents = async (): Promise<boolean> => {
   eventStore.sharedDBChunks = [];
   eventStore.eventIndex = eventIndex;
 
+  // Only the last N days live in memory; older events are read from the DB on demand.
+  const memoryDays = Number(getConfig(null, ["relay", "memoryDays"]));
+  eventStore.memoryHorizon = memoryDays > 0 ? Math.floor(Date.now() / 1000) - memoryDays * 86400 : 0;
+
   let offset = 0;
 
   (async function loadBatch() {
@@ -26,7 +31,7 @@ const initEvents = async (): Promise<boolean> => {
       let lastId: string | null = null;
       while (true) {
         logger.debug(`initEvents - Loaded ${eventIndex.size} events from DB (offset: ${offset})`);
-        const loadedEvents = await getEventsDB(lastCreatedAt, lastId, CHUNK_SIZE);
+        const loadedEvents = await getEventsDB(lastCreatedAt, lastId, CHUNK_SIZE, eventStore.memoryHorizon);
         if (loadedEvents.length === 0 ) {
           eventStore.relayEventsLoaded = true;
           logger.info(`initEvents - Finished loading ${eventIndex.size} events in ${eventStore.sharedDBChunks.length} chunks from DB`);
@@ -91,10 +96,11 @@ const initEvents = async (): Promise<boolean> => {
   return true;
 };
 
-const getEventsDB = async (lastCreatedAt: number | null, lastEventId: string | null, limit: number): Promise<MetadataEvent[]> => {
+const isU32 = (n: unknown) => Number.isInteger(n) && (n as number) >= 0 && (n as number) <= 0xFFFFFFFF;
+const isHex64 = (s: unknown) => typeof s === "string" && /^[a-f0-9]{64}$/i.test(s);
 
-  const isU32 = (n: unknown) => Number.isInteger(n) && (n as number) >= 0 && (n as number) <= 0xFFFFFFFF;
-  const isHex64 = (s: unknown) => typeof s === "string" && /^[a-f0-9]{64}$/i.test(s);
+const getEventsDB = async (lastCreatedAt: number | null, lastEventId: string | null, limit: number, minCreatedAt: number = 0): Promise<MetadataEvent[]> => {
+
   const safeLimit = Number.isInteger(limit) && limit! > 0 ? Math.min(limit, 100000) : 10000;
 
   let cursorWhere = "";
@@ -112,15 +118,33 @@ const getEventsDB = async (lastCreatedAt: number | null, lastEventId: string | n
       cursorParams.push(lastCreatedAt);
     }
   }
+  if (minCreatedAt > 0 && isU32(minCreatedAt)) {
+    cursorWhere += ` AND e.created_at >= ?`;
+    cursorParams.push(minCreatedAt);
+  }
+
+  return selectEventsDB(cursorWhere, cursorParams, safeLimit);
+};
+
+/**
+ * Runs the events + tags + metadata aggregation for a WHERE fragment over `events e`.
+ * group_concat_max_len is set on the statement itself: a SET SESSION before it may land
+ * on another pooled connection, and JSON_ARRAYAGG then truncates the tags at 1 MB.
+ */
+const selectEventsDB = async (where: string, params: (string | number)[], limit: number, maxStatementSeconds: number = 0): Promise<MetadataEvent[]> => {
+
+  const statementVars = ["group_concat_max_len = 8388608"];
+  if (maxStatementSeconds > 0) statementVars.push(`max_statement_time = ${Number(maxStatementSeconds)}`);
 
   const query = `
+    SET STATEMENT ${statementVars.join(", ")} FOR
     WITH ev AS (
       SELECT e.event_id, e.pubkey, e.kind, e.created_at, e.content, e.sig, e.tenantid
       FROM events e
       WHERE e.active = '1'
-      ${cursorWhere}
+      ${where}
       ORDER BY e.created_at DESC, e.event_id DESC
-      LIMIT ${safeLimit}
+      LIMIT ${Number(limit)}
     ),
     tagAgg AS (
       SELECT et.event_id,
@@ -150,7 +174,7 @@ const getEventsDB = async (lastCreatedAt: number | null, lastEventId: string | n
     LEFT JOIN metaAgg ON ev.event_id = metaAgg.event_id;
   `;
 
-  const dbResult = await dbSimpleSelect("events", query, "SET SESSION group_concat_max_len = 8388608;", cursorParams);
+  const dbResult = await dbSimpleSelect("events", query, "", params);
   if (!dbResult) return [];
 
   type EventRow = {
@@ -193,6 +217,166 @@ const getEventsDB = async (lastCreatedAt: number | null, lastEventId: string | n
   return events;
 };
 
+
+// Archive: events older than eventStore.memoryHorizon are only in the DB.
+
+const ARCHIVE_MAX_LIMIT = 500;
+const ARCHIVE_MAX_VALUES = 256;
+const ARCHIVE_MAX_CONCURRENT = 4;
+const ARCHIVE_STATEMENT_SECONDS = 3;
+let archiveRunning = 0;
+
+const isArchiveFilterSelective = (filter: Filter): boolean => {
+  if (filter.search) return false;
+  if (filter.ids && filter.ids.length > 0) return true;
+  if (filter.authors && filter.authors.length > 0) return true;
+  const tagFilters = filter as Record<string, unknown>;
+  return Object.keys(filter).some(k => k.startsWith("#") && k.length === 2 && Array.isArray(tagFilters[k]) && (tagFilters[k] as unknown[]).length > 0);
+};
+
+/**
+ * Reads from the DB the events matching a filter that the in-memory store can't answer.
+ * Only selective filters (ids, authors or tag values) reach the DB, with a capped limit,
+ * a statement timeout and a small concurrency cap; anything else returns [].
+ */
+const getArchivedEventsDB = async (filter: Filter, createdBefore: number, limit: number, tenantid?: number): Promise<MetadataEvent[]> => {
+
+  if (!isArchiveFilterSelective(filter)) return [];
+  if (archiveRunning >= ARCHIVE_MAX_CONCURRENT) {
+    logger.debug(`getArchivedEventsDB - Too many archive queries running, skipping`);
+    return [];
+  }
+
+  const safeLimit = Math.min(Math.max(Number(limit) || 0, 0), ARCHIVE_MAX_LIMIT);
+  if (safeLimit === 0) return [];
+
+  let where = "";
+  const params: (string | number)[] = [];
+
+  if (filter.ids && filter.ids.length > 0) {
+    const ids = filter.ids.filter(isHex64).slice(0, ARCHIVE_MAX_VALUES);
+    if (ids.length === 0) return [];
+    where += ` AND e.event_id IN (${ids.map(() => "?").join(",")})`;
+    params.push(...ids);
+  }
+  if (filter.authors && filter.authors.length > 0) {
+    const authors = filter.authors.filter(isHex64).slice(0, ARCHIVE_MAX_VALUES);
+    if (authors.length === 0) return [];
+    where += ` AND e.pubkey IN (${authors.map(() => "?").join(",")})`;
+    params.push(...authors);
+  }
+  if (filter.kinds && filter.kinds.length > 0) {
+    const kinds = filter.kinds.filter(k => Number.isInteger(k) && k >= 0).slice(0, ARCHIVE_MAX_VALUES);
+    if (kinds.length === 0) return [];
+    where += ` AND e.kind IN (${kinds.map(() => "?").join(",")})`;
+    params.push(...kinds);
+  }
+  for (const key of Object.keys(filter)) {
+    if (!key.startsWith("#") || key.length !== 2) continue;
+    const values = ((filter as Record<string, unknown>)[key] as unknown[]).filter(v => typeof v === "string" && v.length <= 512).slice(0, ARCHIVE_MAX_VALUES) as string[];
+    if (values.length === 0) return [];
+    where += ` AND e.event_id IN (SELECT et.event_id FROM eventtags et WHERE et.tag_name = ? AND et.tag_value IN (${values.map(() => "?").join(",")}))`;
+    params.push(key.substring(1), ...values);
+  }
+  if (filter.since !== undefined && isU32(filter.since)) {
+    where += ` AND e.created_at >= ?`;
+    params.push(filter.since);
+  }
+  const until = filter.until !== undefined && isU32(filter.until) ? Math.min(filter.until, createdBefore - 1) : createdBefore - 1;
+  where += ` AND e.created_at <= ?`;
+  params.push(until);
+  if (tenantid !== undefined) {
+    where += ` AND e.tenantid = ?`;
+    params.push(tenantid);
+  }
+
+  archiveRunning++;
+  try {
+    return await selectEventsDB(where, params, safeLimit, ARCHIVE_STATEMENT_SECONDS);
+  } catch (error) {
+    logger.error(`getArchivedEventsDB - Error reading archived events: ${error}`);
+    return [];
+  } finally {
+    archiveRunning--;
+  }
+};
+
+/**
+ * Loads events by id straight from the DB, whatever their age (used by NIP-09 deletions).
+ */
+const getEventsByIdDB = async (ids: string[], tenantid?: number): Promise<MetadataEvent[]> => {
+  const validIds = ids.filter(isHex64).slice(0, ARCHIVE_MAX_VALUES);
+  if (validIds.length === 0) return [];
+  let where = ` AND e.event_id IN (${validIds.map(() => "?").join(",")})`;
+  const params: (string | number)[] = [...validIds];
+  if (tenantid !== undefined) {
+    where += ` AND e.tenantid = ?`;
+    params.push(tenantid);
+  }
+  return selectEventsDB(where, params, validIds.length, ARCHIVE_STATEMENT_SECONDS);
+};
+
+const isEventStoredDB = async (id: string): Promise<boolean> => {
+  if (!isHex64(id)) return false;
+  const result = await dbSimpleSelect("events", "SELECT 1 AS found FROM events WHERE event_id = ? LIMIT 1", "", [id]);
+  return !!result;
+};
+
+/**
+ * Newest created_at stored for a replaceable pubkey + kind, or null if there is none.
+ */
+const getNewestReplaceableDB = async (pubkey: string, kind: number, tenantid?: number): Promise<number | null> => {
+  const params: (string | number)[] = [pubkey, kind];
+  let query = "SELECT MAX(created_at) AS newest FROM events WHERE pubkey = ? AND kind = ? AND active = 1";
+  if (tenantid !== undefined) {
+    query += " AND tenantid = ?";
+    params.push(tenantid);
+  }
+  const result: unknown = await dbSimpleSelect("events", query, "", params);
+  const newest = Array.isArray(result) && result[0] ? Number((result[0] as { newest: unknown }).newest) : NaN;
+  return Number.isFinite(newest) && newest > 0 ? newest : null;
+};
+
+/**
+ * Deactivates the stored versions of a replaceable event older than the one just accepted.
+ */
+const deactivateSupersededDB = async (event: MetadataEvent, tenantid?: number): Promise<number> => {
+  try {
+    const pool = await connect("deactivateSupersededDB");
+    let query = "UPDATE events SET active = 0, comments = 'superseded' WHERE pubkey = ? AND kind = ? AND active = 1 AND created_at < ? AND event_id <> ?";
+    const params: (string | number)[] = [event.pubkey, event.kind, event.created_at, event.id];
+    if (tenantid !== undefined) {
+      query += " AND tenantid = ?";
+      params.push(tenantid);
+    }
+    const [result] = await pool.execute(query, params);
+    return (result as ResultSetHeader).affectedRows || 0;
+  } catch (error) {
+    logger.error(`deactivateSupersededDB - Error deactivating superseded events: ${error}`);
+    return 0;
+  }
+};
+
+/**
+ * NIP-62: removes from the DB every event of a pubkey older than the request, including
+ * the ones no longer held in memory.
+ */
+const vanishPubkeyDB = async (pubkey: string, before: number, tenantid?: number): Promise<number> => {
+  try {
+    const pool = await connect("vanishPubkeyDB");
+    let query = "DELETE FROM events WHERE pubkey = ? AND created_at < ? AND kind NOT IN (5, 62)";
+    const params: (string | number)[] = [pubkey, before];
+    if (tenantid !== undefined) {
+      query += " AND tenantid = ?";
+      params.push(tenantid);
+    }
+    const [result] = await pool.execute(query, params);
+    return (result as ResultSetHeader).affectedRows || 0;
+  } catch (error) {
+    logger.error(`vanishPubkeyDB - Error deleting events: ${error}`);
+    return 0;
+  }
+};
 
 /**
  * Inserts one or more events (and their tags) into the database using bulk insert.
@@ -336,4 +520,4 @@ const deleteEvents = async (eventsInput: MetadataEvent | MetadataEvent[], delete
   return affectedCount;
 };
 
-export { storeEvents, initEvents, deleteEvents };
+export { storeEvents, initEvents, deleteEvents, getArchivedEventsDB, getEventsByIdDB, isEventStoredDB, getNewestReplaceableDB, deactivateSupersededDB, vanishPubkeyDB };

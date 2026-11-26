@@ -173,6 +173,8 @@ interface RelayEvents {
   globalIds: Set<string>;
   globalPubkeys: Set<string>;
   globalExpirable: Set<string>;
+  // created_at below which events are only in the DB (0 = everything in memory)
+  memoryHorizon: number;
 }
 
 interface EventIndex {
@@ -196,6 +198,7 @@ const eventStore: RelayEvents = {
   globalIds: new Set<string>(),
   globalPubkeys: new Set<string>(),
   globalExpirable: new Set<string>(),
+  memoryHorizon: 0,
 };
 
 type WSConnectionBucket = { 

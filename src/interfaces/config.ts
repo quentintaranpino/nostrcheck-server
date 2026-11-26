@@ -312,6 +312,7 @@ const defaultConfig = {
 		"tags": [],
 		"workers": 2,
 		"isolated": false,
+		"memoryDays": 90,
 	},
 	"appearance": {
 		"siteName": "",
