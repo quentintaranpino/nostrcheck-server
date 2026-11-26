@@ -193,6 +193,7 @@ interface NIP11File {
   banner?: string;
   icon?: string;
   pubkey?: string;
+  self?: string;
   contact?: string;
   supported_nips: number[];
   software?: string;
@@ -219,7 +220,7 @@ interface AuthEvent {
   sig: string;
 }
 
-const supported_nips = [1, 2, 3, 4, 5, 7, 9, 11, 13, 14, 19, 28, 40, 42, 44, 45, 47, 48, 50, 56, 62, 65, 70, 73, 78, 94, 96, 98];
+const supported_nips = [1, 2, 4, 5, 9, 11, 13, 14, 17, 40, 42, 44, 45, 47, 48, 50, 56, 59, 62, 65, 70, 73, 78, 94, 96, 98];
 
 export {
           supported_nips,

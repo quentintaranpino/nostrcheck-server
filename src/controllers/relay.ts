@@ -24,7 +24,23 @@ import { IncomingMessage } from "http";
 import crypto from "crypto";
 
 await initEvents();
-const authSessions: Map<WebSocket, string> = new Map(); 
+const authSessions: WeakMap<WebSocket, string> = new WeakMap();
+
+// NIP-04 / NIP-17: direct messages and gift wraps are only served to the parties of the
+// message, once they have authenticated (NIP-42). Anyone can still publish them.
+const PRIVATE_KINDS = new Set([4, 14, 1059]);
+const canReadEvent = (socket: ExtendedWebSocket, event: Event): boolean => {
+  if (!PRIVATE_KINDS.has(event.kind)) return true;
+  const authed = authSessions.get(socket);
+  if (!authed) return false;
+  if (event.kind == 4 && event.pubkey == authed) return true;
+  return event.tags.some(tag => tag[0] == "p" && tag[1] == authed);
+};
+
+const sendAuthChallenge = async (socket: ExtendedWebSocket): Promise<void> => {
+  if (!socket.challenge) socket.challenge = crypto.randomBytes(32).toString("hex");
+  await socketSafeSend(socket, ["AUTH", socket.challenge]);
+};
 
 const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket.RawData, req: IncomingMessage) => {
 
@@ -101,10 +117,10 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
     }
     const authRequired = getConfig(socket.reqInfo.domain, ["relay","limitation","auth_required"]);
     if (authRequired === true && !authSessions.has(socket)) {
-      if (!socket.challenge) {
-        socket.challenge = crypto.randomBytes(32).toString("hex");
-        await socketSafeSend(socket, ["AUTH", socket.challenge]);
-      }
+      if (!socket.challenge) await sendAuthChallenge(socket);
+      const reason = "auth-required: this relay requires authentication";
+      if (type === "EVENT" && typeof (args[0] as Event)?.id === "string") await socketSafeSend(socket, ["OK", (args[0] as Event).id, false, reason]);
+      if ((type === "REQ" || type === "COUNT") && typeof args[0] === "string") await socketSafeSend(socket, ["CLOSED", args[0], reason]);
       return;
     }
 
@@ -273,11 +289,11 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
     }
   }
 
-  // NIP-70 Check if the event has a ["-"] tag and "auth_required" is enabled
-  if (getConfig(socket.reqInfo.domain, ["relay", "limitation", "auth_required"]) == true && event.tags.some(tag => tag[0] === "-") && authSessions.get(socket) !== event.pubkey) {
-      logger.debug(`handleEvent - Blocked private message without authentication: ${event.id}`);
-      await socketSafeSend(socket, ["NOTICE", "error: unauthorized to post private messages"]);
-      await socketSafeSend(socket, ["OK", event.id, false, "error: unauthorized to post private messages"]);
+  // NIP-70: protected events are only accepted from their authenticated author
+  if (event.tags.some(tag => tag[0] === "-") && authSessions.get(socket) !== event.pubkey) {
+      logger.debug(`handleEvent - Blocked protected event without author authentication: ${event.id}`);
+      await sendAuthChallenge(socket);
+      await socketSafeSend(socket, ["OK", event.id, false, "auth-required: this event may only be published by its author"]);
       return;
   }
 
@@ -708,14 +724,13 @@ const handleReqOrCount = async (socket: ExtendedWebSocket, subId: string, filter
     return;
   }
 
-  if (getConfig(socket.reqInfo.domain, ["relay", "limitation", "auth_required"]) == true && !authSessions.has(socket)) {
-    const requestedKinds = filters.flatMap(f => f.kinds || []);
-
-    if (requestedKinds.some(kind => [4, 14, 1059].includes(kind))) {
-      logger.debug(`handleReqOrCount - Blocked REQ for private messages without authentication: ${subId} |`, socket.reqInfo.ip);
-      await socketSafeSend(socket, ["NOTICE", "auth-required: must authenticate to request private messages"]);
-      await socketSafeSend(socket, ["CLOSED", subId, "auth-required: must authenticate to request private messages"]);
-      socket.close(1003, "auth-required: must authenticate to request private messages");
+  // Private kinds need AUTH. Ask for it instead of dropping the connection (NIP-42).
+  if (!authSessions.has(socket)) {
+    const requestedKinds = filters.flatMap(f => Array.isArray(f?.kinds) ? f.kinds : []);
+    if (requestedKinds.some(kind => PRIVATE_KINDS.has(kind))) {
+      logger.debug(`handleReqOrCount - Private kinds requested without authentication: ${subId} |`, socket.reqInfo.ip);
+      await sendAuthChallenge(socket);
+      await socketSafeSend(socket, ["CLOSED", subId, "auth-required: direct messages are only served to their recipients"]);
       return;
     }
   }
@@ -769,7 +784,8 @@ const handleReqOrCount = async (socket: ExtendedWebSocket, subId: string, filter
 
   try {
    const memoryEvents = memoryDiscard ? [] : await getEvents(filters, maxLimit, eventStore.sharedDBChunks);
-   const eventsList = await addArchivedEvents(clientFilters, memoryEvents, maxLimit, isIsolated ? socket.reqInfo.domainId : undefined, socket.reqInfo.ip);
+   const eventsList = (await addArchivedEvents(clientFilters, memoryEvents, maxLimit, isIsolated ? socket.reqInfo.domainId : undefined, socket.reqInfo.ip))
+     .filter(event => canReadEvent(socket, event));
 
     if (type === "COUNT") {
       await socketSafeSend(socket, ["COUNT", subId, { count: eventsList.length }]);
@@ -801,6 +817,7 @@ const handleReqOrCount = async (socket: ExtendedWebSocket, subId: string, filter
     if (type === "REQ") {
       const listener = async (event: MetadataEvent): Promise<void> => {
       if (isIsolated && event.tenantid !== socket.reqInfo.domainId) return;
+      if (!canReadEvent(socket, event)) return;
       if (filters.some((f) => matchFilter(f, event)) && socket.readyState === WebSocket.OPEN) {
         await socketSafeSend(socket, ["EVENT", subId, event]);
       }
@@ -839,9 +856,11 @@ const handleAuthMessage = async (socket: ExtendedWebSocket, message: ["AUTH", Au
     return;
   }
 
+  const authFail = (reason: string) => socketSafeSend(socket, typeof authData.id === "string" ? ["OK", authData.id, false, reason] : ["NOTICE", reason]);
+
   if (authData.kind !== 22242) {
     logger.debug(`handleAuthMessage - Invalid AUTH event kind: ${authData.kind}`);
-    await socketSafeSend(socket, ["NOTICE", "error: invalid AUTH event kind"]);
+    await authFail("invalid: AUTH event must be kind 22242");
     return;
   }
 
@@ -850,36 +869,40 @@ const handleAuthMessage = async (socket: ExtendedWebSocket, message: ["AUTH", Au
 
   if (!relayTag || !challengeTag) {
     logger.debug(`handleAuthMessage - Missing relay or challenge tag: ${authData.tags}`);
-    await socketSafeSend(socket, ["NOTICE", "error: missing relay or challenge tag"]);
+    await authFail("invalid: missing relay or challenge tag");
     return;
   }
 
   const challenge = challengeTag[1];
   if (!socket.challenge || socket.challenge !== challenge) {
     logger.debug(`handleAuthMessage - Invalid challenge: ${challenge}`);
-    await socketSafeSend(socket, ["NOTICE", "error: invalid challenge"]);
+    await authFail("invalid: unknown challenge");
     return;
   }
 
   const validEvent = await isEventValid(authData, 60, 10);
   if (validEvent.status !== "success") {
     logger.debug(`handleAuthMessage - Invalid AUTH event: ${validEvent.message}`);
-    await socketSafeSend(socket, ["NOTICE", `error: ${validEvent.message}`]);
+    await authFail(`invalid: ${validEvent.message}`);
     return;
+  }
+
+  // A relay that requires auth is for registered users only. Otherwise AUTH just proves
+  // the pubkey, which is enough to read its own direct messages.
+  if (getConfig(socket.reqInfo.domain, ["relay", "limitation", "auth_required"]) == true) {
+    const registeredData = await dbMultiSelect(["id", "username"],"registered","hex = ?", [authData.pubkey], true);
+    if (registeredData.length === 0) {
+      logger.debug("AUTH failed: pubkey not registered:", authData.id);
+      await authFail("restricted: pubkey not registered");
+      return;
+    }
   }
 
   authSessions.set(socket, authData.pubkey);
   delete socket.challenge;
   socket.reqInfo.pubkey = authData.pubkey;
 
-  const registeredData = await dbMultiSelect(["id", "username"],"registered","hex = ?", [authData.pubkey], true);
-  if (registeredData.length === 0) {
-    logger.debug("AUTH failed: pubkey not registered:", authData.id);
-    await socketSafeSend(socket, ["NOTICE", "error: pubkey not registered"]);
-    return;
-  }
-
-  await socketSafeSend(socket, ["OK", authData.id, true, "AUTH successful"]);
+  await socketSafeSend(socket, ["OK", authData.id, true, ""]);
 };
 
 const getRelayStatus = async (req: Request, res: Response, wss: WebSocketServer): Promise<Response> => {

@@ -542,46 +542,45 @@ const loadDocsPage = async (req: Request, res: Response, version: string): Promi
     const nipDescriptions: Record<number, string> = {
         1: "Basic protocol flow",
         2: "Follow lists",
-        3: "OpenTimestamps",
-        4: "Encrypted DMs (deprecated)",
+        4: "Encrypted DMs (deprecated, see NIP-17)",
         5: "Mapping Nostr keys to DNS identifiers (name@server)",
-        7: "Browser extension signing",
         9: "Event deletion",
         11: "Relay information document",
         13: "Proof of work",
-        14: "Sensitive content tag",
-        19: "bech32 entities (npub, note, nprofile)",
-        28: "Public chat",
+        14: "Subject tag in text events",
+        17: "Private direct messages, served only to their recipients",
         40: "Expiration timestamp",
         42: "Auth on relays",
         44: "Encrypted payloads (v2)",
         45: "Event counts",
         47: "Nostr Wallet Connect",
-        48: "Proxy tags",
+        48: "Bridged events",
         50: "Search filter",
         56: "Reports",
+        59: "Gift wrap",
         62: "Request to vanish",
         65: "Relay list metadata",
         70: "Protected events",
         73: "External content IDs",
         78: "Application-specific data",
         94: "File metadata",
-        96: "HTTP file storage integration",
+        96: "HTTP file storage integration (deprecated, see Blossom)",
         98: "HTTP auth",
     };
     const budDescriptions: Record<string, string> = {
-        "01": "Server requirements and blob descriptor",
-        "02": "Blob retrieval and listing",
+        "01": "Server requirements and blob retrieval",
+        "02": "Blob upload and management",
         "03": "User server list",
         "04": "Mirror blobs from another server",
+        "07": "Paid uploads (Lightning)",
         "05": "Media optimization",
         "06": "Upload requirements",
         "08": "Nostr file metadata events",
         "09": "Blob reports",
-        "11": "Authorization with NIP-98",
+        "11": "Nostr authorization (kind 24242)",
     };
     res.locals.docsNips = supported_nips.map(n => ({ num: n, label: String(n).padStart(2, "0"), desc: nipDescriptions[n] || "" }));
-    res.locals.docsBuds = ["01", "02", "03", "04", "05", "06", "08", "09", "11"].map(b => ({ num: b, desc: budDescriptions[b] || "" }));
+    res.locals.docsBuds = ["01", "02", "03", "04", "05", "06", "07", "09", "11"].map(b => ({ num: b, desc: budDescriptions[b] || "" }));
     res.locals.docsLightning = isModuleEnabled("payments", req.hostname);
     res.locals.docsMediaEnabled = docsMediaEnabled;
     res.locals.docsRelayEnabled = docsRelayEnabled;
