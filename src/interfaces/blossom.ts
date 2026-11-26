@@ -51,6 +51,8 @@ interface BlobDescriptor extends ResultMessagev2{
     // this only ever reads 1 on the owner's own listing, which is exactly who
     // needs to know.
     nsfw?: number;
+    // BUD-08: NIP-94 tags for the blob.
+    nip94?: string[][];
 }
 
 

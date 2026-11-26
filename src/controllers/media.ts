@@ -57,10 +57,21 @@ const uploadMedia = async (req: Request, res: Response, version: string, mode: U
 
 	logger.info(`uploadMedia - Request from:`, reqInfo.ip);
 
+	// BUD-13: PUT /<sha256> uploads and POST /<sha256> mirrors, both bound to the hash in the path.
+	const pathHash = mode === "blossom" && typeof req.params?.id === "string" ? req.params.id.toLowerCase() : "";
+	const isPathMirror = pathHash != "" && req.method === "POST";
+	const isMirror = req.originalUrl.endsWith('/mirror') || isPathMirror;
+	if (pathHash != "" && !isPathMirror && req.query.url !== undefined) {
+		res.setHeader("X-Reason", "url query parameter not allowed on PUT /<sha256>");
+		return res.status(400).send({status: MediaStatus[1], message: "url query parameter not allowed on PUT /<sha256>"});
+	}
+
 	// Check if authorization header is valid. The Blossom `t` tag must match the
 	// requested verb: `mirror` for PUT /mirror (BUD-04), `media` for PUT /media
 	// (BUD-05), `upload` for PUT /upload or POST /media (BUD-02 / NIP-96).
-	const authEndpoint = req.originalUrl.endsWith('/mirror')
+	const authEndpoint = pathHash != ""
+		? "upload"
+		: req.originalUrl.endsWith('/mirror')
 		? "mirror"
 		: (req.method === "PUT" && (req.originalUrl.endsWith('/media') || /\/media\b/.test(req.originalUrl)))
 			? "media"
@@ -117,9 +128,12 @@ const uploadMedia = async (req: Request, res: Response, version: string, mode: U
 	// Uploaded file
 	let file: Express.Multer.File | null = null;
 
-	// Mirror file (Blossom BUD04)
-	if (req.originalUrl.endsWith('/mirror')) {
-		if (req.body.url == undefined || req.body.url == "") {
+	// Mirror file (Blossom BUD-04 /mirror with a JSON url, BUD-13 POST /<sha256> with a list of sources)
+	if (isMirror) {
+		const sources: string[] = isPathMirror
+			? (typeof req.body === "string" ? req.body : "").split(/\r?\n/).map(l => l.trim()).filter(l => /^https?:\/\//i.test(l)).slice(0, 5)
+			: (req.body?.url ? [String(req.body.url)] : []);
+		if (sources.length == 0) {
 			logger.debug(`uploadMedia - 400 Bad request - Empty URL`, "|", reqInfo.ip);
 			if(version != "v2"){return res.status(400).send({"result": false, "description" : "Empty URL"});}
 
@@ -131,30 +145,33 @@ const uploadMedia = async (req: Request, res: Response, version: string, mode: U
 			return res.status(400).send(result);
 		}
 
-		// SSRF guard. Distinguish "URL refuses to resolve" (502 Bad Gateway,
-		// upstream's fault) from "URL points at a private/internal target"
-		// (400, the client is probing). DNS-only failures shouldn't earn an
-		// IP infraction.
-		if (!(await isPublicUrl(req.body.url))) {
-			let dnsResolved = false;
-			try {
-				const u = new URL(req.body.url);
-				const dnsMod = await import("dns");
-				await dnsMod.promises.lookup(u.hostname);
-				dnsResolved = true;
-			} catch { /* dns failed → unreachable */ }
-			if (!dnsResolved) {
-				res.setHeader("X-Reason", "Mirror target unreachable");
-				return res.status(502).send({status: MediaStatus[1], message: "Mirror target unreachable"});
+		// SSRF guard. Distinguish "URL refuses to resolve" (upstream's fault, try the
+		// next source) from "URL points at a private/internal target" (400, the client
+		// is probing). DNS-only failures shouldn't earn an IP infraction.
+		for (const source of sources) {
+			if (!(await isPublicUrl(source))) {
+				let dnsResolved = false;
+				try {
+					const u = new URL(source);
+					const dnsMod = await import("dns");
+					await dnsMod.promises.lookup(u.hostname);
+					dnsResolved = true;
+				} catch { /* dns failed → unreachable */ }
+				if (!dnsResolved) continue;
+				logger.warn(`uploadMedia - SSRF attempt on mirror: ${source}`, "|", reqInfo.ip);
+				await addIpInfraction(reqInfo.ip, `SSRF attempt on mirror: ${source}`);
+				res.setHeader("X-Reason", "Refused mirror target");
+				if(version != "v2"){return res.status(400).send({"result": false, "description" : "Refused mirror target"});}
+				return res.status(400).send({status: MediaStatus[1], message: "Refused mirror target"});
 			}
-			logger.warn(`uploadMedia - SSRF attempt on /mirror: ${req.body.url}`, "|", reqInfo.ip);
-			await addIpInfraction(reqInfo.ip, `SSRF attempt on /mirror: ${req.body.url}`);
-			res.setHeader("X-Reason", "Refused mirror target");
-			if(version != "v2"){return res.status(400).send({"result": false, "description" : "Refused mirror target"});}
-			return res.status(400).send({status: MediaStatus[1], message: "Refused mirror target"});
+			file = await mirrorFile(source);
+			if (file) break;
 		}
 
-		file = await mirrorFile(req.body.url)
+		if (!file && (isPathMirror || version == "v2")) {
+			res.setHeader("X-Reason", "Mirror target unreachable");
+			return res.status(502).send({status: MediaStatus[1], message: "Mirror target unreachable"});
+		}
 		if (!file) {
 			logger.debug(`uploadMedia - 400 Bad request - Empty file`, "|", reqInfo.ip);
 			if(version != "v2"){return res.status(400).send({"result": false, "description" : "Empty file"});}
@@ -185,6 +202,16 @@ const uploadMedia = async (req: Request, res: Response, version: string, mode: U
 		} catch { /* malformed header was already rejected by parseAuthHeader earlier */ }
 
 		req.files = [file];
+	}
+
+	// BUD-13: the blob must hash to the path. Nothing is stored on a mismatch.
+	if (pathHash != "") {
+		const uploaded = Array.isArray(req.files) && req.files.length > 0 ? req.files[0] : null;
+		const bodyHash = uploaded ? crypto.createHash("sha256").update(uploaded.buffer).digest("hex") : "";
+		if (uploaded && bodyHash != pathHash) {
+			res.setHeader("X-Reason", "Blob hash mismatch");
+			return res.status(409).send({status: MediaStatus[1], message: "Blob hash mismatch"});
+		}
 	}
 
 	if (Array.isArray(req.files) && req.files.length > 0) {file = req.files[0];}
@@ -266,7 +293,7 @@ const uploadMedia = async (req: Request, res: Response, version: string, mode: U
 
 	// BUD-02 /upload and BUD-04 /mirror MUST not modify the blob.
 	const url = req.originalUrl || '';
-	if (/\/upload(\?|$)/.test(url) || /\/mirror(\?|$)/.test(url)) {
+	if (/\/upload(\?|$)/.test(url) || /\/mirror(\?|$)/.test(url) || pathHash != "") {
 		filedata.no_transform = true;
 	}
 	if (!filedata.originalmime.toString().startsWith("image") && !filedata.originalmime.toString().startsWith("video")) filedata.no_transform = true;
@@ -596,7 +623,8 @@ const uploadMedia = async (req: Request, res: Response, version: string, mode: U
 	// Blossom response
 	if (mode === "blossom") {
 		const returnmessage: BlobDescriptor = await prepareBlobDescriptor(filedata);
-		res.status(200);
+		// BUD-02 / BUD-13: 201 when the blob is new, 200 when it was already stored.
+		res.status(insertfiledb ? 201 : 200);
 		return res.json(returnmessage);
 	}
 
@@ -833,7 +861,7 @@ const getMediaList = async (req: Request, res: Response): Promise<Response> => {
 	}
 
 	} else if (listType === "Blossom") {
-	// BUD-02 /list/:pubkey (auth opcional)
+	// BUD-12 /list/:pubkey (auth opcional)
 	const isOwner = eventHeader.pubkey && eventHeader.pubkey === pubkey;
 	if (isOwner) {
 		whereStatement = "pubkey = ? AND active = '1' AND original_hash IS NOT NULL";
@@ -850,7 +878,23 @@ const getMediaList = async (req: Request, res: Response): Promise<Response> => {
 		whereStatement += " AND date <= ?";
 		whereFields.push(new Date(Number(until) * 1000).toISOString().slice(0, 19).replace("T", " "));
 	}
-	whereStatement += " ORDER BY date DESC";
+	// BUD-12 pagination: cursor is the sha256 of the last blob of the previous page.
+	const cursor = req.query.cursor?.toString().toLowerCase() || "";
+	if (cursor != "") {
+		if (!/^[a-f0-9]{64}$/.test(cursor)) {
+			res.setHeader("X-Reason", "Invalid cursor parameter");
+			return res.status(400).send({status: "error", message: "Invalid cursor parameter"});
+		}
+		const cursorRow = (await dbMultiSelect(["id", "date"], "mediafiles", "pubkey = ? AND hash = ?", [pubkey, cursor], true))[0];
+		if (!cursorRow) return res.status(200).send([]);
+		whereStatement += " AND (date < ? OR (date = ? AND id < ?))";
+		whereFields.push(cursorRow.date, cursorRow.date, cursorRow.id);
+	}
+	whereStatement += " ORDER BY date DESC, id DESC";
+	if (req.query.limit !== undefined || cursor != "") {
+		whereStatement += " LIMIT ?";
+		whereFields.push(count);
+	}
 
 	} else {
 		// NIP-96 list. Auth is mandatory here (the request 401s above when it
