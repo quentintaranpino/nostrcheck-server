@@ -4,7 +4,7 @@ import { Request, Response } from "express";
 
 import { subscriptions, addSubscription, removeAllSubscriptions, removeSubscription, socketSafeSend, checkWSConnectionRate } from "../lib/relay/core.js";
 import { compressEvent, fillEventMetadata, getEventById, getEventsByTimerange, validateFilter, parseRelayMessage, getChunkSize, filterEarlyDiscard } from "../lib/relay/utils.js";
-import { deactivateSupersededDB, getArchivedEventsDB, getEventsByIdDB, getNewestReplaceableDB, initEvents, isEventStoredDB, storeEvents, vanishPubkeyDB } from "../lib/relay/database.js";
+import { deactivateSupersededDB, getArchivedEventsDB, getEventsByIdDB, getNewestReplaceableDB, getReplaceableIds, indexReplaceable, initEvents, isEventStoredDB, vanishPubkeyDB } from "../lib/relay/database.js";
 
 import { isEventValid } from "../lib/nostr/core.js";
 import { logger } from "../lib/logger.js";
@@ -300,7 +300,7 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
 
   // Events older than the memory horizon live only in the DB.
   const isArchived = eventStore.memoryHorizon > 0 && event.created_at < eventStore.memoryHorizon && !isEphemeral(event.kind);
-  if (!existing && isArchived && await isEventStoredDB(event.id)) {
+  if (!existing && isArchived && (eventStore.pendingArchive.has(event.id) || await isEventStoredDB(event.id))) {
     logger.debug(`handleEvent - Duplicate archived event: ${event.id}`);
     await socketSafeSend(socket, ["OK", event.id, false, "duplicate: already have this event"]);
     return;
@@ -320,8 +320,9 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
     // Newest stored version in memory. Outside isolated mode any tenant's version counts;
     // the old condition only matched in isolated mode, so nothing was ever replaced.
     let oldEventEntry: [string, EventIndex] | null = null;
-    for (const [id, entry] of eventStore.eventIndex) {
-      if (entry.kind !== event.kind || entry.pubkey !== event.pubkey) continue;
+    for (const id of getReplaceableIds(event.pubkey, event.kind)) {
+      const entry = eventStore.eventIndex.get(id);
+      if (!entry) continue;
       if (isIsolated && entry.tenantid !== event.tenantid) continue;
       if (!oldEventEntry || entry.created_at > oldEventEntry[1].created_at) oldEventEntry = [id, entry];
     }
@@ -399,7 +400,7 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
     }
 
     // Events past the memory horizon are looked up in the DB.
-    const notInMemory = receivedEventsToDelete.filter(id => !eventStore.pending.has(id) && !eventStore.eventIndex.has(id));
+    const notInMemory = receivedEventsToDelete.filter(id => !eventStore.pending.has(id) && !eventStore.pendingArchive.has(id) && !eventStore.eventIndex.has(id));
     const archivedToDelete = eventStore.memoryHorizon > 0 && notInMemory.length > 0
       ? await getEventsByIdDB(notInMemory, isIsolated ? event.tenantid : undefined)
       : [];
@@ -409,6 +410,7 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
         receivedEventsToDelete.map(async id => {
           const candidate =
             eventStore.pending.get(id) ??
+            eventStore.pendingArchive.get(id) ??
             (eventStore.eventIndex.has(id) ? await getEventById(id, eventStore) : null) ??
             archivedToDelete.find(e => e.id === id) ??
             null;
@@ -486,9 +488,13 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
       e.kind !== 62
     );
 
-    // Older events are not in memory; remove them straight from the DB.
+    // Older events are not in memory; remove them straight from the DB. Runs in the
+    // background and in batches: a big account would otherwise hold an event queue slot.
     if (eventStore.memoryHorizon > 0) {
-      await vanishPubkeyDB(event.pubkey, event.created_at, isIsolated ? event.tenantid : undefined);
+      for (const [id, e] of eventStore.pendingArchive) {
+        if (e.pubkey === event.pubkey && e.created_at < event.created_at && (!isIsolated || e.tenantid === event.tenantid)) eventStore.pendingArchive.delete(id);
+      }
+      vanishPubkeyDB(event.pubkey, event.created_at, isIsolated ? event.tenantid : undefined).catch(() => {});
     }
 
     returnMessage = "deleted: events successfully deleted (kind 62)";
@@ -561,10 +567,15 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
 
   event = await fillEventMetadata(event);
 
-  // Old events go straight to the DB and stay out of memory.
+  // Old events stay out of memory; persistArchivedEvents writes them to the DB in batches.
   if (isArchived) {
-    const stored = await storeEvents(event);
-    await socketSafeSend(socket, ["OK", event.id, stored > 0, stored > 0 ? returnMessage : "error: could not store event"]);
+    if (eventStore.pendingArchive.size >= MAX_PENDING_ARCHIVE) {
+      logger.debug(`handleEvent - Too many old events waiting to be stored: ${event.id}`);
+      await socketSafeSend(socket, ["OK", event.id, false, "rate-limited: too many old events, try again later"]);
+      return;
+    }
+    eventStore.pendingArchive.set(event.id, event);
+    await socketSafeSend(socket, ["OK", event.id, true, returnMessage]);
     return;
   }
 
@@ -583,6 +594,7 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
     tenantid: socket.reqInfo.domainId,
   });
   eventStore.pending.set(event.id, event);
+  indexReplaceable(event.id, event.pubkey, event.kind);
   eventStore.globalIds.add(event.id);
   if (event.pubkey) {
     eventStore.globalPubkeys.add(event.pubkey);
@@ -598,6 +610,12 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
   return;
   
 };
+
+// Old events accepted but not yet written to the DB (flushed every minute).
+const MAX_PENDING_ARCHIVE = 20000;
+
+// Time a REQ may spend waiting for and reading archived events.
+const ARCHIVE_REQ_BUDGET_MS = 4000;
 
 // Same default as workers/getEvents.ts when a filter has no since.
 const DEFAULT_SINCE_SECONDS = 86400 * 90;
@@ -638,7 +656,7 @@ const collapseReplaceable = (events: Event[]): Event[] => {
  * The worker scans memory from max(since, now - 90 days); everything older than that and
  * the horizon comes from the DB, as long as the filter is selective and still wants events.
  */
-const addArchivedEvents = async (filters: Filter[], memoryEvents: Event[], maxLimit: number, tenantid?: number): Promise<Event[]> => {
+const addArchivedEvents = async (filters: Filter[], memoryEvents: Event[], maxLimit: number, tenantid: number | undefined, client: string): Promise<Event[]> => {
 
   const horizon = eventStore.memoryHorizon;
   if (!horizon) return memoryEvents;
@@ -646,6 +664,8 @@ const addArchivedEvents = async (filters: Filter[], memoryEvents: Event[], maxLi
   const now = Math.floor(Date.now() / 1000);
   const seen = new Set(memoryEvents.map(e => e.id));
   const archived: Event[] = [];
+  // One budget for the whole REQ: up to max_filters filters would otherwise add up.
+  const deadline = Date.now() + ARCHIVE_REQ_BUDGET_MS;
 
   for (const filter of filters) {
     const scannedFrom = filter.since !== undefined ? filter.since : now - DEFAULT_SINCE_SECONDS;
@@ -659,7 +679,13 @@ const addArchivedEvents = async (filters: Filter[], memoryEvents: Event[], maxLi
     }
     if (wanted <= 0) continue;
 
-    const rows = await getArchivedEventsDB(filter, createdBefore, wanted, tenantid);
+    const waitMs = deadline - Date.now();
+    if (waitMs <= 0) {
+      logger.debug(`addArchivedEvents - REQ time budget spent, skipping the remaining filters | ${client}`);
+      break;
+    }
+    const rows = await getArchivedEventsDB(filter, createdBefore, wanted, tenantid, client, waitMs);
+    if (rows === null) continue;
     for (const row of rows) {
       if (seen.has(row.id) || isExpiredEvent(row, now)) continue;
       seen.add(row.id);
@@ -743,7 +769,7 @@ const handleReqOrCount = async (socket: ExtendedWebSocket, subId: string, filter
 
   try {
    const memoryEvents = memoryDiscard ? [] : await getEvents(filters, maxLimit, eventStore.sharedDBChunks);
-   const eventsList = await addArchivedEvents(clientFilters, memoryEvents, maxLimit, isIsolated ? socket.reqInfo.domainId : undefined);
+   const eventsList = await addArchivedEvents(clientFilters, memoryEvents, maxLimit, isIsolated ? socket.reqInfo.domainId : undefined, socket.reqInfo.ip);
 
     if (type === "COUNT") {
       await socketSafeSend(socket, ["COUNT", subId, { count: eventsList.length }]);

@@ -321,8 +321,47 @@ const execWithTimeout = <T>(promise: Promise<T>, timeoutMs: number): Promise<T> 
     });
 }
 
-export { format, 
-	    currDir, 
+interface Slots {
+	acquire: (waitMs: number) => Promise<boolean>;
+	release: () => void;
+	idle: () => boolean;
+	waiting: () => number;
+}
+
+/**
+ * Counting semaphore. acquire() takes a free slot or waits up to waitMs for one
+ * and resolves false if none frees up in time. Every true must be released.
+ */
+const createSlots = (size: number): Slots => {
+	let free = size;
+	const queue: (() => void)[] = [];
+
+	const acquire = (waitMs: number): Promise<boolean> => {
+		if (free > 0) { free--; return Promise.resolve(true); }
+		if (waitMs <= 0) return Promise.resolve(false);
+		return new Promise(resolve => {
+			const grant = () => { clearTimeout(timer); resolve(true); };
+			const timer = setTimeout(() => {
+				const i = queue.indexOf(grant);
+				if (i != -1) queue.splice(i, 1);
+				resolve(false);
+			}, waitMs);
+			queue.push(grant);
+		});
+	};
+
+	const release = () => {
+		const next = queue.shift();
+		if (next) next();
+		else free = Math.min(free + 1, size);
+	};
+
+	return { acquire, release, idle: () => free == size && queue.length == 0, waiting: () => queue.length };
+};
+
+export { format,
+	    currDir,
+		createSlots,
 		markdownToHtml, 
 		generateQRCode, 
 		getNewDate, 
@@ -334,3 +373,4 @@ export { format,
 		serverBanner,
 		execWithTimeout,
 		generateVideoFromImage};
+export type { Slots };

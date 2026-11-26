@@ -5,7 +5,7 @@ import path from "path";
 
 import { logger } from "../logger.js";
 import { CHUNK_SIZE, eventStore, MetadataEvent, PendingGetEventsTask, RelayJob, SharedChunk } from "../../interfaces/relay.js";
-import { deleteEvents, storeEvents } from "./database.js";
+import { deleteEvents, getMemoryHorizon, storeEvents } from "./database.js";
 import { decodeChunk, dynamicTimeout, encodeChunk, getEventById, updateChunk } from "./utils.js";
 
 // Workers
@@ -273,6 +273,54 @@ const unpersistEvents = async () => {
   }
 };
 
+/**
+ * Stores the accepted events older than the memory horizon. They never enter memory, so
+ * they only need the DB insert, batched here instead of one by one in handleEvent.
+ */
+const persistArchivedEvents = async () => {
+  if (!isModuleEnabled("relay", "") || eventStore.pendingArchive.size === 0) return;
+  const events = Array.from(eventStore.pendingArchive.values());
+  for (let i = 0; i < events.length; i += 1000) {
+    const batch = events.slice(i, i + 1000);
+    await storeEvents(batch);
+    batch.forEach(e => eventStore.pendingArchive.delete(e.id));
+    await new Promise(r => setImmediate(r));
+  }
+};
+
+/**
+ * Moves the memory horizon forward and drops the chunks left entirely below it, so memory
+ * holds relay.memoryDays of events however long the process runs. Chunks are sorted newest
+ * first, so dropping from the tail doesn't change the chunkIndex of the rest.
+ */
+const evictOldChunks = async () => {
+  if (!eventStore.memoryHorizon) return;
+  const horizon = getMemoryHorizon();
+  if (horizon <= eventStore.memoryHorizon) return;
+  eventStore.memoryHorizon = horizon;
+
+  let dropped = 0;
+  let droppedEvents = 0;
+  while (eventStore.sharedDBChunks.length > 1) {
+    const idx = eventStore.sharedDBChunks.length - 1;
+    const chunk = eventStore.sharedDBChunks[idx];
+    if (chunk.isActive || chunk.timeRange.max >= horizon) break;
+    const events = await decodeChunk(chunk);
+    eventStore.sharedDBChunks.pop();
+    for (const ev of events) {
+      const entry = eventStore.eventIndex.get(ev.id);
+      if (!entry || entry.chunkIndex !== idx) continue;
+      eventStore.eventIndex.delete(ev.id);
+      eventStore.globalIds.delete(ev.id);
+      eventStore.globalExpirable.delete(ev.id);
+      droppedEvents++;
+    }
+    dropped++;
+    await new Promise(r => setImmediate(r));
+  }
+  if (dropped > 0) logger.info(`evictOldChunks - Dropped ${dropped} chunks (${droppedEvents} events) older than ${horizon}`);
+};
+
 // interval to persist and unpersist events
 let manageEventsRunning = false;
 const manageEvents = async () => {
@@ -290,7 +338,9 @@ const manageEvents = async () => {
   manageEventsRunning = true;
   await enqueueRelayTask({ fn: async () => {
       await persistEvents();
+      await persistArchivedEvents();
       await unpersistEvents();
+      await evictOldChunks();
       // await updateEventsMetadata();
   }});
   manageEventsRunning = false;
