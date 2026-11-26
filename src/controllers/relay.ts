@@ -715,6 +715,40 @@ const addArchivedEvents = async (filters: Filter[], memoryEvents: Event[], maxLi
   return collapseReplaceable([...memoryEvents, ...archived]).slice(0, maxLimit);
 };
 
+// Accepted events wait in `pending` until the next flush (every minute, or until the store has
+// loaded after a restart), and the workers don't scan it. Selective filters look there too, so
+// a client can read what was just published.
+const PENDING_SCAN_MAX = 20000;
+const addPendingEvents = (filters: Filter[], events: Event[], maxLimit: number, tenantid: number | undefined): Event[] => {
+  const pending = eventStore.pending;
+  if (!pending || pending.size === 0) return events;
+
+  const now = Math.floor(Date.now() / 1000);
+  const seen = new Set(events.map(e => e.id));
+  const extra: Event[] = [];
+  const take = (e: MetadataEvent | undefined, filter: Filter) => {
+    if (!e || seen.has(e.id) || !matchFilter(filter, e) || isExpiredEvent(e, now)) return;
+    if (tenantid !== undefined && e.tenantid !== tenantid) return;
+    seen.add(e.id);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { metadata, tenantid: _tenantid, ...event } = e;
+    extra.push(event);
+  };
+
+  for (const filter of filters) {
+    if (filter.ids && filter.ids.length > 0) {
+      for (const id of filter.ids) take(pending.get(id), filter);
+      continue;
+    }
+    const selective = (filter.authors && filter.authors.length > 0) || Object.keys(filter).some(k => k.startsWith("#"));
+    if (!selective || pending.size > PENDING_SCAN_MAX) continue;
+    for (const e of pending.values()) take(e, filter);
+  }
+
+  if (extra.length === 0) return events;
+  return collapseReplaceable([...extra, ...events].sort((a, b) => b.created_at - a.created_at)).slice(0, maxLimit);
+};
+
 // Handle REQ or COUNT
 const handleReqOrCount = async (socket: ExtendedWebSocket, subId: string, filters: Filter[], type: string) => {
 
@@ -784,8 +818,9 @@ const handleReqOrCount = async (socket: ExtendedWebSocket, subId: string, filter
 
   try {
    const memoryEvents = memoryDiscard ? [] : await getEvents(filters, maxLimit, eventStore.sharedDBChunks);
-   const eventsList = (await addArchivedEvents(clientFilters, memoryEvents, maxLimit, isIsolated ? socket.reqInfo.domainId : undefined, socket.reqInfo.ip))
-     .filter(event => canReadEvent(socket, event));
+   const tenantFilter = isIsolated ? socket.reqInfo.domainId : undefined;
+   const withArchive = await addArchivedEvents(clientFilters, memoryEvents, maxLimit, tenantFilter, socket.reqInfo.ip);
+   const eventsList = addPendingEvents(clientFilters, withArchive, maxLimit, tenantFilter).filter(event => canReadEvent(socket, event));
 
     if (type === "COUNT") {
       await socketSafeSend(socket, ["COUNT", subId, { count: eventsList.length }]);
