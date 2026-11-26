@@ -150,7 +150,7 @@ See multi-tenancy [here](https://github.com/quentintaranpino/nostrcheck-server/w
 - [x] Lightning redirects
 - [x] Standalone Installation script
 - [x] Docker installation
-- [x] Nostr DM integration (NIP04)
+- [x] Nostr DM integration (NIP04, NIP17)
 - [x] Frontend UI (dashboard)
 - [x] Frontend UI (settings)
 - [x] Frontend UI (homepage)
@@ -165,7 +165,7 @@ See multi-tenancy [here](https://github.com/quentintaranpino/nostrcheck-server/w
 - [x] Ban system
 - [x] AI media moderation
 - [x] Plugins engine
-- [ ] Private Direct Messages (NIP17)
+- [x] Private Direct Messages (NIP17)
 - [ ] Import / Export data
 - [ ] Custom frontend templates
 - [x] Frontend UI (directory)
