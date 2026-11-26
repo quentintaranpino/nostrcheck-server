@@ -3,6 +3,7 @@ import { logger } from "../logger.js";
 import crypto from "crypto";
 import { getConfig } from "../config/core.js";
 import sharp from "sharp";
+import { createSlots } from "../utils.js";
 
 const createLocalFolder = async (path: string) : Promise<boolean> => {
     try {
@@ -100,6 +101,20 @@ const saveTmpFile = async (filename : string, buffer: Express.Multer.File["buffe
 // the disk asking for every width between 1 and 4000.
 const thumbnailWidths = [200, 400, 800];
 const thumbnailJobs = new Map<string, Promise<string>>();
+// Every job decodes the whole original: two at a time, a short wait, and the caller
+// serves the original when the queue is full.
+const thumbnailSlots = createSlots(2);
+const THUMBNAIL_MAX_WAITING = 20;
+const THUMBNAIL_WAIT_MS = 5000;
+// Thumbnails are for photos and memes, not 200 MP scans (~700 MB decoded each)
+const THUMBNAIL_MAX_PIXELS = 50_000_000;
+// Originals that failed to decode, so they aren't decoded again on every home page view
+const thumbnailFailures = new Map<string, number>();
+const THUMBNAIL_FAILURE_TTL_MS = 6 * 60 * 60 * 1000;
+const THUMBNAIL_FAILURE_MAX = 10000;
+
+const fileExists = async (filePath: string): Promise<boolean> =>
+    fs.promises.access(filePath).then(() => true, () => false);
 
 /**
  * Get the path of a webp thumbnail for an image, generating it next to the
@@ -107,21 +122,31 @@ const thumbnailJobs = new Map<string, Promise<string>>();
  * show with object-fit: cover. Animated files keep only their first frame.
  * @param filePath The path of the original file
  * @param width The thumbnail width, one of thumbnailWidths
- * @returns The thumbnail path, or "" if the original can't be decoded
+ * @returns The thumbnail path, or "" if there is none (undecodable, too big or busy)
  */
 const getLocalThumbnail = async (filePath: string, width: number) : Promise<string> => {
 
     const thumbPath = `${filePath}.t${width}.webp`;
-    if (fs.existsSync(thumbPath)) return thumbPath;
+    if (await fileExists(thumbPath)) return thumbPath;
+
+    const failedAt = thumbnailFailures.get(filePath);
+    if (failedAt !== undefined) {
+        if (Date.now() - failedAt < THUMBNAIL_FAILURE_TTL_MS) return "";
+        thumbnailFailures.delete(filePath);
+    }
 
     // Same thumbnail asked twice at once: the second one waits for the first
     const running = thumbnailJobs.get(thumbPath);
     if (running) return running;
 
+    if (thumbnailSlots.waiting() >= THUMBNAIL_MAX_WAITING) return "";
+
     const job = (async () => {
+        if (!await thumbnailSlots.acquire(THUMBNAIL_WAIT_MS)) return "";
         const tmpPath = `${thumbPath}.${crypto.randomBytes(4).toString("hex")}.tmp`;
         try {
-            const image = sharp(filePath, { pages: 1, limitInputPixels: getConfig(null, ["media", "maxInputPixels"]) });
+            const maxPixels = Math.min(Number(getConfig(null, ["media", "maxInputPixels"])) || THUMBNAIL_MAX_PIXELS, THUMBNAIL_MAX_PIXELS);
+            const image = sharp(filePath, { pages: 1, limitInputPixels: maxPixels });
             const { width: w = width, height: h = width } = await image.metadata();
             // Never upscale: a 100px image or a 4000x300 panorama crops at its short side
             const side = Math.min(width, w, h);
@@ -131,15 +156,22 @@ const getLocalThumbnail = async (filePath: string, width: number) : Promise<stri
                 .webp({ quality: 75 })
                 .toFile(tmpPath);
             await fs.promises.rename(tmpPath, thumbPath);
+            // The original may have been deleted (or banned) while this ran
+            if (!await fileExists(filePath)) {
+                await fs.promises.unlink(thumbPath).catch(() => {});
+                return "";
+            }
             return thumbPath;
         } catch (err) {
             logger.warn(`getLocalThumbnail - Unable to generate thumbnail for ${filePath}: ${err}`);
             await fs.promises.unlink(tmpPath).catch(() => {});
+            if (thumbnailFailures.size >= THUMBNAIL_FAILURE_MAX) thumbnailFailures.clear();
+            thumbnailFailures.set(filePath, Date.now());
             return "";
         } finally {
-            thumbnailJobs.delete(thumbPath);
+            thumbnailSlots.release();
         }
-    })();
+    })().finally(() => thumbnailJobs.delete(thumbPath));
 
     thumbnailJobs.set(thumbPath, job);
     return job;
@@ -147,9 +179,12 @@ const getLocalThumbnail = async (filePath: string, width: number) : Promise<stri
 
 /**
  * Delete every thumbnail of a file. A missing thumbnail is not an error.
+ * Waits for any thumbnail of it still being generated, so none is left behind.
  * @param filePath The path of the original file
  */
 const deleteLocalThumbnails = async (filePath: string) : Promise<void> => {
+    await Promise.all(thumbnailWidths.map(width => thumbnailJobs.get(`${filePath}.t${width}.webp`)?.catch(() => "")));
+    thumbnailFailures.delete(filePath);
     for (const width of thumbnailWidths) {
         try {
             await fs.promises.unlink(`${filePath}.t${width}.webp`);

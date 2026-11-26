@@ -1224,7 +1224,10 @@ const serveBuffer = (req: Request, res: Response, buffer: Buffer, mime: string, 
  * * @param noCache - Send the no-store headers instead of the immutable ones.
  * * @param statusCode - The HTTP status code to send (default is calculated based on the prefix).
  * */
-const serveFile = (req: Request, res: Response, filePath: string, size: number, mime: string, clientIp: string, noCache: boolean = false, statusCode?: number) => {
+const THUMBNAIL_MAX_AGE = 86400;
+const THUMBNAIL_FALLBACK_MAX_AGE = 300;
+
+const serveFile = (req: Request, res: Response, filePath: string, size: number, mime: string, clientIp: string, noCache: boolean = false, statusCode?: number, maxAge?: number) => {
 
 	if (size == 0) {
 		res.status(statusCode ?? 204);
@@ -1236,6 +1239,8 @@ const serveFile = (req: Request, res: Response, filePath: string, size: number, 
 	if (noCache) {
 		res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
 		res.setHeader("Expires", "0");
+	} else if (maxAge !== undefined) {
+		res.setHeader("Cache-Control", `public, max-age=${maxAge}`);
 	} else {
 		res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
 	}
@@ -1577,17 +1582,21 @@ const getMediabyURL = async (req: Request, res: Response) => {
 		logger.debug(`getMediabyURL - Media file found successfully: ${req.url}`, "|", reqInfo.ip, "|", "cached:", cachedStatus ? true : false);
 		// Grid thumbnails (?w=400). Served after every check above, so a banned or
 		// unpaid file can't leak through its thumbnail.
+		// Not immutable: a ban can't purge the edge, so thumbnails expire in a day. When there
+		// is no thumbnail (busy, undecodable) the original goes out under the ?w= URL for a
+		// few minutes only, so the edge asks again instead of keeping the original for a year.
 		const thumbWidth = Number(req.query.w);
 		if (fileType.startsWith("image/") && thumbnailWidths.includes(thumbWidth)) {
 			const thumbPath = await getLocalThumbnail(fileName, thumbWidth);
 			if (thumbPath != "") {
 				try {
 					const thumbStat = await fs.promises.stat(thumbPath);
-					return serveFile(req, res, thumbPath, thumbStat.size, "image/webp", reqInfo.ip, adminOnly);
+					return serveFile(req, res, thumbPath, thumbStat.size, "image/webp", reqInfo.ip, adminOnly, undefined, THUMBNAIL_MAX_AGE);
 				} catch (err) {
 					logger.warn(`getMediabyURL - Thumbnail vanished, serving the original: ${thumbPath}: ${err}`, "|", reqInfo.ip);
 				}
 			}
+			return serveFile(req, res, fileName, fileSize, fileType, reqInfo.ip, adminOnly, undefined, THUMBNAIL_FALLBACK_MAX_AGE);
 		}
 
 		// A banned, inactive or unpaid file only reaches an admin. Never let a shared cache keep it.

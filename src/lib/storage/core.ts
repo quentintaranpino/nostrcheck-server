@@ -103,12 +103,14 @@ const deleteFile = async (fileName: string, forceLocal : boolean = false) : Prom
         const localPath = await dbSelect("SELECT localPath FROM mediafiles WHERE filename = ?", "localPath", [fileName]);
         const filePath = mediaPath + localPath +  "/" + fileName;
 
-        // A thumbnail is a copy of the file: it goes with it, banned files included
-        await deleteLocalThumbnails(filePath);
-
+        // A thumbnail is a copy of the file: it goes with it, banned files included.
+        // After the original, so a thumbnail generated meanwhile finds it gone and drops itself.
         if (await getLocalFile(filePath)){
-            return await deleteLocalFile(filePath);
+            const deleted = await deleteLocalFile(filePath);
+            await deleteLocalThumbnails(filePath);
+            return deleted;
         }
+        await deleteLocalThumbnails(filePath);
 
         // Not on disk (cleaned by hand, lost, or a null localPath): there is
         // nothing left to unlink, and failing here pins the database record
