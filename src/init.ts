@@ -1,12 +1,10 @@
+// Must stay first: sizes the libuv pool before any other import uses it
+import "./lib/threadpool.js";
 import fs from "fs";
 import path from "path";
 import { defaultConfig, localPath } from "./interfaces/config.js";
 import { exit } from "process";
 import { syncDefaultConfigValues } from "./lib/config/local.js";
-
-// sharp (uploads, thumbnails) and fs share the libuv pool; 4 threads let a few image
-// jobs stall every file read. Must be set before the pool's first use.
-if (!process.env.UV_THREADPOOL_SIZE) process.env.UV_THREADPOOL_SIZE = "16";
 
 // Surface unhandled rejections with their full payload — Node's default
 // stringifies non-Error reasons to "[object Object]" and loses the cause.
