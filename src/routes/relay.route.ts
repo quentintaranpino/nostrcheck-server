@@ -117,13 +117,14 @@ export const loadRelayRoutes = (app: Application, version:string, httpServer : S
   });
 
 
-  // NIP-86 relay management API, on the relay URL (relay.<host>/ is proxied to /api/v2/relay/)
+  // NIP-86 relay management API, on the relay URL (relay.<host>/ is proxied to /api/v2/relay/).
+  // The content type is checked by hand: type-is doesn't match application/nostr+json+rpc.
   app.post([`/api/v2/relay`, `/relay`], limiter(), (req, res, next) => {
     if (!(req.headers["content-type"] || "").startsWith("application/nostr+json+rpc")) {
       return res.status(415).send({ error: "use Content-Type: application/nostr+json+rpc" });
     }
     next();
-  }, express.text({ type: "application/nostr+json+rpc", limit: "64kb" }), handleNIP86);
+  }, express.text({ type: () => true, limit: "64kb" }), handleNIP86);
 
   // Get Relay status
   app.get("/api/v2/relay/status", limiter(), (req, res) => getRelayStatus(req, res, wss));
