@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import fs from "fs";
 import { logger } from "../lib/logger.js";
-import { markdownToHtml } from "../lib/utils.js";
+import { execWithTimeout, markdownToHtml } from "../lib/utils.js";
 import { dbMultiSelect, dbSelect, dbUpdate} from "../lib/database/core.js";
 import { generateAuthToken, generateOTC, isPubkeyAllowed, isPubkeyValid, isUserPasswordValid, verifyOTC } from "../lib/authorization.js";
 import { countPubkeyFiles, generateSitemap, getLegalText, getResource, isAutoLoginEnabled, replaceTokens, setAuthCookie } from "../lib/frontend.js";
@@ -19,20 +19,23 @@ import { initRedis } from "../lib/redis/client.js";
 import { getFileUrl } from "../lib/media.js";
 import { supported_nips } from "../interfaces/nostr.js";
 
-// One loader per key at a time. Stale values keep being served for 10x the ttl
+// One loader per key at a time. Stale values keep being served for staleFactor x ttl
 // while a single background refresh runs, so a slow query never blocks a request
 // and an expired key doesn't fan out into N identical queries.
 const homeFeedInflight: Map<string, Promise<any>> = new Map();
+// A loader that never settles would pin its key: past this, the slot is freed.
+const HOME_FEED_LOADER_TIMEOUT_MS = 120000;
 
-const homeFeedRefresh = <T>(key: string, ttl: number, loader: () => Promise<T>): Promise<T> => {
+const homeFeedRefresh = <T>(key: string, ttl: number, loader: () => Promise<T>, staleFactor: number): Promise<T> => {
 	const running = homeFeedInflight.get(key);
 	if (running) return running;
 	const job = (async () => {
 		try {
-			const fresh = await loader();
+			// A failed or timed out load throws: the previous value stays in Redis
+			const fresh = await execWithTimeout(loader(), HOME_FEED_LOADER_TIMEOUT_MS);
 			try {
 				const redis = await initRedis();
-				await redis.set(key, JSON.stringify({ v: fresh, t: Date.now() }), { EX: ttl * 10 });
+				await redis.set(key, JSON.stringify({ v: fresh, t: Date.now() }), { EX: Math.max(ttl * staleFactor, ttl) });
 			} catch { /* cache write is best effort */ }
 			return fresh;
 		} finally {
@@ -43,7 +46,7 @@ const homeFeedRefresh = <T>(key: string, ttl: number, loader: () => Promise<T>):
 	return job;
 };
 
-const homeFeedCache = async <T>(key: string, ttl: number, loader: () => Promise<T>): Promise<T> => {
+const homeFeedCache = async <T>(key: string, ttl: number, loader: () => Promise<T>, staleFactor: number = 10): Promise<T> => {
 	let cached: { v: T, t: number } | null = null;
 	try {
 		const redis = await initRedis();
@@ -51,18 +54,22 @@ const homeFeedCache = async <T>(key: string, ttl: number, loader: () => Promise<
 	} catch { cached = null; }
 	if (cached && typeof cached === "object" && "t" in cached && "v" in cached) {
 		if (Date.now() - Number(cached.t) > ttl * 1000) {
-			homeFeedRefresh(key, ttl, loader).catch(() => {});
+			homeFeedRefresh(key, ttl, loader, staleFactor).catch(() => {});
 		}
 		return cached.v;
 	}
-	return homeFeedRefresh(key, ttl, loader);
+	return homeFeedRefresh(key, ttl, loader, staleFactor);
 };
 
 // Exact COUNT over the events table takes up to a minute in production. Shared by
 // every tenant and refreshed at most every 10 min.
 const getActiveEventsTotal = (): Promise<number> =>
-	homeFeedCache("relay:events:total", 600, async () =>
-		Number(await dbSelect("SELECT COUNT(*) AS c FROM events WHERE active = 1", "c", []) || 0));
+	homeFeedCache("relay:events:total", 600, async () => {
+		// dbSelect returns "" on error: don't cache that as 0 events
+		const total = await dbSelect("SELECT COUNT(*) AS c FROM events WHERE active = 1", "c", []);
+		if (total === "" || !Number.isFinite(Number(total))) throw new Error("events count failed");
+		return Number(total);
+	});
 
 const loadDashboardPage = async (req: Request, res: Response, version:string): Promise<Response | void> => {
 
@@ -1196,6 +1203,7 @@ const unifiedSearch = async (req: Request, res: Response): Promise<Response | vo
     const like = `%${q.replace(/[%_]/g, c => "\\" + c)}%`;
     const hostKey = req.hostname || "default";
 
+    // Keyed on user input: plain 30 s ttl, no stale copies that random queries would pile up
     const result = await homeFeedCache(`search:${hostKey}:${q.toLowerCase()}`, 30, async () => {
         const [users, media, events] = await Promise.all([
             registerEnabled
@@ -1216,7 +1224,7 @@ const unifiedSearch = async (req: Request, res: Response): Promise<Response | vo
         ]);
         const mediaWithUrl = (media as any[]).map(m => ({ ...m, url: getFileUrl(m.filename, "", req.hostname) }));
         return { users, media: mediaWithUrl, events };
-    });
+    }, 1);
 
     return res.json(result);
 };
