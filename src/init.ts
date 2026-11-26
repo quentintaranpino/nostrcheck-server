@@ -1,5 +1,3 @@
-// Must stay first: sizes the libuv pool before any other import uses it
-import "./lib/threadpool.js";
 import fs from "fs";
 import path from "path";
 import { defaultConfig, localPath } from "./interfaces/config.js";

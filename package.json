@@ -1,11 +1,11 @@
 {
   "name": "nostrcheck-server",
-  "version": "0.7.1.0168",
+  "version": "0.7.1.0169",
   "description": "",
   "exports": "./index.js",
   "type": "module",
   "scripts": {
-    "start": "node --max-old-space-size=6144 --enable-source-maps ./dist/init.js",
+    "start": "node -r ./scripts/threadpool.cjs --max-old-space-size=6144 --enable-source-maps ./dist/init.js",
     "dev": "nodemon --inspect=9229 --watch src --ext ts --exec \"node --expose-gc --loader ts-node/esm\" src/init.ts",
     "build": "tsc",
     "package": "node package.js && tsc",
