@@ -75,7 +75,8 @@ const isNIP98Valid = async (authevent: Event, req: Request, checkAdminPrivileges
 	// Event endpoint
 	const u = authevent.tags.find((t) => t.length === 2 && t[0] === "u")?.[1]
 	if (!u) return {status: "error", message: "Auth header event endpoint is not valid", authkey: "", pubkey: "", kind: 0};
-	const eventHost = new URL(u).hostname.toLowerCase().replace(/^cdn\./, '').replace(/\/+$/, '');
+	// cdn. and relay. are the same server (NIP-86 signs the relay URL)
+	const eventHost = new URL(u).hostname.toLowerCase().replace(/^(cdn|relay)\./, '').replace(/\/+$/, '');
 
 	// Check if event authorization u tag (URL) is valid (Must be the same as the server endpoint)
 	try {

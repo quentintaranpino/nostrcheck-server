@@ -15,6 +15,7 @@ import { executePlugins } from "../lib/plugins/core.js";
 import { validatePow } from "../lib/nostr/NIP13.js";
 import { allowedTags, EventIndex, eventStore, ExtendedWebSocket, MetadataEvent, RelayStatusMessage } from "../interfaces/relay.js";
 import { isBase64 } from "../lib/utils.js";
+import { isRelayHidden } from "../lib/relay/bans.js";
 import { AuthEvent } from "../interfaces/nostr.js";
 import { dbMultiSelect, dbUpdate } from "../lib/database/core.js";
 import { enqueueRelayTask, getEvents, getPendingHeavyTasks, getPendingLightTasks, getRelayHeavyWorkerLength, getRelayLightWorkerLength, getRelayQueueLength, relayWorkers } from "../lib/relay/workers.js";
@@ -30,6 +31,7 @@ const authSessions: WeakMap<WebSocket, string> = new WeakMap();
 // message, once they have authenticated (NIP-42). Anyone can still publish them.
 const PRIVATE_KINDS = new Set([4, 14, 1059]);
 const canReadEvent = (socket: ExtendedWebSocket, event: Event): boolean => {
+  if (isRelayHidden(event)) return false;
   if (!PRIVATE_KINDS.has(event.kind)) return true;
   const authed = authSessions.get(socket);
   if (!authed) return false;

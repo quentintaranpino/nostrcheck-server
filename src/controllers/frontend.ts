@@ -563,6 +563,7 @@ const loadDocsPage = async (req: Request, res: Response, version: string): Promi
         70: "Protected events",
         73: "External content IDs",
         78: "Application-specific data",
+        86: "Relay management API",
         94: "File metadata",
         96: "HTTP file storage integration (deprecated, see Blossom)",
         98: "HTTP auth",

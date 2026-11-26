@@ -36,6 +36,7 @@ const manageEntity = async (originId: number, originTable: string, action: "ban"
 
     switch (originTable) {
         case "registered":
+        case "pubkeys":
             whereFields.push("hex");
             keyField = "hex";
             break;
@@ -114,8 +115,10 @@ const manageEntity = async (originId: number, originTable: string, action: "ban"
             await redisCore.set(redisKeyPrimary, JSON.stringify("1"), { EX: BAN_KEY_TTL });
 
             switch (originTable) {
-                case "registered": {
-                    const redisKeyHex = `banned:${originTable}:${result[0].hex}`;
+                case "registered":
+                case "pubkeys": {
+                    // Unregistered pubkeys share the registered key: every pubkey check reads it.
+                    const redisKeyHex = `banned:registered:${result[0].hex}`;
                     await redisCore.set(redisKeyHex, JSON.stringify("1"), { EX: BAN_KEY_TTL });
                     break;
                 }
@@ -147,8 +150,9 @@ const manageEntity = async (originId: number, originTable: string, action: "ban"
             await redisCore.del(redisKeyPrimary);
 
             switch (originTable) {
-                case "registered": {
-                    const redisKeyHex = `banned:${originTable}:${result[0].hex}`;
+                case "registered":
+                case "pubkeys": {
+                    const redisKeyHex = `banned:registered:${result[0].hex}`;
                     await redisCore.del(redisKeyHex);
                     break;
                 }
@@ -178,14 +182,14 @@ const manageEntity = async (originId: number, originTable: string, action: "ban"
 
         // Every ban and unban is audited, ips included. Only content bans are
         // notified: the infraction autoban in ips.ts would flood the channel.
-        const notifiableBan = originTable == "mediafiles" || originTable == "registered" || originTable == "events";
+        const notifiableBan = originTable == "mediafiles" || originTable == "registered" || originTable == "pubkeys" || originTable == "events";
         await logAuditEvent({
             eventtype: action === "ban" ? "banned" : "unbanned",
             origintable: originTable,
             originid: originId,
             actor: actor,
             source: source,
-            pubkey: originTable == "registered" ? result[0].hex || "" : "",
+            pubkey: originTable == "registered" || originTable == "pubkeys" ? result[0].hex || "" : "",
             filehash: originTable == "mediafiles" ? result[0].original_hash || "" : "",
             previous_value: action === "ban" ? "not banned" : "banned",
             new_value: action === "ban" ? "banned" : "not banned",
@@ -405,6 +409,14 @@ const loadBannedEntities = async (): Promise<void> => {
                 const regResult = await dbMultiSelect(["hex"], "registered", "id = ?", [entity.originid], true);
                 if (regResult.length > 0) {
                     const redisKeyHex = `banned:registered:${regResult[0].hex}`;
+                    await redisCore.set(redisKeyHex, JSON.stringify("1"), { EX: BAN_KEY_TTL });
+                }
+                break;
+            }
+            case "pubkeys": {
+                const pubkeyResult = await dbMultiSelect(["hex"], "pubkeys", "id = ?", [entity.originid], true);
+                if (pubkeyResult.length > 0) {
+                    const redisKeyHex = `banned:registered:${pubkeyResult[0].hex}`;
                     await redisCore.set(redisKeyHex, JSON.stringify("1"), { EX: BAN_KEY_TTL });
                 }
                 break;
