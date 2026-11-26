@@ -466,6 +466,26 @@ const vanishPubkeyDB = async (pubkey: string, before: number, tenantid?: number)
 };
 
 /**
+ * Which of these event ids are already stored. On a DB error returns an empty set, so
+ * the insert goes ahead as before.
+ */
+const getStoredEventIds = async (ids: string[]): Promise<Set<string>> => {
+  const found = new Set<string>();
+  if (ids.length === 0) return found;
+  try {
+    const pool = await connect("getStoredEventIds");
+    for (let i = 0; i < ids.length; i += 1000) {
+      const batch = ids.slice(i, i + 1000);
+      const [rows] = await pool.execute(`SELECT event_id FROM events WHERE event_id IN (${batch.map(() => "?").join(",")})`, batch);
+      (rows as { event_id: string }[]).forEach(r => found.add(r.event_id));
+    }
+  } catch (error) {
+    logger.error(`getStoredEventIds - Error checking stored events: ${error}`);
+  }
+  return found;
+};
+
+/**
  * Inserts one or more events (and their tags) into the database using bulk insert.
  * @param {Event | Event[]} eventsInput - Event or array of events to store.
  * @returns {Promise<number>}
@@ -474,10 +494,15 @@ const storeEvents = async (eventsInput: MetadataEvent | MetadataEvent[]): Promis
 
     const events: MetadataEvent[] = Array.isArray(eventsInput) ? eventsInput : [eventsInput];
     const filteredEvents  = events.filter(e => e && !(e.kind >= 20000 && e.kind < 30000));
-    const eventsToStore = await Promise.all(filteredEvents.map(decompressEvent));
+    const decodedEvents = await Promise.all(filteredEvents.map(decompressEvent));
+
+    // An event already in the DB (re-sent after being deactivated or dropped from memory)
+    // is skipped by INSERT IGNORE, but its tags and metadata were inserted again every time.
+    const stored = await getStoredEventIds(decodedEvents.map(e => e.id));
+    const eventsToStore = decodedEvents.filter(e => !stored.has(e.id));
 
     if (eventsToStore.length === 0) return 0;
-  
+
 
     const now = Math.floor(Date.now() / 1000);
     const eventValues = eventsToStore.map(e => [
