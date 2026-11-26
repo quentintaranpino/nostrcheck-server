@@ -19,18 +19,50 @@ import { initRedis } from "../lib/redis/client.js";
 import { getFileUrl } from "../lib/media.js";
 import { supported_nips } from "../interfaces/nostr.js";
 
+// One loader per key at a time. Stale values keep being served for 10x the ttl
+// while a single background refresh runs, so a slow query never blocks a request
+// and an expired key doesn't fan out into N identical queries.
+const homeFeedInflight: Map<string, Promise<any>> = new Map();
+
+const homeFeedRefresh = <T>(key: string, ttl: number, loader: () => Promise<T>): Promise<T> => {
+	const running = homeFeedInflight.get(key);
+	if (running) return running;
+	const job = (async () => {
+		try {
+			const fresh = await loader();
+			try {
+				const redis = await initRedis();
+				await redis.set(key, JSON.stringify({ v: fresh, t: Date.now() }), { EX: ttl * 10 });
+			} catch { /* cache write is best effort */ }
+			return fresh;
+		} finally {
+			homeFeedInflight.delete(key);
+		}
+	})();
+	homeFeedInflight.set(key, job);
+	return job;
+};
+
 const homeFeedCache = async <T>(key: string, ttl: number, loader: () => Promise<T>): Promise<T> => {
+	let cached: { v: T, t: number } | null = null;
 	try {
 		const redis = await initRedis();
-		const cached = await redis.getJSON<T>(key);
-		if (cached !== null) return cached;
-		const fresh = await loader();
-		await redis.set(key, JSON.stringify(fresh), { EX: ttl });
-		return fresh;
-	} catch {
-		return loader();
+		cached = await redis.getJSON<{ v: T, t: number }>(key);
+	} catch { cached = null; }
+	if (cached && typeof cached === "object" && "t" in cached && "v" in cached) {
+		if (Date.now() - Number(cached.t) > ttl * 1000) {
+			homeFeedRefresh(key, ttl, loader).catch(() => {});
+		}
+		return cached.v;
 	}
+	return homeFeedRefresh(key, ttl, loader);
 };
+
+// Exact COUNT over the events table takes up to a minute in production. Shared by
+// every tenant and refreshed at most every 10 min.
+const getActiveEventsTotal = (): Promise<number> =>
+	homeFeedCache("relay:events:total", 600, async () =>
+		Number(await dbSelect("SELECT COUNT(*) AS c FROM events WHERE active = 1", "c", []) || 0));
 
 const loadDashboardPage = async (req: Request, res: Response, version:string): Promise<Response | void> => {
 
@@ -395,7 +427,7 @@ const loadHomePage = async (req: Request, res: Response, version:string): Promis
                 ? Number(await dbSelect("SELECT COALESCE(SUM(filesize), 0) AS s FROM mediafiles WHERE active = 1 AND visibility = 1", "s", []) || 0)
                 : 0;
             const eventsTotal = relayEnabled
-                ? Number(await dbSelect("SELECT COUNT(*) AS c FROM events WHERE active = 1", "c", []) || 0)
+                ? await getActiveEventsTotal()
                 : 0;
             return { users, files, bytes, eventsTotal };
         }),
@@ -787,11 +819,11 @@ const loadCdnPage = async (req: Request, res: Response, version:string): Promise
 const fetchRelayStats = async (hostname: string): Promise<{total: number, recent: number}> => {
     return homeFeedCache(`relay:stats:${hostname}`, 10, async () => {
         const oneHourAgo = Math.floor(Date.now() / 1000) - 3600;
-        const [totalRaw, recentRaw] = await Promise.all([
-            dbSelect("SELECT COUNT(*) AS c FROM events", "c", []),
+        const [total, recentRaw] = await Promise.all([
+            getActiveEventsTotal(),
             dbSelect("SELECT COUNT(*) AS c FROM events WHERE created_at >= ?", "c", [oneHourAgo.toString()]),
         ]);
-        return { total: Number(totalRaw || 0), recent: Number(recentRaw || 0) };
+        return { total, recent: Number(recentRaw || 0) };
     });
 };
 
