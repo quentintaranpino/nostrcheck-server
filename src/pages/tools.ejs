@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+	<%- include('./layout/head', { styles: ['tools.css'], islands: ['tools'] }); %>
+	<body>
+		<%- include('./layout/nav', { active: 'tools', width: 'wide' }); %>
+		<main id="main" class="nc-main" data-width="wide">
+			<header class="nc-tools-head">
+				<h1>Nostr tools</h1>
+				<p class="nc-tools-lede">
+					Keys, events and blobs, handled entirely in this browser. Nothing you
+					paste or pick is sent to <strong><%= locals.siteName || locals.serverHost %></strong> or anywhere else.
+				</p>
+			</header>
+
+			<div data-island="tools">
+				<noscript><p class="nc-tool-muted">These tools run in your browser and need JavaScript.</p></noscript>
+			</div>
+		</main>
+		<%- include('./layout/foot', { width: 'wide' }); %>
+	</body>
+</html>

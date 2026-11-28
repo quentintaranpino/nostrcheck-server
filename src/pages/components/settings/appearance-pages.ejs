@@ -68,14 +68,14 @@
     </li>
     <li class="nav-item" role="presentation">
         <button class="nav-link" 
-                id="appearance-converter-tab" 
+                id="appearance-tools-tab" 
                 data-bs-toggle="tab" 
-                data-bs-target="#appearance-converter-tab-content" 
+                data-bs-target="#appearance-tools-tab-content" 
                 type="button" 
                 role="tab" 
-                aria-controls="Converter" 
+                aria-controls="Tools" 
                 aria-selected="true">
-                <i class="fas fa-user-plus me-2"></i><span>Converter</span>
+                <i class="fas fa-user-plus me-2"></i><span>Tools</span>
         </button>
     </li>
     <li class="nav-item" role="presentation">
@@ -383,35 +383,35 @@
       }) %>
     </div>
 
-    <!-- Converter -->
-    <div class="tab-pane fade" id="appearance-converter-tab-content" role="tabpanel" aria-labelledby="appearance-converter-tab">
+    <!-- Tools -->
+    <div class="tab-pane fade" id="appearance-tools-tab-content" role="tabpanel" aria-labelledby="appearance-tools-tab">
       <%- include('field', {
         type: "text",
-        name: "appearance.pages.converter.title",
+        name: "appearance.pages.tools.title",
         label: "SEO Page title",
         description: "Displayed in the browser tab and used to identify the server in search engines.",
-        value: cfg.pages.converter.title,
-        globalValue: globalCfg.pages.converter.title,
-        placeholder: "{server.host} — Converter",
+        value: cfg.pages?.tools?.title,
+        globalValue: globalCfg.pages?.tools?.title,
+        placeholder: "{server.host} — Nostr tools",
         required: true
       }) %>
       <%- include('field', {
         type: "text",
-        name: "appearance.pages.converter.description",
+        name: "appearance.pages.tools.description",
         label: "SEO Page description",
         description: "Displayed in the browser tab and used to identify the server in search engines.",
-        value: cfg.pages.converter.description,
-        globalValue: globalCfg.pages.converter.description,
+        value: cfg.pages?.tools?.description,
+        globalValue: globalCfg.pages?.tools?.description,
         placeholder: "Self-hosted nostrcheck-server instance",
         required: true
       }) %>
       <%- include('field', {
         type: "checkbox",
-        name: "appearance.pages.converter.noindex",
+        name: "appearance.pages.tools.noindex",
         label: "Noindex",
         description: "Prevent search engines from indexing this page.",
-        value: cfg.pages.converter.noindex,
-        globalValue: globalCfg.pages.converter.noindex,
+        value: cfg.pages?.tools?.noindex,
+        globalValue: globalCfg.pages?.tools?.noindex,
         overridable: true
       }) %>
     </div>

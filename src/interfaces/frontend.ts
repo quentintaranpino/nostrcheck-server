@@ -61,7 +61,7 @@ const sitemapPages: Page[] = [
 		priority: 0.0
 	},
 	{
-		path: "/comverter",
+		path: "/tools",
 		lastmod: new Date().toISOString(),
 		changefreq: "monthly",
 		priority: 0.0
