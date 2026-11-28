@@ -545,15 +545,19 @@ const eventsTableFields: EventsTableStructure = {
 	tenantid: "int(11) NOT NULL",
 	comments: "varchar(150)",
 	_indexes: [
-		"INDEX idx_pubkey (pubkey)",
 		"INDEX idx_pubkey_kind_created (pubkey, kind, created_at)",
 		"INDEX idx_kind_created_at (kind, created_at)",
 		"INDEX idx_active_id (active, id)",
 		"INDEX idx_created_at (created_at)",
-		"INDEX idx_active (active)",
 		"INDEX idx_active_checked (active, checked)",
 		"INDEX idx_received_at (received_at)",
 		"INDEX idx_active_created_event (active, created_at, event_id)"
+	],
+	// idx_pubkey is the prefix of idx_pubkey_kind_created and made the optimizer pick it for
+	// authors + kinds; idx_active (two values) is covered by the three that start with active.
+	_dropIndexes: [
+		"idx_pubkey",
+		"idx_active"
 	],
 	constructor: {
 		name: 'RowDataPacket',
@@ -567,6 +571,7 @@ interface EventTagsTableStructure extends RowDataPacket {
 	tag_value: string;
 	position: string;
 	extra_values: string;
+	created_at: string;
 }
 
 const eventTagsTableFields: EventTagsTableStructure = {
@@ -576,12 +581,31 @@ const eventTagsTableFields: EventTagsTableStructure = {
 	tag_value: "varchar(512) NOT NULL",
 	position: "int(11) NOT NULL DEFAULT 0",
 	extra_values: "TEXT",
+	// Copy of events.created_at, so "the newest N events with this tag" is read from
+	// idx_tag_created without sorting every row of the tag. NULL on rows written before the
+	// column existed until the backfill (lib/relay/tagbackfill.ts) reaches them, and for good
+	// on tag rows whose event is gone.
+	created_at: "BIGINT",
 	// idx_event_id and idx_eventtags_event_id were dropped: idx_event_group starts with event_id
-	// and covers both. A UNIQUE (event_id, position) isn't created here because installs that
+	// and covers both. idx_tag_name_value (tag_name, tag_value(100)) is the start of
+	// idx_tag_created and goes away once that one is built (see _dropIndexes). A UNIQUE (event_id, position) isn't created here because installs that
 	// ran before 0.7.1.0170 may hold duplicate tag rows and the ALTER would fail at startup.
 	_indexes: [
-		"INDEX idx_tag_name_value (tag_name, tag_value(100))",
-		"INDEX idx_event_group (event_id, tag_name, tag_value(100))"
+		"INDEX idx_event_group (event_id, tag_name, tag_value(100))",
+		"INDEX idx_tag_created (tag_name, tag_value, created_at)"
+	],
+	// idx_tag_created holds the whole tag_value: after an equality on a prefix (tag_value(100))
+	// MariaDB can't read the index in created_at order and sorts every row of the tag. In
+	// utf8mb4 the key is 258 + 2050 + 9 bytes, under the 3072 of ROW_FORMAT DYNAMIC.
+	// On a big table idx_tag_created is built once the backfill is done: one sorted build
+	// instead of moving every row inside the index as its created_at is filled.
+	_indexAfterJob: {
+		idx_tag_created: "eventtags_created_at"
+	},
+	// Every query by tag_name (+ tag_value) is served by the start of idx_tag_created, but
+	// only once it exists whole: until then idx_tag_name_value is what they run on.
+	_dropIndexes: [
+		{ name: "idx_tag_name_value", when: "idx_tag_created" }
 	],
 	constructor: {
 		name: 'RowDataPacket',
@@ -656,6 +680,29 @@ const tenantConfigTableFields : TenantConfigStructure= {
 	},
 };
 
+interface JobStateTableStructure extends RowDataPacket {
+	id: string;
+	name: string;
+	paused: string;
+	done: string;
+	state: string;
+	updated_at: string;
+}
+
+// One row per long-running maintenance job (e.g. a backfill): where it is, whether it has
+// finished, and a switch to pause it by hand (UPDATE jobstate SET paused = 1 WHERE name = ...).
+const jobStateTableFields: JobStateTableStructure = {
+	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
+	name: "varchar(64) NOT NULL UNIQUE",
+	paused: "boolean NOT NULL DEFAULT 0",
+	done: "boolean NOT NULL DEFAULT 0",
+	state: "TEXT",
+	updated_at: "timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
+	constructor: {
+		name: 'RowDataPacket',
+	},
+};
+
 //If you add a new field that is substituting an old one, add it here
 const newFieldcompatibility = [
 	{ newfield: 'newFieldname', oldField: 'oldFiedName' },
@@ -675,6 +722,7 @@ const newFieldcompatibility = [
 	{"invitations": invitationsTableFields},
 	{"ips": ipsTableFields},
 	{"pubkeys": pubkeysTableFields},
+	{"jobstate": jobStateTableFields},
 	{"events": eventsTableFields},
 	{"eventtags": eventTagsTableFields},
 	{"userprefs": userPreferencesTableFields},

@@ -11,6 +11,8 @@ import { isAddressable, isReplaceable } from "../nostr/NIP01.js";
 import { EventAddress, getEventAddress } from "../nostr/NIP09.js";
 import { cacheDeleted, isDeletedCached, isDeletedRecently } from "./deletions.js";
 import { cacheVanishLookup, getCachedVanish, getLocalVanish } from "./vanish.js";
+import { ARCHIVE_MAX_VALUES, buildAuthorKindQuery, DrivingTag, TAG_WALK_ROUNDS, archiveUntil, buildArchiveWhere, buildTagCandidatesQuery, buildTagIdsQuery, getArchiveHint, isHex64, isTagKey, isTagWalkDone, isU32, pickDrivingTag, tagWalkLimit } from "./archivequery.js";
+import { isTagCreatedReady, suspendTagCreated } from "./tagbackfill.js";
 
 /**
  * created_at below which events live only in the DB: now minus relay.memoryDays, or 0
@@ -148,9 +150,6 @@ const initEvents = async (): Promise<boolean> => {
   return true;
 };
 
-const isU32 = (n: unknown) => Number.isInteger(n) && (n as number) >= 0 && (n as number) <= 0xFFFFFFFF;
-const isHex64 = (s: unknown) => typeof s === "string" && /^[a-f0-9]{64}$/i.test(s);
-
 const getEventsDB = async (lastCreatedAt: number | null, lastEventId: string | null, limit: number, minCreatedAt: number = 0): Promise<MetadataEvent[]> => {
 
   const safeLimit = Number.isInteger(limit) && limit! > 0 ? Math.min(limit, 100000) : 10000;
@@ -182,8 +181,13 @@ const getEventsDB = async (lastCreatedAt: number | null, lastEventId: string | n
  * Runs the events + tags + metadata aggregation for a WHERE fragment over `events e`.
  * group_concat_max_len is set on the statement itself: a SET SESSION before it may land
  * on another pooled connection, and JSON_ARRAYAGG then truncates the tags at 1 MB.
+ * @param options.hint - Index hint for `events e`.
+ * @param options.evQuery - SELECT that picks the events in place of the WHERE (which is then
+ * ignored), with its own params.
+ * @param options.throwOnError - Throw instead of returning [] when the query fails, so the
+ * caller can tell a timeout from "no rows".
  */
-const selectEventsDB = async (where: string, params: (string | number)[], limit: number, maxStatementSeconds: number = 0): Promise<MetadataEvent[]> => {
+const selectEventsDB = async (where: string, params: (string | number)[], limit: number, maxStatementSeconds: number = 0, options: { hint?: string, throwOnError?: boolean, evQuery?: string } = {}): Promise<MetadataEvent[]> => {
 
   const statementVars = ["group_concat_max_len = 8388608"];
   if (maxStatementSeconds > 0) statementVars.push(`max_statement_time = ${Number(maxStatementSeconds)}`);
@@ -191,12 +195,12 @@ const selectEventsDB = async (where: string, params: (string | number)[], limit:
   const query = `
     SET STATEMENT ${statementVars.join(", ")} FOR
     WITH ev AS (
-      SELECT e.event_id, e.pubkey, e.kind, e.created_at, e.content, e.sig, e.tenantid
-      FROM events e
+      ${options.evQuery || `SELECT e.event_id, e.pubkey, e.kind, e.created_at, e.content, e.sig, e.tenantid
+      FROM events e ${options.hint || ""}
       WHERE e.active = '1'
       ${where}
       ORDER BY e.created_at DESC, e.event_id DESC
-      LIMIT ${Number(limit)}
+      LIMIT ${Number(limit)}`}
     ),
     tagAgg AS (
       SELECT et.event_id,
@@ -226,8 +230,14 @@ const selectEventsDB = async (where: string, params: (string | number)[], limit:
     LEFT JOIN metaAgg ON ev.event_id = metaAgg.event_id;
   `;
 
-  const dbResult = await dbSimpleSelect("events", query, "", params);
-  if (!dbResult) return [];
+  let dbResult: unknown;
+  if (options.throwOnError) {
+    const pool = await connect("selectEventsDB");
+    [dbResult] = await pool.execute(query, params);
+  } else {
+    dbResult = await dbSimpleSelect("events", query, "", params);
+  }
+  if (!dbResult || !Array.isArray(dbResult) || dbResult.length === 0) return [];
 
   type EventRow = {
     event_id: string;
@@ -273,7 +283,6 @@ const selectEventsDB = async (where: string, params: (string | number)[], limit:
 // Archive: events older than eventStore.memoryHorizon are only in the DB.
 
 const ARCHIVE_MAX_LIMIT = 500;
-const ARCHIVE_MAX_VALUES = 256;
 // A filter with only tags (no ids or authors) walks eventtags: keep it small.
 const ARCHIVE_MAX_TAG_ONLY_VALUES = 20;
 const ARCHIVE_STATEMENT_SECONDS = 3;
@@ -282,8 +291,82 @@ const NEG_STATEMENT_SECONDS = 5;
 const archiveSlots = createSlots(4);
 const archiveClientSlots: Map<string, Slots> = new Map();
 
-const isTagKey = (filter: Filter, key: string): boolean =>
-  key.startsWith("#") && key.length === 2 && Array.isArray((filter as Record<string, unknown>)[key]);
+// ER_KEY_DOES_NOT_EXITS: an index named in a hint is not there.
+const ER_KEY_DOES_NOT_EXIST = 1176;
+let authorHintUsable = true;
+
+// Runs an archive query with the index hint for its filter. If the index isn't there
+// (an install still building it), the hint is dropped for the rest of the process.
+const withArchiveHint = async <T>(filter: Filter, run: (hint: string) => Promise<T>): Promise<T> => {
+  const hint = authorHintUsable ? getArchiveHint(filter) : "";
+  try {
+    return await run(hint);
+  } catch (error) {
+    if (hint === "" || (error as { errno?: number })?.errno !== ER_KEY_DOES_NOT_EXIST) throw error;
+    authorHintUsable = false;
+    logger.warn(`withArchiveHint - Index hint not usable, archive queries go on without it: ${error}`);
+    return run("");
+  }
+};
+
+/**
+ * Archive query for a filter led by a tag, once eventtags.created_at is filled and indexed.
+ * Reads the newest tag rows from idx_tag_created, loads their events with the rest of the
+ * filter applied, and goes further back in rounds while too few pass it.
+ * @returns The events, or null when it couldn't settle the answer in its rounds (the caller
+ * then runs the old query). Throws on a DB error or when it runs out of time.
+ */
+const selectByTagCreated = async (filter: Filter, tag: DrivingTag, createdBefore: number, limit: number, tenantid?: number): Promise<MetadataEvent[] | null> => {
+
+  const since = filter.since !== undefined && isU32(filter.since) ? filter.since : 0;
+  const deadline = Date.now() + ARCHIVE_STATEMENT_SECONDS * 1000;
+  const pool = await connect("selectByTagCreated");
+  const seen = new Set<string>();
+  const found: MetadataEvent[] = [];
+  const newestFirst = (a: MetadataEvent, b: MetadataEvent) => b.created_at - a.created_at || (a.id < b.id ? 1 : -1);
+  let cursor = archiveUntil(filter, createdBefore);
+
+  for (let round = 0; round < TAG_WALK_ROUNDS; round++) {
+    const want = tagWalkLimit(limit, round);
+    const candidatesQuery = buildTagCandidatesQuery(tag, since, cursor, want, ARCHIVE_STATEMENT_SECONDS);
+    let candidates: { event_id: string, created_at: number }[];
+    try {
+      const [rows] = await pool.execute(candidatesQuery.query, candidatesQuery.params);
+      candidates = rows as { event_id: string, created_at: number }[];
+    } catch (error) {
+      if ((error as { errno?: number })?.errno !== ER_KEY_DOES_NOT_EXIST) throw error;
+      suspendTagCreated(String(error));
+      return null;
+    }
+
+    const fresh: string[] = [];
+    for (const candidate of candidates) {
+      if (seen.has(candidate.event_id)) continue;
+      seen.add(candidate.event_id);
+      fresh.push(candidate.event_id);
+    }
+    if (fresh.length > 0) {
+      const clause = buildArchiveWhere(filter, createdBefore, tenantid, { skipTag: tag.key, eventIds: fresh });
+      if (!clause) return [];
+      found.push(...await selectEventsDB(clause.where, clause.params, limit, ARCHIVE_STATEMENT_SECONDS, { throwOnError: true }));
+      found.sort(newestFirst);
+    }
+
+    const exhausted = candidates.length < want;
+    const boundary = exhausted ? 0 : Number(candidates[candidates.length - 1].created_at);
+    if (isTagWalkDone(found.map(e => e.created_at), limit, exhausted, boundary)) return found.slice(0, limit);
+    // A whole round of rows already seen (more tag rows in one second than a round reads),
+    // or no time left.
+    if (fresh.length === 0 || Date.now() > deadline) break;
+    cursor = boundary;
+  }
+
+  if (found.length >= limit) return found.slice(0, limit);
+  // Out of time: the old query would only spend as much again on the same tag.
+  if (Date.now() > deadline) throw new Error(`tag walk on #${tag.name} ran out of time after ${seen.size} tag rows`);
+  logger.debug(`selectByTagCreated - #${tag.name}: ${found.length} of ${limit} events after ${seen.size} tag rows, using the old query`);
+  return null;
+};
 
 const isArchiveFilterSelective = (filter: Filter): boolean => {
   if (filter.search) return false;
@@ -321,60 +404,27 @@ const getArchivedEventsDB = async (filter: Filter, createdBefore: number, limit:
 
   return withArchiveSlots(client, waitMs, null, async () => {
     try {
-      return await selectEventsDB(clause.where, clause.params, safeLimit, ARCHIVE_STATEMENT_SECONDS);
+      const tag = isTagCreatedReady() ? pickDrivingTag(filter) : null;
+      if (tag) {
+        const events = await selectByTagCreated(filter, tag, createdBefore, safeLimit, tenantid);
+        if (events) return events;
+      }
+      // A few authors and kinds: one ordered index range per pair, nothing to sort.
+      const branches = authorHintUsable ? buildAuthorKindQuery(filter, createdBefore, safeLimit, tenantid) : null;
+      if (branches) {
+        try {
+          return await selectEventsDB("", branches.params, safeLimit, ARCHIVE_STATEMENT_SECONDS, { evQuery: branches.query, throwOnError: true });
+        } catch (error) {
+          if ((error as { errno?: number })?.errno !== ER_KEY_DOES_NOT_EXIST) throw error;
+        }
+      }
+      return await withArchiveHint(filter, hint =>
+        selectEventsDB(clause.where, clause.params, safeLimit, ARCHIVE_STATEMENT_SECONDS, { hint, throwOnError: true }));
     } catch (error) {
       logger.debug(`getArchivedEventsDB - Error reading archived events: ${error}`);
       return null;
     }
   });
-};
-
-/**
- * Turns a filter into the WHERE of an events query (after `e.active = '1'`), for events created
- * before createdBefore. Null when a list in the filter has no usable value (nothing can match).
- */
-const buildArchiveWhere = (filter: Filter, createdBefore: number, tenantid?: number): { where: string, params: (string | number)[] } | null => {
-
-  let where = "";
-  const params: (string | number)[] = [];
-
-  if (filter.ids && filter.ids.length > 0) {
-    const ids = filter.ids.filter(isHex64).slice(0, ARCHIVE_MAX_VALUES);
-    if (ids.length === 0) return null;
-    where += ` AND e.event_id IN (${ids.map(() => "?").join(",")})`;
-    params.push(...ids);
-  }
-  if (filter.authors && filter.authors.length > 0) {
-    const authors = filter.authors.filter(isHex64).slice(0, ARCHIVE_MAX_VALUES);
-    if (authors.length === 0) return null;
-    where += ` AND e.pubkey IN (${authors.map(() => "?").join(",")})`;
-    params.push(...authors);
-  }
-  if (filter.kinds && filter.kinds.length > 0) {
-    const kinds = filter.kinds.filter(k => Number.isInteger(k) && k >= 0).slice(0, ARCHIVE_MAX_VALUES);
-    if (kinds.length === 0) return null;
-    where += ` AND e.kind IN (${kinds.map(() => "?").join(",")})`;
-    params.push(...kinds);
-  }
-  for (const key of Object.keys(filter)) {
-    if (!isTagKey(filter, key)) continue;
-    const values = ((filter as Record<string, unknown>)[key] as unknown[]).filter(v => typeof v === "string" && v.length <= 512).slice(0, ARCHIVE_MAX_VALUES) as string[];
-    if (values.length === 0) return null;
-    where += ` AND e.event_id IN (SELECT et.event_id FROM eventtags et WHERE et.tag_name = ? AND et.tag_value IN (${values.map(() => "?").join(",")}))`;
-    params.push(key.substring(1), ...values);
-  }
-  if (filter.since !== undefined && isU32(filter.since)) {
-    where += ` AND e.created_at >= ?`;
-    params.push(filter.since);
-  }
-  const until = filter.until !== undefined && isU32(filter.until) ? Math.min(filter.until, createdBefore - 1) : createdBefore - 1;
-  where += ` AND e.created_at <= ?`;
-  params.push(until);
-  if (tenantid !== undefined) {
-    where += ` AND e.tenantid = ?`;
-    params.push(tenantid);
-  }
-  return { where, params };
 };
 
 // Runs fn holding a global archive slot and the client's own; `busy` when none frees up in waitMs.
@@ -416,13 +466,33 @@ const getArchivedIdsDB = async (filter: Filter, createdBefore: number, limit: nu
   if (!clause) return [];
   return withArchiveSlots(client, waitMs, null, async () => {
     try {
-      const query = `SET STATEMENT max_statement_time = ${NEG_STATEMENT_SECONDS} FOR
-        SELECT e.event_id, e.pubkey, e.created_at FROM events e
-        WHERE e.active = '1' AND e.kind NOT IN (4, 14, 1059) ${clause.where}
-        LIMIT ${Number(limit)}`;
-      const rows = await dbSimpleSelect("events", query, "", clause.params);
-      if (!rows) return [];
-      return (JSON.parse(JSON.stringify(rows)) as { event_id: string, pubkey: string, created_at: number }[]).map(row => ({ id: row.event_id, pubkey: row.pubkey, created_at: Number(row.created_at) }));
+      const pool = await connect("getArchivedIdsDB");
+      const toRecords = (rows: unknown) =>
+        (rows as { event_id: string, pubkey: string, created_at: number }[]).map(row => ({ id: row.event_id, pubkey: row.pubkey, created_at: Number(row.created_at) }));
+
+      // Tag filters walk idx_tag_created first, so since and until cut the tag rows read.
+      const tag = isTagCreatedReady() ? pickDrivingTag(filter) : null;
+      const tagClause = tag ? buildArchiveWhere(filter, createdBefore, tenantid, { skipTag: tag.key }) : null;
+      if (tag && tagClause) {
+        const since = filter.since !== undefined && isU32(filter.since) ? filter.since : 0;
+        const tagQuery = buildTagIdsQuery(tag, since, archiveUntil(filter, createdBefore), tagClause.where, limit, NEG_STATEMENT_SECONDS);
+        try {
+          const [rows] = await pool.execute(tagQuery.query, [...tagQuery.params, ...tagClause.params]);
+          return toRecords(rows);
+        } catch (error) {
+          if ((error as { errno?: number })?.errno !== ER_KEY_DOES_NOT_EXIST) throw error;
+          suspendTagCreated(String(error));
+        }
+      }
+
+      return await withArchiveHint(filter, async hint => {
+        const query = `SET STATEMENT max_statement_time = ${NEG_STATEMENT_SECONDS} FOR
+          SELECT e.event_id, e.pubkey, e.created_at FROM events e ${hint}
+          WHERE e.active = '1' AND e.kind NOT IN (4, 14, 1059) ${clause.where}
+          LIMIT ${Number(limit)}`;
+        const [rows] = await pool.execute(query, clause.params);
+        return toRecords(rows);
+      });
     } catch (error) {
       logger.debug(`getArchivedIdsDB - Error reading event ids: ${error}`);
       return null;
@@ -732,20 +802,21 @@ const storeEvents = async (eventsInput: MetadataEvent | MetadataEvent[]): Promis
     }
   
     // Store tags
-    const allTagValues: [string, string, string, number, string | null][] = [];
+    const allTagValues: [string, string, string, number, string | null, number][] = [];
     eventsToStore.forEach(e => {
       if (e.tags && e.tags.length > 0) {
         e.tags.forEach((tag: string[], index: number) => {
           const tagName = tag[0];
           const tagValue = tag[1] || "";
           const extraValues = tag.length > 2 ? JSON.stringify(tag.slice(2)) : null;
-          allTagValues.push([e.id, tagName, tagValue, index, extraValues]);
+          allTagValues.push([e.id, tagName, tagValue, index, extraValues, e.created_at]);
         });
       }
     });
   
     if (allTagValues.length > 0) {
-      const tagColumns = ["event_id", "tag_name", "tag_value", "position", "extra_values"];
+      // created_at is copied to every tag row: idx_tag_created reads the newest events of a tag from it.
+      const tagColumns = ["event_id", "tag_name", "tag_value", "position", "extra_values", "created_at"];
       const insertedTagRows = await dbBulkInsert("eventtags", tagColumns, allTagValues);
       if (insertedTagRows !== allTagValues.length) {
         logger.error(`storeEvents - Failed to insert all event tags. Expected: ${allTagValues.length}, Inserted: ${insertedTagRows}`);

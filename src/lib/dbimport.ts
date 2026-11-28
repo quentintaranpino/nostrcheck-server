@@ -100,13 +100,14 @@ async function processBatch(batch: any[], dbEventsMap: Map<string, boolean>) {
             for (const tag of parsedTags) {
               await dbInsert(
                 "eventtags",
-                ["event_id", "tag_name", "tag_value", "position", "extra_values"],
+                ["event_id", "tag_name", "tag_value", "position", "extra_values", "created_at"],
                 [
                   eventId,
                   tag[0],
                   tag[1],
                   position,
                   tag.slice(2).length ? JSON.stringify(tag.slice(2)) : null,
+                  Number.isFinite(createdAt) ? createdAt : null,
                 ]
               );
               position++;
