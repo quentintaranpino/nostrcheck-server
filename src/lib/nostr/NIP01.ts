@@ -138,4 +138,9 @@ const isReplaceable = (kind: number) => {
 	return ((kind >= 10000 && kind < 20000) || kind === 0 || kind === 3);
 }
 
-export {getPubkeyMetadata, getPubkeyFollowing, getPubkeyFollowers, isEphemeral, isReplaceable}
+// Addressable (parameterized replaceable): one event per pubkey + kind + d tag.
+const isAddressable = (kind: number) => {
+	return (kind >= 30000 && kind < 40000);
+}
+
+export {getPubkeyMetadata, getPubkeyFollowing, getPubkeyFollowers, isEphemeral, isReplaceable, isAddressable}

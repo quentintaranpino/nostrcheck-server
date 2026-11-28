@@ -4,13 +4,13 @@ import { Request, Response } from "express";
 
 import { subscriptions, addSubscription, removeAllSubscriptions, removeSubscription, socketSafeSend, checkWSConnectionRate } from "../lib/relay/core.js";
 import { compressEvent, fillEventMetadata, getEventById, getEventsByTimerange, validateFilter, parseRelayMessage, getChunkSize, filterEarlyDiscard } from "../lib/relay/utils.js";
-import { deactivateSupersededDB, getArchivedEventsDB, getEventsByIdDB, getNewestReplaceableDB, getReplaceableIds, indexReplaceable, initEvents, isEventStoredDB, vanishPubkeyDB } from "../lib/relay/database.js";
+import { getDTag, deactivateSupersededDB, getArchivedEventsDB, getEventsByIdDB, getNewestReplaceableDB, getReplaceableIds, indexReplaceable, initEvents, isEventStoredDB, vanishPubkeyDB } from "../lib/relay/database.js";
 
 import { isEventValid } from "../lib/nostr/core.js";
 import { logger } from "../lib/logger.js";
 import { getClientInfo, isIpAllowed } from "../lib/security/ips.js";
 import { isEntityBanned } from "../lib/security/banned.js";
-import { isEphemeral, isReplaceable } from "../lib/nostr/NIP01.js";
+import { isAddressable, isEphemeral, isReplaceable } from "../lib/nostr/NIP01.js";
 import { executePlugins } from "../lib/plugins/core.js";
 import { validatePow } from "../lib/nostr/NIP13.js";
 import { allowedTags, EventIndex, eventStore, ExtendedWebSocket, MetadataEvent, RelayStatusMessage } from "../interfaces/relay.js";
@@ -380,12 +380,14 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
     return;
   }
 
-  // Replaceable events
-  if (isReplaceable(event.kind)) {
+  // Replaceable and addressable events. Addressables (30000-39999) are keyed by their d tag
+  // too; they used to be stored side by side, so every version stayed active.
+  const dTag = isAddressable(event.kind) ? getDTag(event.tags) : "";
+  if (isReplaceable(event.kind) || isAddressable(event.kind)) {
     // Newest stored version in memory. Outside isolated mode any tenant's version counts;
     // the old condition only matched in isolated mode, so nothing was ever replaced.
     let oldEventEntry: [string, EventIndex] | null = null;
-    for (const id of getReplaceableIds(event.pubkey, event.kind)) {
+    for (const id of getReplaceableIds(event.pubkey, event.kind, dTag)) {
       const entry = eventStore.eventIndex.get(id);
       if (!entry) continue;
       if (isIsolated && entry.tenantid !== event.tenantid) continue;
@@ -393,7 +395,9 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
     }
 
     // Not in memory: an older-than-horizon version may still be the current one in the DB.
-    if (!oldEventEntry && eventStore.memoryHorizon > 0) {
+    // Addressables skip this: matching their d tag in the DB costs a scan per event, and
+    // archived duplicates are collapsed when served anyway.
+    if (!oldEventEntry && eventStore.memoryHorizon > 0 && isReplaceable(event.kind)) {
       const newestStored = await getNewestReplaceableDB(event.pubkey, event.kind, isIsolated ? event.tenantid : undefined);
       if (newestStored !== null && newestStored >= event.created_at) {
         logger.debug(`handleEvent - Rejected replaceable event older than the stored one: ${event.id}`);
@@ -659,7 +663,7 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
     tenantid: socket.reqInfo.domainId,
   });
   eventStore.pending.set(event.id, event);
-  indexReplaceable(event.id, event.pubkey, event.kind);
+  indexReplaceable(event.id, event.pubkey, event.kind, dTag);
   eventStore.globalIds.add(event.id);
   if (event.pubkey) {
     eventStore.globalPubkeys.add(event.pubkey);
@@ -737,7 +741,6 @@ const ARCHIVE_REQ_BUDGET_MS = 4000;
 // Same default as workers/getEvents.ts when a filter has no since.
 const DEFAULT_SINCE_SECONDS = 86400 * 90;
 
-const isAddressable = (kind: number) => kind >= 30000 && kind < 40000;
 
 const isExpiredEvent = (event: Event, now: number): boolean => {
   const tag = event.tags.find(t => t[0] === "expiration");
