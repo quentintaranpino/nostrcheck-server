@@ -2,6 +2,7 @@ import { mediaModerationFilters, mediaModerationSelectFields, ModuleDataTables, 
 import { dbMultiSelect, dbSelect, dbSimpleSelect } from "./database/core.js";
 import { logger } from "./logger.js";
 import { initRedis } from "./redis/client.js";
+import { escape } from "mysql2/promise";
 
 const redisCore = await initRedis(0, false);
 
@@ -156,6 +157,37 @@ const dbCountBucketModuleData = async (module: string, field: string, bucket: "w
 	return data;
 };
 
+// Splits a select list on its top-level commas (not the ones inside functions or quotes).
+const splitSelectList = (selectList: string): string[] => {
+	const items: string[] = [];
+	let depth = 0, quote = "", current = "";
+	for (const ch of selectList) {
+		if (quote) { if (ch == quote) quote = ""; }
+		else if (ch == "'" || ch == '"') quote = ch;
+		else if (ch == "(") depth++;
+		else if (ch == ")") depth--;
+		else if (ch == "," && depth == 0) { items.push(current.trim()); current = ""; continue; }
+		current += ch;
+	}
+	if (current.trim()) items.push(current.trim());
+	return items;
+};
+
+/**
+ * The columns a module's admin list can sort and filter on. The list query wraps the select in
+ * a derived table, so the dashboard sends the output names (date, checked, banned, severity...);
+ * the table-qualified search columns are valid there too. Anything else never reaches the SQL.
+ */
+const moduleDataColumns = (module: string): Set<string> => {
+	const columns = new Set<string>();
+	for (const item of splitSelectList(moduleDataSelectFields[module] || "")) {
+		const alias = item.match(/\s+as\s+['"`]?([A-Za-z0-9_]+)['"`]?\s*$/i);
+		columns.add(alias ? alias[1] : item.split(".").pop()!.trim());
+	}
+	for (const field of (moduleDataWhereFields[module] || []).join(",").split(",")) columns.add(field.trim());
+	return new Set([...columns].filter(column => /^[A-Za-z_][A-Za-z0-9_.]*$/.test(column)));
+};
+
 async function dbSelectModuleData(module:string, offset:number, limit:number, order:string = "DESC", sort:string, search:string, filter: any): Promise<{ total: number; totalNotFiltered: number; rows: string | never[]; }>{
 
 	const table = ModuleDataTables[module];
@@ -163,22 +195,29 @@ async function dbSelectModuleData(module:string, offset:number, limit:number, or
 
 	let {fieldsLogic, fromLogic, whereLogic, sortLogic, limitLogic} = {fieldsLogic: "", fromLogic: "", whereLogic: "WHERE (1=1) ", sortLogic: "", limitLogic: ""};
 
+	// Sort, order, search and filter come straight from the request: columns are checked
+	// against the module's own list and values are escaped (reported in #63 by aroh3006).
+	const columns = moduleDataColumns(module);
+	const sortOrder = String(order || "").trim().toUpperCase() == "ASC" ? "ASC" : "DESC";
+
 	fieldsLogic = moduleDataSelectFields[module];
 	fromLogic = `FROM ${table}`;
     if (search) {
         const fieldsArray = moduleDataWhereFields[module].join(',').split(',');
         const fields = fieldsArray.map(field => `COALESCE(${field.trim()}, '')`).join(", ");
-        whereLogic += `AND CONCAT(${fields}) LIKE "%${search}%"`;
+        whereLogic += `AND CONCAT(${fields}) LIKE ${escape(`%${search}%`)}`;
     } else {
         whereLogic = "WHERE (1=1) ";
     }
-	sort? sortLogic = `ORDER BY ${sort} ${order}`: sortLogic = `ORDER BY ${table}.id ${order}`;
-	limitLogic = `LIMIT ${offset} , ${limit}`;
+	sortLogic = sort && columns.has(sort) ? `ORDER BY ${sort} ${sortOrder}` : `ORDER BY ${table}.id ${sortOrder}`;
+	limitLogic = `LIMIT ${Math.max(0, Math.floor(Number(offset)) || 0)} , ${Math.max(0, Math.floor(Number(limit)) || 0)}`;
 
 	if (filter && filter.length > 0){
 		for (const item of filter) {
-			if (item.field && item.value) {
-				item.value.startsWith("!") ? whereLogic += ` AND ${item.field} != '${item.value.split("!")[1]}'` : whereLogic += ` AND ${item.field} = '${item.value}'`;
+			if (item.field && typeof item.value == "string" && item.value != "" && columns.has(item.field)) {
+				whereLogic += item.value.startsWith("!")
+					? ` AND ${item.field} != ${escape(item.value.substring(1))}`
+					: ` AND ${item.field} = ${escape(item.value)}`;
 			}
 		}
 	}
