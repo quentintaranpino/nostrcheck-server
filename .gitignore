@@ -44,3 +44,7 @@ src/pages/static/resources/tenants/*
 
 profiles/*
 .claude/*
+
+# Installer and updater logs
+install.log
+update.log

@@ -1,839 +1,701 @@
 #!/usr/bin/env bash
 # nostrcheck-server installer
-# Project: https://github.com/quentintaranpino/nostrcheck-server
+# https://github.com/quentintaranpino/nostrcheck-server
 # License: MIT
+#
+# Sets up a standalone server on Debian/Ubuntu: system packages, Node.js, the
+# app, the local moderation engine, MariaDB, Redis, nginx and a systemd unit.
+# The app and its service belong to the user running this (under root or sudo:
+# to the owner of the install directory).
+# Safe to re-run: an existing config/local.json, its database, the systemd unit
+# and a TLS-enabled nginx site are kept as they are.
 
-set -euo pipefail
+set -Eeuo pipefail
 
-# --- Constants ---------------------------------------------------------------
-readonly VERSION="0.3.0"
-readonly DATE="20260528"
 readonly REPO_URL="https://github.com/quentintaranpino/nostrcheck-server.git"
-readonly REPO_BRANCH="main"
-readonly NODE_MAJOR=20
-
-readonly PYENV_PY_VERSION="3.12.4"
+readonly SERVICE="nostrcheck"
+readonly NODE_MAJOR=24          # installed when Node is missing or too old
+readonly NODE_MIN=20            # oldest Node the server runs on
+readonly UV_PYTHON="3.12"       # used when the system Python is not 3.10-3.12
+readonly TORCH_VERSION="2.4.1"
 readonly TRANSFORMERS_VERSION="4.44.2"
 readonly FLASK_VERSION="3.0.3"
 readonly PILLOW_VERSION="10.4.0"
-readonly TORCH_VERSION="2.4.1"
+readonly STEPS=10
 
-readonly PACKAGES="nginx git redis-server mariadb-server mariadb-client ffmpeg jq certbot python3-certbot-nginx python3 python3-pip python3-dev python3-venv pkg-config libjpeg-dev zlib1g-dev libssl-dev build-essential libbz2-dev libreadline-dev libsqlite3-dev libffi-dev liblzma-dev tk-dev uuid-dev libncurses5-dev libncursesw5-dev curl"
+usage() {
+    cat <<EOF
+Usage: install.sh [options]
 
-readonly E_BADARGS=65
+Installs nostrcheck-server on Debian or Ubuntu. Run it as root or as a user
+with sudo; the server runs as the owner of the install directory. Re-running
+it is safe.
 
-# --- Arg parsing -------------------------------------------------------------
-QUIET="yes"
-PURGE_BUILD_DEPS="ask"   # ask|yes|no
-NON_INTERACTIVE="no"
-NO_SSL="no"
-NO_SYSTEMD="no"
-# Field defaults come from env vars when set; CLI flags override them.
-FLAG_HOST="${NOSTRCHECK_HOST:-}"
-FLAG_DB="${NOSTRCHECK_DB:-}"
-FLAG_USER="${NOSTRCHECK_USER:-}"
-FLAG_MEDIAPATH="${NOSTRCHECK_MEDIAPATH:-}"
-FLAG_PUBKEY="${NOSTRCHECK_PUBKEY:-}"
-FLAG_SECRETKEY="${NOSTRCHECK_SECRETKEY:-}"
+Options:
+  --host <hostname>      Public hostname, e.g. example.com. Asked if missing.
+  -y, --non-interactive  Never prompt. Needs --host.
+  --email <address>      Let's Encrypt account email. Lets certbot run unattended.
+  --no-ssl               Don't request TLS certificates.
+  --no-systemd           Don't create or start the systemd service.
+  --no-moderation        Skip the local moderation engine (Python, torch).
+  --gpu, --cpu           Force the CUDA or the CPU build of torch (default: CUDA
+                         only when nvidia-smi is present).
+  --dir <path>           Install directory (default: this checkout, or ./nostrcheck-server).
+  --branch <name>        Branch to clone (default: main).
+  --db <name>            Database name (default: nostrcheck).
+  --user <name>          Database user (default: nostrcheck).
+  --media-path <path>    Media storage path (default: files/).
+  --pubkey <hex>         Server public key. Generated on first start if omitted.
+  --secret <hex>         Server secret key. Required with --pubkey.
+  -v, --verbose          Show command output instead of only logging it.
+  -h, --help             Show this help.
 
-while [ $# -gt 0 ]; do
-    case "$1" in
-        -v|--verbose)         QUIET="no"; shift ;;
-        -q|--quiet)           QUIET="yes"; shift ;;
-        --purge-build-deps)   PURGE_BUILD_DEPS="yes"; shift ;;
-        --keep-build-deps)    PURGE_BUILD_DEPS="no"; shift ;;
-        -y|--non-interactive) NON_INTERACTIVE="yes"; shift ;;
-        --no-ssl)             NO_SSL="yes"; shift ;;
-        --no-systemd)         NO_SYSTEMD="yes"; shift ;;
-        --host)               FLAG_HOST="${2:-}"; shift 2 ;;
-        --db)                 FLAG_DB="${2:-}"; shift 2 ;;
-        --user)               FLAG_USER="${2:-}"; shift 2 ;;
-        --media-path)         FLAG_MEDIAPATH="${2:-}"; shift 2 ;;
-        --pubkey)             FLAG_PUBKEY="${2:-}"; shift 2 ;;
-        --secret)             FLAG_SECRETKEY="${2:-}"; shift 2 ;;
-        -h|--help)
-            cat <<EOF
-Usage: $(basename "$0") [options]
-
-Output options:
-  -v, --verbose            Show full command output on screen.
-  -q, --quiet              Only show step summaries (default). Full log in install.log.
-
-Non-interactive mode (for CI / Ansible / cloud-init):
-  -y, --non-interactive    Don't prompt. Use defaults + values from flags below.
-  --host <hostname>        Server hostname (required in --non-interactive unless
-                           NOSTRCHECK_HOST env var is set).
-  --db <name>              Database name (default: nostrcheck).
-  --user <name>            Database user (default: nostrcheck).
-  --media-path <path>      Local media path (default: files/).
-  --pubkey <hex>           Server public key in hex. Leave unset to auto-generate.
-  --secret <hex>           Server secret key in hex (required if --pubkey given).
-  --no-ssl                 Skip certbot.
-  --no-systemd             Skip systemd service creation.
-
-Cleanup:
-  --purge-build-deps       At the end, remove Rust and -dev headers without asking.
-  --keep-build-deps        At the end, keep Rust and -dev headers without asking.
-
-  -h, --help               Show this help.
-
-Environment variables (lower precedence than flags):
-  NOSTRCHECK_HOST, NOSTRCHECK_DB, NOSTRCHECK_USER, NOSTRCHECK_MEDIAPATH,
-  NOSTRCHECK_PUBKEY, NOSTRCHECK_SECRETKEY.
+Environment (flags win): NOSTRCHECK_HOST, NOSTRCHECK_EMAIL, NOSTRCHECK_DB,
+NOSTRCHECK_USER, NOSTRCHECK_MEDIAPATH, NOSTRCHECK_PUBKEY, NOSTRCHECK_SECRETKEY.
 
 Examples:
-  Interactive install (default):
-    $(basename "$0")
-
-  Unattended CI install:
-    $(basename "$0") --non-interactive --host nostrcheck.test \\
-        --no-ssl --keep-build-deps --verbose
+  ./install.sh
+  ./install.sh -y --host example.com --email admin@example.com
 EOF
-            exit 0
-            ;;
-        *)
-            printf 'Unknown argument: %s\n' "$1" >&2
-            printf 'Run with --help for usage.\n' >&2
-            exit "${E_BADARGS}"
-            ;;
-    esac
-done
+}
 
-# --non-interactive needs at least --host (or NOSTRCHECK_HOST). Validate now so
-# we fail fast before any side-effects.
-if [ "${NON_INTERACTIVE}" = "yes" ] && [ -z "${FLAG_HOST}" ]; then
-    printf 'Error: --non-interactive requires --host <hostname> (or NOSTRCHECK_HOST env var).\n' >&2
-    exit "${E_BADARGS}"
-fi
-if [ -n "${FLAG_PUBKEY}" ] && [ -z "${FLAG_SECRETKEY}" ]; then
-    printf 'Error: --pubkey requires --secret (or NOSTRCHECK_SECRETKEY env var).\n' >&2
-    exit "${E_BADARGS}"
-fi
-
-# In non-interactive mode, an unset PURGE_BUILD_DEPS becomes "no" (conservative).
-if [ "${PURGE_BUILD_DEPS}" = "ask" ] && [ "${NON_INTERACTIVE}" = "yes" ]; then
-    PURGE_BUILD_DEPS="no"
-fi
-
-# --- Color helpers -----------------------------------------------------------
-if [ -t 1 ] && command -v tput >/dev/null 2>&1; then
-    BOLD=$(tput bold || true)
-    DIM=$(tput dim || true)
-    RED=$(tput setaf 1 || true)
-    GREEN=$(tput setaf 2 || true)
-    YELLOW=$(tput setaf 3 || true)
-    BLUE=$(tput setaf 4 || true)
-    RESET=$(tput sgr0 || true)
+# --- Output ------------------------------------------------------------------
+if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
+    BOLD=$'\033[1m'; DIM=$'\033[2m'; RED=$'\033[31m'; GREEN=$'\033[32m'; YELLOW=$'\033[33m'; RESET=$'\033[0m'
 else
-    BOLD="" DIM="" RED="" GREEN="" YELLOW="" BLUE="" RESET=""
+    BOLD=""; DIM=""; RED=""; GREEN=""; YELLOW=""; RESET=""
 fi
 
-step()  { printf '\n%s==>%s %s\n' "${BOLD}${BLUE}" "${RESET}" "$*"; }
-sub()   { printf '%s--%s  %s\n' "${DIM}" "${RESET}" "$*"; }
-ok()    { printf '%s[OK]%s    %s\n' "${GREEN}" "${RESET}" "$*"; }
-warn()  { printf '%s[WARN]%s  %s\n' "${YELLOW}" "${RESET}" "$*"; }
-err()   { printf '%s[ERR]%s   %s\n' "${RED}" "${RESET}" "$*" >&2; }
+exec 3>&2
+STEP=0
+STEP_NAME="startup"
+LAST_CMD=""
+LOG_FILE=""
+VERBOSE="no"
+WARNINGS=()
 
-# --- Logging + run helpers ---------------------------------------------------
-LOG_FILE="${LOG_FILE:-$(pwd)/install.log}"
-: > "${LOG_FILE}" 2>/dev/null || LOG_FILE="/tmp/nostrcheck-install.log"
+log()  { [ -z "${LOG_FILE}" ] || printf '%s\n' "$*" >>"${LOG_FILE}"; }
+step() { STEP=$((STEP + 1)); STEP_NAME="$*"; printf '\n%s[%2d/%d]%s %s\n' "${BOLD}" "${STEP}" "${STEPS}" "${RESET}" "$*"; log ""; log "== [${STEP}/${STEPS}] $*"; }
+info() { printf '        %s\n' "$*"; log "$*"; }
+note() { printf '        %s%s%s\n' "${DIM}" "$*" "${RESET}"; log "$*"; }
+warn() { printf '        %swarning:%s %s\n' "${YELLOW}" "${RESET}" "$*"; log "warning: $*"; WARNINGS+=("$*"); }
+die()  { printf '\n%serror:%s %s\n' "${RED}" "${RESET}" "$*" >&2; log "error: $*"; exit 1; }
 
-# In verbose mode tee everything to the log AND keep it on screen.
-# In quiet mode leave stdout to the terminal so step/ok/warn helpers show,
-# and only the output of run()/run_sh() gets routed to the log.
-if [ "${QUIET}" != "yes" ]; then
-    exec > >(tee -a "${LOG_FILE}") 2>&1
-fi
-
-# Execute a single command, honoring QUIET.
+# Runs a command with its output in the log (and on screen with --verbose).
+# stdin is closed so nothing swallows what the user types ahead of a prompt.
 run() {
-    if [ "${QUIET}" = "yes" ]; then
-        "$@" >>"${LOG_FILE}" 2>&1
+    LAST_CMD="$*"
+    log "\$ $*"
+    if [ "${VERBOSE}" = "yes" ]; then
+        "$@" </dev/null 2>&1 | tee -a "${LOG_FILE}"
     else
-        "$@"
+        "$@" </dev/null >>"${LOG_FILE}" 2>&1
     fi
 }
-
-# Execute a shell pipeline (supports |, &&, redirects), honoring QUIET.
-run_sh() {
-    if [ "${QUIET}" = "yes" ]; then
-        bash -c "$*" >>"${LOG_FILE}" 2>&1
-    else
-        bash -c "$*"
-    fi
-}
-
-DB_CREATED=""
-NGINX_CONF_CREATED=""
-SYSTEMD_UNIT_CREATED=""
-REPO_CLONED=""
 
 on_error() {
-    local exit_code=$?
-    local lineno=${1:-?}
-    echo ""
-    err "Installation failed (exit ${exit_code}) at line ${lineno}"
-    echo "      Full log: ${LOG_FILE}"
-    if [ "${QUIET}" = "yes" ] && [ -s "${LOG_FILE}" ]; then
-        echo "      Last 30 lines of the log:"
-        tail -n 30 "${LOG_FILE}" | sed 's/^/        /'
+    local code=$?
+    [ "${BASHPID}" = "$$" ] || exit "${code}"
+    trap - ERR
+    # A command run through run() fails with its output still pointed at the log:
+    # fd 3 is the terminal.
+    printf '\n%serror:%s step %d (%s) failed with exit code %d\n' "${RED}" "${RESET}" "${STEP}" "${STEP_NAME}" "${code}" >&3
+    [ -z "${LAST_CMD}" ] || printf '  command: %s\n' "${LAST_CMD}" >&3
+    if [ -n "${LOG_FILE}" ] && [ -s "${LOG_FILE}" ]; then
+        if [ "${VERBOSE}" != "yes" ]; then
+            printf '  last lines of the log:\n' >&3
+            tail -n 15 "${LOG_FILE}" | sed 's/^/    /' >&3
+        fi
+        printf '  full log: %s\n' "${LOG_FILE}" >&3
     fi
-    echo ""
-    echo "      Resources that may have been partially created:"
-    [ -n "${REPO_CLONED}" ]          && echo "        - repository clone: ${REPO_CLONED}"
-    [ -n "${DB_CREATED}" ]           && echo "        - MySQL database/user: ${DB_CREATED}"
-    [ -n "${NGINX_CONF_CREATED}" ]   && echo "        - nginx config: ${NGINX_CONF_CREATED}"
-    [ -n "${SYSTEMD_UNIT_CREATED}" ] && echo "        - systemd unit: ${SYSTEMD_UNIT_CREATED}"
-    echo ""
-    exit "${exit_code}"
+    printf '  Nothing is removed on failure. Fix the cause and run the installer again.\n' >&3
+    exit "${code}"
 }
-trap 'on_error $LINENO' ERR
-
-# Resolve the real invoking user even when running under sudo so the systemd
-# unit does not end up running as root.
-INVOKING_USER="${SUDO_USER:-$(id -un)}"
-
-# --- Variables ---------------------------------------------------------------
-INSTALLED_NODE_MAJOR=0
-HOST=""
-DB="nostrcheck"
-USER="nostrcheck"
-MEDIAPATH="files/"
-PUBKEY=""
-SECRETKEY=""
-PASS=""
-SECRET=""
-REUSE_CONFIG="no"
-EXISTING_CONFIG=""
 
 # --- Helpers -----------------------------------------------------------------
+RUN_USER=""
+HAS_SYSTEMD="no"
 
-# Generate a random alphanumeric string (safe to embed in SQL literals).
-# The subshell + `set +o pipefail` swallows the SIGPIPE that `tr` receives
-# when `head` closes the pipe early; this is expected behaviour, not a fault.
-random_str() {
-    local len="${1:-32}"
-    ( set +o pipefail
-      LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom 2>/dev/null | head -c "${len}"
-    )
-}
+as_root() { if [ "$(id -u)" -eq 0 ]; then "$@"; else sudo "$@"; fi; }
+as_user() { if [ "$(id -un)" = "${RUN_USER}" ]; then "$@"; else sudo -H -u "${RUN_USER}" -- "$@"; fi; }
+apt_get() { as_root env DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -o DPkg::Lock::Timeout=120 "$@"; }
 
-install_node() {
-    sub "Installing Node.js ${NODE_MAJOR} via NodeSource"
-    run_sh "curl -fsSL 'https://deb.nodesource.com/setup_${NODE_MAJOR}.x' | sudo -E bash -"
-    run sudo apt-get install -y --no-install-recommends nodejs
-    if command -v node >/dev/null 2>&1; then
-        INSTALLED_NODE_MAJOR=$(node -v | grep -oP '^v\K[0-9]+' || echo 0)
-    fi
-}
+is_repo() { [ -f "$1/package.json" ] && grep -q '"name": "nostrcheck-server"' "$1/package.json"; }
 
-# --- Banner ------------------------------------------------------------------
-echo ""
-echo "  ${BOLD}nostrcheck-server${RESET} installer  v${VERSION}  (${DATE})"
-echo "  https://github.com/quentintaranpino/nostrcheck-server"
-echo "  License: MIT"
-echo ""
-echo "  Targets Debian/Ubuntu. Tested on Ubuntu 22.04 and 24.04."
-if [ "${QUIET}" = "yes" ]; then
-    echo "  re-run with --verbose to see commands on screen"
-fi
-echo ""
+random_str() { ( set +o pipefail; LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c "${1:-32}" ); }
 
-if [ "${NON_INTERACTIVE}" = "yes" ]; then
-    sub "Non-interactive mode, proceeding without confirmation"
-else
-    read -r -p "Proceed with installation? [y/n] " input
-    if [ "${input:-}" != "y" ]; then
-        err "Aborted by user."
-        exit "${E_BADARGS}"
-    fi
-fi
-
-# --- Detect previous installation -------------------------------------------
-for candidate in "config/local.json" "nostrcheck-server/config/local.json"; do
-    if [ -f "${candidate}" ]; then
-        EXISTING_CONFIG="${candidate}"
-        break
-    fi
-done
-
-if [ -n "${EXISTING_CONFIG}" ]; then
-    step "Previous installation detected"
-    sub "Found existing config at: ${EXISTING_CONFIG}"
-    if [ "${NON_INTERACTIVE}" = "yes" ]; then
-        # In non-interactive mode, default to reuse so re-runs are safe.
-        input="y"
-        sub "Non-interactive mode: reusing existing config"
-    else
-        echo "      [y] Reuse it (skip DB user creation and config rewrite)"
-        echo "      [n] Start fresh (a timestamped backup will be created)"
-        read -r -p "Reuse existing configuration? [y/n] " input
-    fi
-    if [ "${input:-}" = "y" ]; then
-        REUSE_CONFIG="yes"
-        if command -v jq >/dev/null 2>&1; then
-            DB=$(jq -r '.database.database // "nostrcheck"' "${EXISTING_CONFIG}")
-            USER=$(jq -r '.database.user // "nostrcheck"' "${EXISTING_CONFIG}")
-            HOST=$(jq -r '.server.host // ""' "${EXISTING_CONFIG}")
-            MEDIAPATH=$(jq -r '.media.mediaPath // "files/"' "${EXISTING_CONFIG}")
-            ok "Reusing values from ${EXISTING_CONFIG} (host=${HOST}, db=${DB}, user=${USER})"
-        else
-            sub "jq not installed yet — config will be re-read after package install"
-        fi
-    else
-        backup="${EXISTING_CONFIG}.bak.$(date +%Y%m%d%H%M%S)"
-        cp "${EXISTING_CONFIG}" "${backup}"
-        ok "Backup created at ${backup}"
-    fi
-fi
-
-# --- Node.js -----------------------------------------------------------------
-step "Checking Node.js"
-if command -v node >/dev/null 2>&1; then
-    INSTALLED_NODE_MAJOR=$(node -v | grep -oP '^v\K[0-9]+' || echo 0)
-    sub "Node ${INSTALLED_NODE_MAJOR} detected in PATH"
-elif [ -f "/usr/local/bin/node" ]; then
-    INSTALLED_NODE_MAJOR=$(/usr/local/bin/node -v | grep -oP '^v\K[0-9]+' || echo 0)
-    sub "Node ${INSTALLED_NODE_MAJOR} detected in /usr/local/bin"
-else
-    sub "Node.js not found"
-fi
-
-if [ "${INSTALLED_NODE_MAJOR:-0}" -ge "${NODE_MAJOR}" ]; then
-    ok "Node ${INSTALLED_NODE_MAJOR} is recent enough (>= ${NODE_MAJOR})"
-else
-    sub "Installing Node ${NODE_MAJOR} (current: ${INSTALLED_NODE_MAJOR:-none})"
-    install_node
-    ok "Node ${INSTALLED_NODE_MAJOR} installed"
-fi
-
-# --- System packages ---------------------------------------------------------
-step "Updating package list"
-run sudo apt-get update
-ok "Package list updated"
-
-step "Installing system packages"
-sub "${PACKAGES}"
-# shellcheck disable=SC2086
-run sudo apt-get install -y --no-install-recommends ${PACKAGES}
-ok "System packages installed"
-
-# --- Rust --------------------------------------------------------------------
-step "Installing Rust toolchain (required by Python tokenizers)"
-run_sh "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal"
-# shellcheck disable=SC1091
-source "${HOME}/.cargo/env"
-if ! grep -q 'cargo/bin' "${HOME}/.bashrc" 2>/dev/null; then
-    echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> "${HOME}/.bashrc"
-fi
-sub "$(rustc --version)"
-sub "$(cargo --version)"
-ok "Rust toolchain ready"
-
-# --- Repository --------------------------------------------------------------
-step "Fetching repository"
-if [ -f "package.json" ] && grep -q '"name": "nostrcheck-server"' package.json 2>/dev/null; then
-    sub "Running from inside the repository, using checked-out code as-is (no pull)"
-elif [ -d "nostrcheck-server/.git" ]; then
-    sub "Repository already cloned, pulling latest"
-    cd "nostrcheck-server"
-    run git pull --ff-only origin "${REPO_BRANCH}" || warn "git pull failed, continuing with current code"
-else
-    sub "git clone ${REPO_URL} (branch ${REPO_BRANCH})"
-    run git clone -b "${REPO_BRANCH}" --single-branch "${REPO_URL}"
-    REPO_CLONED="$(pwd)/nostrcheck-server"
-    cd "nostrcheck-server"
-fi
-
-# Re-read config if we deferred earlier because jq was missing.
-if [ "${REUSE_CONFIG}" = "yes" ] && [ -f "config/local.json" ] && [ -z "${HOST}" ] && command -v jq >/dev/null 2>&1; then
-    DB=$(jq -r '.database.database // "nostrcheck"' config/local.json)
-    USER=$(jq -r '.database.user // "nostrcheck"' config/local.json)
-    HOST=$(jq -r '.server.host // ""' config/local.json)
-    MEDIAPATH=$(jq -r '.media.mediaPath // "files/"' config/local.json)
-    ok "Reusing values from config/local.json (host=${HOST}, db=${DB}, user=${USER})"
-fi
-ok "Repository ready at $(pwd)"
-
-# --- Python venv -------------------------------------------------------------
-step "Setting up Python environment (${PYENV_PY_VERSION})"
-# pyenv.run refuses to install over an existing ${HOME}/.pyenv, so we check
-# the directory (not just PATH) to know whether pyenv is already there from
-# a previous run on this box.
-if [ -d "${HOME}/.pyenv" ]; then
-    sub "pyenv already present at ${HOME}/.pyenv, reusing it"
-    export PATH="${HOME}/.pyenv/bin:${PATH}"
-    eval "$(pyenv init -)"
-    # virtualenv-init may not be installed; ignore if missing.
-    eval "$(pyenv virtualenv-init - 2>/dev/null || true)"
-elif ! command -v pyenv >/dev/null 2>&1; then
-    sub "Installing pyenv"
-    run_sh "curl https://pyenv.run | bash"
-    export PATH="${HOME}/.pyenv/bin:${PATH}"
-    eval "$(pyenv init -)"
-    eval "$(pyenv virtualenv-init - 2>/dev/null || true)"
-    if ! grep -q 'pyenv init' "${HOME}/.bashrc" 2>/dev/null; then
-        {
-            echo 'export PATH="$HOME/.pyenv/bin:$PATH"'
-            echo 'eval "$(pyenv init -)"'
-            echo 'eval "$(pyenv virtualenv-init - 2>/dev/null || true)"'
-        } >> "${HOME}/.bashrc"
-    fi
-else
-    export PATH="${HOME}/.pyenv/bin:${PATH}"
-    eval "$(pyenv init -)"
-    eval "$(pyenv virtualenv-init - 2>/dev/null || true)"
-fi
-
-if [ ! -e "${HOME}/.pyenv/versions/${PYENV_PY_VERSION}/bin/python" ]; then
-    sub "Installing Python ${PYENV_PY_VERSION} via pyenv (compiles from source, may take several minutes)"
-    run pyenv install -s "${PYENV_PY_VERSION}"
-fi
-
-PY_CMD="${HOME}/.pyenv/versions/${PYENV_PY_VERSION}/bin/python"
-VENV_DIR=".venv"
-if [ ! -d "${VENV_DIR}" ]; then
-    sub "Creating virtualenv at ${VENV_DIR}"
-    run "${PY_CMD}" -m venv "${VENV_DIR}"
-else
-    sub "Virtualenv already exists at ${VENV_DIR}"
-fi
-# shellcheck disable=SC1091
-source "${VENV_DIR}/bin/activate"
-
-sub "Installing Python packages (torch is ~900 MB, expect a few minutes)"
-run pip install --no-cache-dir -U pip setuptools wheel
-run pip install --no-cache-dir \
-    "transformers==${TRANSFORMERS_VERSION}" \
-    "Flask==${FLASK_VERSION}" \
-    "Pillow==${PILLOW_VERSION}" \
-    "torch==${TORCH_VERSION}"
-ok "Python environment ready"
-
-# --- npm ---------------------------------------------------------------------
-step "Installing npm dependencies"
-# Note: we deliberately do NOT upgrade npm globally. The version that ships
-# with Node 20 (npm 10.x) runs install scripts (bcrypt/sharp/secp256k1
-# native builds) without the allowScripts gate that npm 11 introduced.
-if [ -f "package-lock.json" ]; then
-    sub "npm ci --include=optional --no-audit --no-fund"
-    run npm ci --include=optional --no-audit --no-fund
-else
-    sub "npm install --include=optional --no-audit --no-fund"
-    run npm install --include=optional --no-audit --no-fund
-fi
-ok "npm dependencies installed"
-
-# --- Build -------------------------------------------------------------------
-step "Building project"
-sub "npm run build"
-run npm run build
-ok "Build complete"
-
-# --- MariaDB + Redis ---------------------------------------------------------
-step "Starting MariaDB and Redis"
-run sudo service redis-server start
-run sudo service mariadb start
-ok "Services started"
-
-MYSQL=$(which mysql || true)
-if [ -z "${MYSQL}" ]; then
-    err "MySQL client not found in PATH"
-    exit 1
-fi
-
-# --- Database ----------------------------------------------------------------
-if [ "${REUSE_CONFIG}" = "yes" ]; then
-    step "Reusing existing database configuration"
-    sub "db=${DB} user=${USER} (skipping DB creation)"
-else
-    step "Database configuration"
-    if [ -n "${FLAG_DB}" ]; then
-        DB="${FLAG_DB}"
-        sub "Database name: ${DB} (from flag/env)"
-    elif [ "${NON_INTERACTIVE}" = "yes" ]; then
-        sub "Database name: ${DB} (default)"
-    else
-        read -r -p "Database name [${DB}]: " inputDB
-        [ -n "${inputDB:-}" ] && DB="${inputDB}"
-    fi
-    if [ -n "${FLAG_USER}" ]; then
-        USER="${FLAG_USER}"
-        sub "Database user: ${USER} (from flag/env)"
-    elif [ "${NON_INTERACTIVE}" = "yes" ]; then
-        sub "Database user: ${USER} (default)"
-    else
-        read -r -p "Database user [${USER}]: " inputUSER
-        [ -n "${inputUSER:-}" ] && USER="${inputUSER}"
-    fi
-
-    PASS=$(random_str 32)
-    SECRET=$(random_str 32)
-    if [ "${#PASS}" -lt 16 ] || [ "${#SECRET}" -lt 16 ]; then
-        err "Failed to generate random secrets"
-        exit 1
-    fi
-
-    # Idempotent: CREATE USER IF NOT EXISTS + ALTER USER ensures both the
-    # fresh-install and "reinstall with a new password" paths converge.
-    SQL="CREATE DATABASE IF NOT EXISTS \`${DB}\`;
-CREATE USER IF NOT EXISTS '${USER}'@'localhost' IDENTIFIED BY '${PASS}';
-ALTER USER '${USER}'@'localhost' IDENTIFIED BY '${PASS}';
-GRANT ALL ON \`${DB}\`.* TO '${USER}'@'localhost';
-FLUSH PRIVILEGES;"
-
-    if sudo "${MYSQL}" -uroot -e "${SQL}"; then
-        DB_CREATED="${DB}/${USER}"
-        ok "Database '${DB}' and user '${USER}' configured"
-    else
-        err "Failed to create database or user"
-        exit 1
-    fi
-fi
-
-# --- Hostname ----------------------------------------------------------------
-if [ "${REUSE_CONFIG}" = "yes" ] && [ -n "${HOST}" ]; then
-    step "Server hostname: ${HOST} (reused)"
-elif [ -n "${FLAG_HOST}" ]; then
-    HOST="${FLAG_HOST}"
-    step "Server hostname: ${HOST} (from flag/env)"
-else
-    step "Server hostname"
-    sub "Used for nginx server_name; SSL certs will be requested for HOST, cdn.HOST, relay.HOST"
-    while [ -z "${HOST}" ]; do
-        read -r -p "Enter hostname (e.g. nostrcheck.me): " HOST
-        if [ -z "${HOST}" ]; then
-            warn "Hostname is required"
-        fi
+wait_for() {
+    local tries="$1"; shift
+    until "$@" >/dev/null 2>&1; do
+        tries=$((tries - 1))
+        [ "${tries}" -gt 0 ] || return 1
+        sleep 1
     done
-fi
+}
 
-# --- Media path --------------------------------------------------------------
-if [ "${REUSE_CONFIG}" != "yes" ]; then
-    if [ -n "${FLAG_MEDIAPATH}" ]; then
-        MEDIAPATH="${FLAG_MEDIAPATH}"
-        step "Media storage path: ${MEDIAPATH} (from flag/env)"
-    elif [ "${NON_INTERACTIVE}" = "yes" ]; then
-        step "Media storage path: ${MEDIAPATH} (default)"
+node_major() { node -v 2>/dev/null | sed -E 's/^v([0-9]+).*/\1/' || true; }
+# Even majors from NODE_MIN up. Odd ones (21, 23) are short-lived and half the
+# dependency tree refuses to install on them.
+node_ok() {
+    local major
+    major=$(node_major)
+    [ -n "${major}" ] && [ "${major}" -ge "$1" ] && [ $((major % 2)) -eq 0 ]
+}
+
+http_up() {
+    local code
+    code=$(curl -s -o /dev/null -m 5 -w '%{http_code}' "http://127.0.0.1:$1/" || true)
+    [ -n "${code}" ] && [ "${code}" != "000" ]
+}
+
+svc_start() {
+    if [ "${HAS_SYSTEMD}" = "yes" ]; then
+        run as_root systemctl enable --now "$1"
     else
-        step "Media storage path"
-        sub "Where uploaded media files will be stored (local). S3 can be configured later in admin settings."
-        read -r -p "Files path [${MEDIAPATH}]: " inputMEDIAPATH
-        [ -n "${inputMEDIAPATH:-}" ] && MEDIAPATH="${inputMEDIAPATH}"
+        run as_root service "$1" start
     fi
-fi
+}
 
-# --- Server keypair ----------------------------------------------------------
-if [ "${REUSE_CONFIG}" != "yes" ]; then
-    if [ -n "${FLAG_PUBKEY}" ]; then
-        PUBKEY="${FLAG_PUBKEY}"
-        SECRETKEY="${FLAG_SECRETKEY}"
-        step "Server keypair: provided via flag/env"
-    elif [ "${NON_INTERACTIVE}" = "yes" ]; then
-        step "Server keypair: none provided, will be auto-generated on first run"
-    else
-        step "Server keypair"
-        sub "Leave empty to let the server generate one on first run"
-        sub "Hex format. Convert npub→hex at https://nostrcheck.me/converter/"
-        read -r -p "Public key (hex, optional): " PUBKEY
-        if [ -n "${PUBKEY}" ]; then
-            while [ -z "${SECRETKEY}" ]; do
-                read -r -p "Secret key (hex, required if pubkey given): " SECRETKEY
-                if [ -z "${SECRETKEY}" ]; then
-                    warn "Secret key empty — discarding pubkey, server will generate one"
-                    PUBKEY=""
-                    break
-                fi
-            done
+INTERACTIVE="no"
+ask() {
+    local reply=""
+    printf '  %s ' "$1" >/dev/tty
+    IFS= read -r reply </dev/tty || true
+    printf '%s' "${reply}"
+}
+
+main() {
+    local host="${NOSTRCHECK_HOST:-}" email="${NOSTRCHECK_EMAIL:-}"
+    local db="${NOSTRCHECK_DB:-nostrcheck}" db_user="${NOSTRCHECK_USER:-nostrcheck}" db_pass=""
+    local media_path="${NOSTRCHECK_MEDIAPATH:-files/}"
+    local pubkey="${NOSTRCHECK_PUBKEY:-}" secretkey="${NOSTRCHECK_SECRETKEY:-}"
+    local branch="main" dir="" port=3000
+    local assume_yes="no" ssl="yes" systemd="yes" moderation="yes" gpu="auto"
+
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --host)               host="${2:-}"; shift 2 ;;
+            --email)              email="${2:-}"; shift 2 ;;
+            --dir)                dir="${2:-}"; shift 2 ;;
+            --branch)             branch="${2:-}"; shift 2 ;;
+            --db)                 db="${2:-}"; shift 2 ;;
+            --user)               db_user="${2:-}"; shift 2 ;;
+            --media-path)         media_path="${2:-}"; shift 2 ;;
+            --pubkey)             pubkey="${2:-}"; shift 2 ;;
+            --secret)             secretkey="${2:-}"; shift 2 ;;
+            -y|--yes|--non-interactive) assume_yes="yes"; shift ;;
+            --no-ssl)             ssl="no"; shift ;;
+            --no-systemd)         systemd="no"; shift ;;
+            --no-moderation)      moderation="no"; shift ;;
+            --gpu)                gpu="yes"; shift ;;
+            --cpu)                gpu="no"; shift ;;
+            -v|--verbose)         VERBOSE="yes"; shift ;;
+            -q|--quiet)           VERBOSE="no"; shift ;;
+            # Accepted for old command lines: there is no build toolchain to purge any more.
+            --purge-build-deps|--keep-build-deps) shift ;;
+            -h|--help)            usage; exit 0 ;;
+            *) printf 'Unknown option: %s\nRun with --help for usage.\n' "$1" >&2; exit 64 ;;
+        esac
+    done
+
+    # --- Preflight (no side effects yet) --------------------------------------
+    command -v apt-get >/dev/null 2>&1 || die "This installer supports Debian and Ubuntu only (apt-get not found). Use the Docker setup on other systems."
+    if [ "$(id -u)" -ne 0 ] && ! command -v sudo >/dev/null 2>&1; then
+        die "Run this as root, or install sudo first."
+    fi
+    RUN_USER=$(id -un)
+    [ -d /run/systemd/system ] && HAS_SYSTEMD="yes"
+
+    local os_id="" os_version="" os_name="unknown system"
+    if [ -r /etc/os-release ]; then
+        # shellcheck disable=SC1091
+        os_id=$(. /etc/os-release; printf '%s' "${ID:-}")
+        # shellcheck disable=SC1091
+        os_version=$(. /etc/os-release; printf '%s' "${VERSION_ID:-}")
+        # shellcheck disable=SC1091
+        os_name=$(. /etc/os-release; printf '%s' "${PRETTY_NAME:-${ID:-unknown}}")
+    fi
+    local os_tested="no"
+    case "${os_id}:${os_version}" in
+        ubuntu:22.04|ubuntu:24.04|debian:12|debian:13) os_tested="yes" ;;
+    esac
+    case "$(uname -m)" in
+        x86_64|aarch64) ;;
+        *) die "Unsupported architecture $(uname -m). x86_64 and aarch64 are supported." ;;
+    esac
+
+    if [ "${assume_yes}" != "yes" ] && { : </dev/tty; } 2>/dev/null; then
+        INTERACTIVE="yes"
+    fi
+
+    local self_dir
+    self_dir=$(cd "$(dirname "${BASH_SOURCE[0]:-.}")" 2>/dev/null && pwd) || self_dir="${PWD}"
+    if [ -z "${dir}" ]; then
+        if is_repo "${self_dir}/.."; then dir=$(cd "${self_dir}/.." && pwd)
+        elif is_repo "${PWD}"; then dir="${PWD}"
+        else dir="${PWD}/nostrcheck-server"
         fi
     fi
-fi
+    case "${dir}" in /*) ;; *) dir="${PWD}/${dir}" ;; esac
 
-# --- Write config ------------------------------------------------------------
-if [ "${REUSE_CONFIG}" = "yes" ]; then
-    step "Keeping existing config/local.json"
-else
-    step "Writing config/local.json"
-    mkdir -p config
-    jq -n \
-        --arg a "${HOST}" --arg b "${PUBKEY}" --arg c "${SECRETKEY}" \
-        --arg d "${DB}"   --arg e "${USER}"   --arg f "${PASS}" \
-        --arg g "${MEDIAPATH}" --arg h "${SECRET}" \
-        '{
-            server:   { host: $a, port: 3000, pubkey: $b, secretKey: $c, tosFilePath: "resources/tos.md" },
-            database: { host: "127.0.0.1", database: $d, user: $e, password: $f },
-            media:    { mediaPath: $g },
-            session:  { secret: $h }
-        }' > config/local.json
-    ok "config/local.json written"
-fi
+    # Under root (or sudo) the server belongs to whoever owns the place it is
+    # installed in, so "sudo ./install.sh" from a home directory doesn't leave a
+    # root-owned tree, and the service doesn't run as root there.
+    if [ "$(id -u)" -eq 0 ]; then
+        local probe="${dir}"
+        while [ ! -e "${probe}" ]; do probe=$(dirname "${probe}"); done
+        RUN_USER=$(stat -c '%U' "${probe}")
+        id "${RUN_USER}" >/dev/null 2>&1 || RUN_USER="root"
+    fi
 
-# --- nginx -------------------------------------------------------------------
-step "Configuring nginx"
-NGINX_CONF="/etc/nginx/sites-available/${HOST}.conf"
-sudo tee "${NGINX_CONF}" > /dev/null <<EOF
+    # An existing config always wins: it holds the database password and the server keys.
+    local config="${dir}/config/local.json" reuse_config="no"
+    if [ -f "${config}" ]; then
+        reuse_config="yes"
+        if command -v jq >/dev/null 2>&1; then
+            local cfg_host
+            cfg_host=$(jq -r '.server.host // ""' "${config}")
+            if [ -n "${host}" ] && [ -n "${cfg_host}" ] && [ "${host}" != "${cfg_host}" ]; then
+                printf '%swarning:%s --host %s ignored, the existing config uses %s\n' "${YELLOW}" "${RESET}" "${host}" "${cfg_host}"
+            fi
+            [ -z "${cfg_host}" ] || host="${cfg_host}"
+        fi
+    fi
+
+    printf '\n%snostrcheck-server%s installer\n' "${BOLD}" "${RESET}"
+    printf '%s%s, %s, running as %s%s\n\n' "${DIM}" "${os_name}" "$(uname -m)" "${RUN_USER}" "${RESET}"
+    [ "${os_tested}" = "yes" ] || printf '%swarning:%s %s is not a tested system (Debian 12/13, Ubuntu 22.04/24.04). Continuing anyway.\n\n' "${YELLOW}" "${RESET}" "${os_name}"
+
+    if [ -z "${host}" ]; then
+        [ "${INTERACTIVE}" = "yes" ] || die "--host <hostname> is required in non-interactive mode (or set NOSTRCHECK_HOST)."
+        while [ -z "${host}" ]; do host=$(ask "Public hostname (e.g. example.com):"); done
+        printf '\n'
+    fi
+    [[ "${host}" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ ]] || die "Invalid hostname: ${host}"
+    [[ "${db}" =~ ^[A-Za-z0-9_]+$ ]] || die "Invalid database name: ${db} (letters, digits and _ only)"
+    [[ "${db_user}" =~ ^[A-Za-z0-9_]+$ ]] || die "Invalid database user: ${db_user} (letters, digits and _ only)"
+    if [ -n "${pubkey}" ] || [ -n "${secretkey}" ]; then
+        [[ "${pubkey}" =~ ^[0-9a-fA-F]{64}$ ]] || die "--pubkey must be 64 hex characters."
+        [[ "${secretkey}" =~ ^[0-9a-fA-F]{64}$ ]] || die "--secret must be 64 hex characters, and is required with --pubkey."
+    fi
+    if [ "${ssl}" = "yes" ] && [ "${INTERACTIVE}" != "yes" ] && [ -z "${email}" ]; then
+        ssl="no"
+        local ssl_skipped="no --email given"
+    fi
+
+    printf '  Host        %s  (also cdn.%s and relay.%s)\n' "${host}" "${host}" "${host}"
+    printf '  Directory   %s\n' "${dir}"
+    if [ "${reuse_config}" = "yes" ]; then
+        printf '  Config      existing config/local.json, kept as it is\n'
+    else
+        printf '  Database    %s (user %s, password generated)\n' "${db}" "${db_user}"
+    fi
+    printf '  Moderation  %s\n' "$([ "${moderation}" = "yes" ] && echo "local engine (Python, torch)" || echo "skipped")"
+    printf '  Service     %s\n' "$([ "${systemd}" = "yes" ] && [ "${HAS_SYSTEMD}" = "yes" ] && echo "systemd unit ${SERVICE}" || echo "none")"
+    printf '  TLS         %s\n' "$([ "${ssl}" = "yes" ] && echo "Let's Encrypt via certbot" || echo "skipped${ssl_skipped:+ (${ssl_skipped})}")"
+
+    if [ "${INTERACTIVE}" = "yes" ]; then
+        local go
+        printf '\n'
+        go=$(ask "Continue? [Y/n]")
+        case "${go}" in ""|y|Y|yes) ;; *) printf 'Aborted.\n'; exit 0 ;; esac
+    fi
+
+    LOG_FILE="${LOG_FILE:-${PWD}/install.log}"
+    : 2>/dev/null >"${LOG_FILE}" || LOG_FILE="/tmp/nostrcheck-install.log"
+    : >"${LOG_FILE}"
+    trap on_error ERR
+    local started=${SECONDS}
+    log "nostrcheck-server install, $(date -u '+%Y-%m-%d %H:%M:%S UTC'), ${os_name}, user ${RUN_USER}"
+
+    # --- 1. System packages ----------------------------------------------------
+    step "System packages"
+    local packages="ca-certificates curl git jq nginx mariadb-server mariadb-client redis-server ffmpeg"
+    [ "${moderation}" = "yes" ] && packages="${packages} python3 python3-venv"
+    [ "${ssl}" = "yes" ] && packages="${packages} certbot python3-certbot-nginx"
+    note "${packages}"
+    run apt_get update
+    # shellcheck disable=SC2086
+    run apt_get install -y --no-install-recommends ${packages}
+
+    # --- 2. Node.js ------------------------------------------------------------
+    step "Node.js"
+    if node_ok "${NODE_MIN}"; then
+        info "Node $(node -v) already installed"
+    else
+        note "installing Node ${NODE_MAJOR} from NodeSource$(command -v node >/dev/null 2>&1 && echo " (replaces $(node -v), not supported)")"
+        run bash -c "set -o pipefail; curl -fsSL https://deb.nodesource.com/setup_${NODE_MAJOR}.x | $([ "$(id -u)" -eq 0 ] || echo sudo -E) bash -"
+        run apt_get install -y --no-install-recommends nodejs
+        node_ok "${NODE_MIN}" || die "Node ${NODE_MAJOR} did not install. Install an LTS release of Node (${NODE_MIN} or newer) and run the installer again."
+        info "Node $(node -v) installed"
+    fi
+
+    # --- 3. Source -------------------------------------------------------------
+    step "Source code"
+    if is_repo "${dir}"; then
+        info "using the code already in ${dir}"
+        note "not pulled; scripts/update.sh updates an existing install"
+    elif [ -e "${dir}" ] && [ -n "$(ls -A "${dir}" 2>/dev/null)" ]; then
+        die "${dir} exists and is not a nostrcheck-server checkout. Pick another place with --dir."
+    else
+        note "git clone ${REPO_URL} (${branch})"
+        as_user mkdir -p "$(dirname "${dir}")" 2>/dev/null || die "${RUN_USER} cannot write to $(dirname "${dir}")."
+        run as_user git clone --branch "${branch}" --single-branch "${REPO_URL}" "${dir}"
+        info "cloned into ${dir}"
+    fi
+    cd "${dir}"
+    local version
+    version=$(jq -r '.version' package.json)
+    if [ "${reuse_config}" = "yes" ]; then
+        host=$(jq -r --arg d "${host}" '.server.host // $d' "${config}")
+        port=$(jq -r '.server.port // 3000' "${config}")
+        db=$(jq -r '.database.database // ""' "${config}")
+        db_user=$(jq -r '.database.user // ""' "${config}")
+        db_pass=$(jq -r '.database.password // ""' "${config}")
+    fi
+
+    # --- 4. Dependencies and build ---------------------------------------------
+    step "Dependencies and build (${version})"
+    if [ -f package-lock.json ]; then
+        note "npm ci"
+        run as_user npm ci --include=optional --no-audit --no-fund
+    else
+        note "npm install"
+        run as_user npm install --include=optional --no-audit --no-fund
+    fi
+    note "npm run build"
+    run as_user npm run build
+
+    # --- 5. Moderation engine --------------------------------------------------
+    step "Moderation engine"
+    local py_check='import torch, transformers, flask, PIL'
+    if [ "${moderation}" != "yes" ]; then
+        info "skipped (--no-moderation); local moderation stays unavailable until you re-run without it"
+    elif [ -x .venv/bin/python ] && as_user .venv/bin/python -c "${py_check}" >/dev/null 2>&1; then
+        info "existing .venv is complete, kept"
+    else
+        local py="" candidate
+        for candidate in python3 python3.12 python3.11 python3.10; do
+            if command -v "${candidate}" >/dev/null 2>&1 \
+                && "${candidate}" -c 'import sys, venv, ensurepip; sys.exit(0 if (3, 10) <= sys.version_info[:2] <= (3, 12) else 1)' >/dev/null 2>&1; then
+                py="${candidate}"
+                break
+            fi
+        done
+        if [ -n "${py}" ]; then
+            note "virtualenv from system $("${py}" -V 2>&1)"
+            run as_user "${py}" -m venv --clear .venv
+        else
+            # torch has no wheels for this system's Python: fetch a standalone one with uv.
+            local user_home uv
+            user_home=$(getent passwd "${RUN_USER}" | cut -d: -f6)
+            uv="${user_home}/.local/bin/uv"
+            note "system Python is not 3.10-3.12, using uv to provide Python ${UV_PYTHON}"
+            if [ ! -x "${uv}" ]; then
+                run as_user sh -c 'set -e; curl -LsSf https://astral.sh/uv/install.sh | env UV_NO_MODIFY_PATH=1 sh'
+            fi
+            run as_user "${uv}" venv --clear --seed --python "${UV_PYTHON}" .venv
+        fi
+        if [ "${gpu}" = "auto" ]; then
+            if command -v nvidia-smi >/dev/null 2>&1; then gpu="yes"; else gpu="no"; fi
+        fi
+        run as_user .venv/bin/python -m pip install --no-cache-dir --upgrade pip
+        if [ "${gpu}" = "no" ] && [ "$(uname -m)" = "x86_64" ]; then
+            note "torch ${TORCH_VERSION} (CPU build)"
+            run as_user .venv/bin/python -m pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu "torch==${TORCH_VERSION}"
+        else
+            note "torch ${TORCH_VERSION}"
+            run as_user .venv/bin/python -m pip install --no-cache-dir "torch==${TORCH_VERSION}"
+        fi
+        note "transformers ${TRANSFORMERS_VERSION}, Flask ${FLASK_VERSION}, Pillow ${PILLOW_VERSION}"
+        run as_user .venv/bin/python -m pip install --no-cache-dir \
+            "transformers==${TRANSFORMERS_VERSION}" "Flask==${FLASK_VERSION}" "Pillow==${PILLOW_VERSION}"
+        run as_user .venv/bin/python -c "${py_check}"
+        info "engine ready in .venv"
+    fi
+
+    # --- 6. Database -----------------------------------------------------------
+    step "MariaDB and Redis"
+    svc_start redis-server
+    svc_start mariadb
+    local mysql
+    mysql=$(command -v mariadb || command -v mysql || true)
+    [ -n "${mysql}" ] || die "MariaDB client not found after installing mariadb-client."
+    wait_for 30 as_root "${mysql}" -uroot -e 'SELECT 1' || die "MariaDB is not answering on its local socket. Check: systemctl status mariadb"
+    if [ "${reuse_config}" = "yes" ]; then
+        if MYSQL_PWD="${db_pass}" "${mysql}" -h 127.0.0.1 -u"${db_user}" "${db}" -e 'SELECT 1' >/dev/null 2>&1; then
+            info "database ${db} reachable with the credentials in config/local.json"
+        else
+            warn "cannot open database '${db}' as '${db_user}' with the credentials in config/local.json"
+        fi
+    else
+        db_pass=$(random_str 32)
+        [ "${#db_pass}" -eq 32 ] || die "Could not generate a database password."
+        # IF NOT EXISTS + ALTER USER: converges whether or not the user was there.
+        as_root "${mysql}" -uroot >>"${LOG_FILE}" 2>&1 <<SQL
+CREATE DATABASE IF NOT EXISTS \`${db}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER IF NOT EXISTS '${db_user}'@'localhost' IDENTIFIED BY '${db_pass}';
+ALTER USER '${db_user}'@'localhost' IDENTIFIED BY '${db_pass}';
+GRANT ALL ON \`${db}\`.* TO '${db_user}'@'localhost';
+FLUSH PRIVILEGES;
+SQL
+        info "database ${db} and user ${db_user} ready"
+    fi
+
+    # --- 7. Configuration ------------------------------------------------------
+    step "Configuration"
+    if [ "${reuse_config}" = "yes" ]; then
+        info "config/local.json kept"
+    else
+        local session_secret
+        session_secret=$(random_str 48)
+        [ "${#session_secret}" -eq 48 ] || die "Could not generate a session secret."
+        as_user mkdir -p config
+        as_user touch config/local.json
+        as_user chmod 600 config/local.json
+        jq -n \
+            --arg host "${host}" --arg pubkey "${pubkey}" --arg secretkey "${secretkey}" \
+            --arg db "${db}" --arg dbuser "${db_user}" --arg dbpass "${db_pass}" \
+            --arg media "${media_path}" --arg secret "${session_secret}" \
+            '{
+                server:   { host: $host, port: 3000, pubkey: $pubkey, secretKey: $secretkey, tosFilePath: "resources/tos.md" },
+                database: { host: "127.0.0.1", database: $db, user: $dbuser, password: $dbpass },
+                media:    { mediaPath: $media },
+                session:  { secret: $secret }
+            }' | as_user tee config/local.json >/dev/null
+        info "config/local.json written (readable by ${RUN_USER} only)"
+        [ -n "${pubkey}" ] || note "no server keys given: a keypair is generated on first start"
+    fi
+
+    # --- 8. nginx --------------------------------------------------------------
+    step "nginx"
+    local site="/etc/nginx/sites-available/${host}.conf" tls_present="no"
+    if as_root test -f "${site}" && as_root grep -q 'managed by Certbot' "${site}"; then
+        tls_present="yes"
+        info "${site} already has TLS set up by certbot, kept"
+    else
+        local site_backup=""
+        if as_root test -f "${site}"; then
+            site_backup="${site}.bak.$(date +%Y%m%d%H%M%S)"
+            as_root cp -p "${site}" "${site_backup}"
+        fi
+        as_root tee "${site}" >/dev/null <<EOF
+# nostrcheck-server, written by scripts/install.sh. Re-running the installer
+# rewrites this file until certbot has added TLS to it.
+
+map \$http_upgrade \$nostrcheck_connection {
+    default upgrade;
+    ''      close;
+}
+
+# Web, API, uploads and the relay on /relay
 server {
     listen 80;
-    server_name ${HOST};
+    listen [::]:80;
+    server_name ${host};
+
     client_max_body_size 100M;
 
+    proxy_http_version 1.1;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+    proxy_set_header Upgrade \$http_upgrade;
+    proxy_set_header Connection \$nostrcheck_connection;
+    proxy_read_timeout 300s;
+    proxy_send_timeout 300s;
+
     location / {
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_set_header Host \$host;
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection 'upgrade';
+        proxy_pass http://127.0.0.1:${port};
     }
 }
 
+# Media: cdn.${host}/<hash> -> /api/v2/media/<hash>
 server {
     listen 80;
-    server_name cdn.${HOST};
+    listen [::]:80;
+    server_name cdn.${host};
+
     client_max_body_size 100M;
 
+    proxy_http_version 1.1;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+    proxy_read_timeout 300s;
+    proxy_send_timeout 300s;
+
     location /static {
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_set_header Host \$host;
-        proxy_pass http://127.0.0.1:3000/static;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection "upgrade";
+        proxy_pass http://127.0.0.1:${port}/static;
     }
 
     location / {
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_set_header Host \$host;
-        proxy_pass http://127.0.0.1:3000/api/v2/media/;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection "upgrade";
+        proxy_pass http://127.0.0.1:${port}/api/v2/media/;
     }
 }
 
+# Relay: wss://relay.${host}
 server {
     listen 80;
-    server_name relay.${HOST};
+    listen [::]:80;
+    server_name relay.${host};
 
-    location / {
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_set_header Host \$host;
-        proxy_pass http://127.0.0.1:3000/api/v2/relay/;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection "upgrade";
-
-        proxy_buffering off;
-        proxy_request_buffering off;
-        proxy_read_timeout 300s;
-        proxy_send_timeout 300s;
-        keepalive_timeout 65s;
-        keepalive_requests 10000;
-    }
+    proxy_http_version 1.1;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+    proxy_set_header Upgrade \$http_upgrade;
+    proxy_set_header Connection \$nostrcheck_connection;
+    proxy_buffering off;
+    proxy_request_buffering off;
+    proxy_read_timeout 300s;
+    proxy_send_timeout 300s;
 
     location /static {
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_set_header Host \$host;
-        proxy_pass http://127.0.0.1:3000/static;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection "upgrade";
+        proxy_pass http://127.0.0.1:${port}/static;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:${port}/api/v2/relay/;
     }
 }
 EOF
-NGINX_CONF_CREATED="${NGINX_CONF}"
-sudo ln -sf "${NGINX_CONF}" "/etc/nginx/sites-enabled/${HOST}.conf"
-run sudo nginx -t
-run sudo service nginx restart
-ok "nginx configured for ${HOST}, cdn.${HOST}, relay.${HOST}"
+        as_root ln -sf "${site}" "/etc/nginx/sites-enabled/${host}.conf"
+        if ! run as_root nginx -t; then
+            # Don't leave nginx unable to reload because of our file.
+            if [ -n "${site_backup}" ]; then as_root cp -p "${site_backup}" "${site}"; else as_root rm -f "${site}" "/etc/nginx/sites-enabled/${host}.conf"; fi
+            die "nginx rejected the generated site (see ${LOG_FILE}). The previous nginx setup was restored."
+        fi
+        [ -z "${site_backup}" ] || note "previous site saved as ${site_backup}"
+        info "${site} written"
+    fi
+    if [ "${HAS_SYSTEMD}" = "yes" ]; then
+        run as_root systemctl enable nginx
+        run as_root systemctl reload-or-restart nginx
+    else
+        run as_root service nginx restart
+    fi
 
-# --- systemd -----------------------------------------------------------------
-step "systemd service"
-SYSTEMD_SERVICE_CREATED="no"
-ABSOLUTE_PATH=$(realpath "$(pwd)")
-if [ "${NO_SYSTEMD}" = "yes" ]; then
-    input="n"
-    sub "Skipping systemd service (--no-systemd)"
-elif [ "${NON_INTERACTIVE}" = "yes" ]; then
-    input="y"
-    sub "Non-interactive mode: creating systemd service"
-else
-    read -r -p "Create a systemd service so the server starts on boot? [Y/n] " input
-fi
-if [ "${input:-y}" != "n" ] && [ "${input:-y}" != "N" ]; then
-    # Resolve absolute npm path (CI runners and some distros ship it under
-    # /usr/local/bin, not /usr/bin). Fall back to /usr/bin/npm if not found.
-    NPM_BIN=$(command -v npm || echo /usr/bin/npm)
-    sudo tee /etc/systemd/system/nostrcheck.service > /dev/null <<EOF
+    # --- 9. Service ------------------------------------------------------------
+    step "Service"
+    local unit="/etc/systemd/system/${SERVICE}.service" service_up="no"
+    if [ "${systemd}" != "yes" ]; then
+        info "skipped (--no-systemd)"
+    elif [ "${HAS_SYSTEMD}" != "yes" ]; then
+        warn "systemd is not running here, no service created"
+    else
+        if [ -f "${unit}" ]; then
+            info "${unit} exists, kept"
+        else
+            as_root tee "${unit}" >/dev/null <<EOF
 [Unit]
-Description=Nostrcheck server
-After=network.target
+Description=nostrcheck-server
+Documentation=https://github.com/quentintaranpino/nostrcheck-server
+After=network-online.target mariadb.service redis-server.service
+Wants=network-online.target mariadb.service redis-server.service
 
 [Service]
 Type=simple
-User=${INVOKING_USER}
-WorkingDirectory=${ABSOLUTE_PATH}
-ExecStart=${NPM_BIN} run start
+User=${RUN_USER}
+WorkingDirectory=${dir}
+ExecStart=$(command -v npm) run start
 Restart=on-failure
-RestartSec=5s
+RestartSec=5
+LimitNOFILE=65536
 
 [Install]
 WantedBy=multi-user.target
 EOF
-    SYSTEMD_UNIT_CREATED="/etc/systemd/system/nostrcheck.service"
-    run sudo systemctl daemon-reload
-    run sudo systemctl enable nostrcheck
-    run sudo systemctl start nostrcheck
-    if sudo systemctl is-active --quiet nostrcheck; then
-        SYSTEMD_SERVICE_CREATED="yes"
-        ok "systemd service nostrcheck.service running as ${INVOKING_USER}"
-    else
-        warn "Service failed to start. Check: sudo systemctl status nostrcheck"
-    fi
-fi
-
-# --- SSL (certbot) -----------------------------------------------------------
-step "SSL via Let's Encrypt"
-sub "Certbot will attempt to issue for ${HOST}, cdn.${HOST}, relay.${HOST}"
-sub "DNS A/AAAA records must point to this server"
-if [ "${NO_SSL}" = "yes" ]; then
-    input_ssl="n"
-    sub "Skipping SSL (--no-ssl)"
-elif [ "${NON_INTERACTIVE}" = "yes" ]; then
-    # Certbot needs email + ToS acceptance interactively, so skip in CI/unattended
-    # unless the caller explicitly wants to handle it themselves (then drop --no-ssl).
-    input_ssl="n"
-    sub "Non-interactive mode: skipping certbot (pass an explicit cert manually if needed)"
-else
-    read -r -p "Proceed with Certbot now? [Y/n] " input_ssl
-fi
-if [ "${input_ssl:-y}" != "n" ] && [ "${input_ssl:-y}" != "N" ]; then
-    CANDIDATES=("${HOST}" "cdn.${HOST}" "relay.${HOST}")
-    RESOLVING=()
-    for d in "${CANDIDATES[@]}"; do
-        if getent hosts "${d}" >/dev/null; then
-            RESOLVING+=("${d}")
-        else
-            warn "${d} does not resolve from this machine, will be skipped"
+            info "${unit} written, runs as ${RUN_USER}"
         fi
-    done
-
-    if [ "${#RESOLVING[@]}" -eq 0 ]; then
-        warn "No resolvable domains, skipping SSL setup"
-    else
-        CB_ARGS=()
-        for d in "${RESOLVING[@]}"; do CB_ARGS+=("-d" "${d}"); done
-
-        CERT_ANY_OK=0
-        sub "Attempting multi-domain certificate for: ${RESOLVING[*]}"
-        if sudo certbot --nginx --redirect "${CB_ARGS[@]}"; then
-            CERT_ANY_OK=1
-            ok "Multi-domain certificate obtained"
+        run as_root systemctl daemon-reload
+        run as_root systemctl enable "${SERVICE}"
+        run as_root systemctl restart "${SERVICE}"
+        note "waiting for the server on port ${port}"
+        # The first start writes missing config keys and exits once so systemd restarts it.
+        if wait_for 120 http_up "${port}"; then
+            service_up="yes"
+            info "server is answering on http://127.0.0.1:${port}"
         else
-            warn "Multi-domain attempt failed, falling back to per-domain"
-            for d in "${RESOLVING[@]}"; do
-                sub "Trying ${d}"
-                if sudo certbot --nginx --redirect -d "${d}"; then
-                    CERT_ANY_OK=1
-                    ok "Certificate obtained for ${d}"
+            as_root journalctl -u "${SERVICE}" --no-pager -n 40 >>"${LOG_FILE}" 2>&1 || true
+            die "The service did not answer on port ${port} within 2 minutes. Check: journalctl -u ${SERVICE} -n 100"
+        fi
+    fi
+
+    # --- 10. TLS ---------------------------------------------------------------
+    step "TLS certificates"
+    local scheme="http"
+    if [ "${tls_present}" = "yes" ]; then
+        scheme="https"
+        info "already set up, certbot renews them on its own"
+    elif [ "${ssl}" != "yes" ]; then
+        info "skipped${ssl_skipped:+ (${ssl_skipped})}"
+    else
+        local want="y"
+        [ "${INTERACTIVE}" != "yes" ] || [ -n "${email}" ] || want=$(ask "      Request Let's Encrypt certificates now? DNS must already point here. [Y/n]")
+        case "${want}" in
+            ""|y|Y|yes)
+                local d domains=()
+                for d in "${host}" "cdn.${host}" "relay.${host}"; do
+                    if getent hosts "${d}" >/dev/null 2>&1; then domains+=("-d" "${d}"); else warn "${d} does not resolve, left without a certificate"; fi
+                done
+                if [ "${#domains[@]}" -eq 0 ]; then
+                    warn "no hostname resolves yet, TLS skipped"
                 else
-                    warn "Failed to obtain certificate for ${d}"
+                    local certbot_args=(--nginx --redirect --keep-until-expiring --expand "${domains[@]}") certbot_ok="no"
+                    if [ -n "${email}" ]; then
+                        run as_root certbot "${certbot_args[@]}" --non-interactive --agree-tos -m "${email}" && certbot_ok="yes"
+                    else
+                        # certbot asks for the email and the terms itself.
+                        log "\$ certbot ${certbot_args[*]}"
+                        as_root certbot "${certbot_args[@]}" </dev/tty && certbot_ok="yes"
+                    fi
+                    if [ "${certbot_ok}" = "yes" ]; then
+                        scheme="https"
+                        info "certificates installed, renewal is automatic"
+                    else
+                        warn "certbot failed (see ${LOG_FILE}); the server keeps working over http"
+                    fi
                 fi
-            done
-        fi
-
-        if [ "${CERT_ANY_OK}" -eq 1 ]; then
-            if sudo nginx -t && sudo systemctl restart nginx; then
-                ok "nginx restarted with SSL"
-            else
-                warn "nginx restart failed after certbot, check service status"
-            fi
-        else
-            warn "No certificates issued, continuing without SSL"
-        fi
+                ;;
+            *) info "skipped" ;;
+        esac
     fi
-fi
+    [ "${scheme}" = "https" ] || note "later: sudo certbot --nginx -d ${host} -d cdn.${host} -d relay.${host}"
 
-# --- Cleanup -----------------------------------------------------------------
-step "Cleaning install-time caches"
-sub "pip cache"
-run_sh "pip cache purge || true"
-sub "npm cache"
-run npm cache clean --force
-sub "apt downloaded .deb files"
-run sudo apt-get clean
-sub "pyenv tarball cache"
-rm -rf "${HOME}/.pyenv/cache" 2>/dev/null || true
-ok "Caches cleared (~500 MB-1 GB reclaimed)"
+    # --- Summary ---------------------------------------------------------------
+    local elapsed=$((SECONDS - started)) ws="ws"
+    [ "${scheme}" = "https" ] && ws="wss"
+    printf '\n%s%snostrcheck-server %s installed%s in %dm%02ds\n\n' "${BOLD}" "${GREEN}" "${version}" "${RESET}" $((elapsed / 60)) $((elapsed % 60))
+    printf '  Web         %s://%s\n' "${scheme}" "${host}"
+    printf '  Media       %s://cdn.%s\n' "${scheme}" "${host}"
+    printf '  Relay       %s://relay.%s  (also %s://%s/relay)\n' "${ws}" "${host}" "${ws}" "${host}"
+    printf '  Local       http://127.0.0.1:%s\n\n' "${port}"
+    printf '  Directory   %s\n' "${dir}"
+    printf '  Config      %s  (most settings: admin panel, Settings)\n' "${config}"
+    if [ "${service_up}" = "yes" ]; then
+        printf '  Service     sudo systemctl status|restart|stop %s\n' "${SERVICE}"
+        printf '  Logs        sudo journalctl -u %s -f\n' "${SERVICE}"
+    else
+        printf '  Start       cd %s && npm run start\n' "${dir}"
+    fi
+    printf '  Update      %s/scripts/update.sh\n' "${dir}"
+    printf '  Install log %s\n\n' "${LOG_FILE}"
+    if [ "${reuse_config}" != "yes" ]; then
+        printf '  First login: the server sends the admin password as a Nostr DM to its own\n'
+        printf '  pubkey (server.pubkey in the config). Log in once before closing this session.\n'
+        printf '  It starts in development mode: switch the environment to production in\n'
+        printf '  Settings once it is reachable over HTTPS.\n\n'
+    fi
+    if [ "${#WARNINGS[@]}" -gt 0 ]; then
+        printf '  %sWarnings%s\n' "${YELLOW}" "${RESET}"
+        local w
+        for w in "${WARNINGS[@]}"; do printf '    - %s\n' "${w}"; done
+        printf '\n'
+    fi
+}
 
-# Optional: drop Rust toolchain and -dev headers used only at compile time.
-# Their runtime libraries (libssl3, libjpeg62-turbo, etc.) stay installed,
-# so the running app is unaffected. If the user later updates a native
-# dep and pip/npm need to rebuild, the toolchain will have to be reinstalled.
-should_purge="no"
-case "${PURGE_BUILD_DEPS}" in
-    yes) should_purge="yes" ;;
-    no)  should_purge="no" ;;
-    ask)
-        if [ "${NON_INTERACTIVE}" = "yes" ]; then
-            should_purge="no"
-        else
-            step "Reclaim extra disk by removing build toolchains?"
-            sub "Removes: Rust toolchain (~500 MB) and -dev headers (~300 MB)."
-            sub "These are only needed to recompile native modules from source."
-            sub "Runtime libraries stay. Re-running the installer reinstalls them if needed."
-            read -r -p "Remove now? [y/N] " input
-            case "${input:-}" in
-                y|Y) should_purge="yes" ;;
-                *)   should_purge="no" ;;
-            esac
-        fi
-        ;;
-esac
-
-if [ "${should_purge}" = "yes" ]; then
-    step "Removing build toolchains"
-    sub "Removing -dev headers and build-essential"
-    # shellcheck disable=SC2086
-    run sudo apt-get remove --purge -y \
-        libjpeg-dev zlib1g-dev libssl-dev libbz2-dev libreadline-dev \
-        libsqlite3-dev libffi-dev liblzma-dev tk-dev uuid-dev \
-        libncurses5-dev libncursesw5-dev python3-dev pkg-config build-essential
-    run sudo apt-get autoremove -y
-    sub "Removing Rust toolchain"
-    rm -rf "${HOME}/.cargo" "${HOME}/.rustup" 2>/dev/null || true
-    sudo rm -rf /usr/local/cargo /usr/local/rustup 2>/dev/null || true
-    sed -i '/cargo\/bin/d' "${HOME}/.bashrc" 2>/dev/null || true
-    ok "Build toolchains removed (~700-800 MB freed)"
-fi
-
-# --- Done --------------------------------------------------------------------
-echo ""
-echo "${BOLD}Installation complete.${RESET}"
-echo ""
-if [ "${SYSTEMD_SERVICE_CREATED}" = "yes" ]; then
-    echo "  Service control:"
-    echo "    sudo systemctl status nostrcheck"
-    echo "    sudo systemctl restart nostrcheck"
-    echo "    sudo systemctl stop nostrcheck"
-else
-    echo "  Start the server manually:"
-    echo "    cd ${ABSOLUTE_PATH} && npm run start"
-fi
-echo ""
-echo "  Documentation:  https://github.com/quentintaranpino/nostrcheck-server/wiki"
-echo "  Log file:       ${LOG_FILE}"
-echo ""
-if [ -z "${PUBKEY}" ] && [ "${REUSE_CONFIG}" != "yes" ]; then
-    echo "  Pubkey/secret pair not provided — server will generate one on first run"
-    echo "  and store it in config/local.json"
-    echo ""
-fi
-echo "  On first login, the admin user receives a DM with the new password at the"
-echo "  configured pubkey. Make sure you can log in before closing this session."
-echo ""
+main "$@"
