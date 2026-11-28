@@ -142,8 +142,9 @@
             document.getElementById('input-register-domain').innerText = `@${domain}`;
 
             const domainInfo = data.availableDomains[domain];
+            // The change handler below never fires with a single domain (#60).
+            invitationGroup.classList.toggle('d-none', !domainInfo.requireinvite);
             let icons = '<i class="fa-solid fa-star me-2" style="color:#a06bc9"></i> Free';
-            console.log("domainInfo", domain, domainInfo)
             if (domainInfo.requirepayment) {
               icons = ' <i class="fa-solid fa-bolt ms-2 me-2" style="color:rgb(255, 128, 24)"></i> Paid';
             }
