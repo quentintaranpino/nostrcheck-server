@@ -11,7 +11,7 @@ import { isAddressable, isReplaceable } from "../nostr/NIP01.js";
 import { EventAddress, getEventAddress } from "../nostr/NIP09.js";
 import { cacheDeleted, isDeletedCached, isDeletedRecently } from "./deletions.js";
 import { cacheVanishLookup, getCachedVanish, getLocalVanish } from "./vanish.js";
-import { ARCHIVE_MAX_VALUES, DrivingTag, TAG_WALK_ROUNDS, archiveUntil, buildArchiveWhere, buildTagCandidatesQuery, buildTagIdsQuery, getArchiveHint, isHex64, isTagKey, isTagWalkDone, isU32, pickDrivingTag, tagWalkLimit } from "./archivequery.js";
+import { ARCHIVE_MAX_VALUES, buildAuthorKindQuery, DrivingTag, TAG_WALK_ROUNDS, archiveUntil, buildArchiveWhere, buildTagCandidatesQuery, buildTagIdsQuery, getArchiveHint, isHex64, isTagKey, isTagWalkDone, isU32, pickDrivingTag, tagWalkLimit } from "./archivequery.js";
 import { isTagCreatedReady, suspendTagCreated } from "./tagbackfill.js";
 
 /**
@@ -182,10 +182,12 @@ const getEventsDB = async (lastCreatedAt: number | null, lastEventId: string | n
  * group_concat_max_len is set on the statement itself: a SET SESSION before it may land
  * on another pooled connection, and JSON_ARRAYAGG then truncates the tags at 1 MB.
  * @param options.hint - Index hint for `events e`.
+ * @param options.evQuery - SELECT that picks the events in place of the WHERE (which is then
+ * ignored), with its own params.
  * @param options.throwOnError - Throw instead of returning [] when the query fails, so the
  * caller can tell a timeout from "no rows".
  */
-const selectEventsDB = async (where: string, params: (string | number)[], limit: number, maxStatementSeconds: number = 0, options: { hint?: string, throwOnError?: boolean } = {}): Promise<MetadataEvent[]> => {
+const selectEventsDB = async (where: string, params: (string | number)[], limit: number, maxStatementSeconds: number = 0, options: { hint?: string, throwOnError?: boolean, evQuery?: string } = {}): Promise<MetadataEvent[]> => {
 
   const statementVars = ["group_concat_max_len = 8388608"];
   if (maxStatementSeconds > 0) statementVars.push(`max_statement_time = ${Number(maxStatementSeconds)}`);
@@ -193,12 +195,12 @@ const selectEventsDB = async (where: string, params: (string | number)[], limit:
   const query = `
     SET STATEMENT ${statementVars.join(", ")} FOR
     WITH ev AS (
-      SELECT e.event_id, e.pubkey, e.kind, e.created_at, e.content, e.sig, e.tenantid
+      ${options.evQuery || `SELECT e.event_id, e.pubkey, e.kind, e.created_at, e.content, e.sig, e.tenantid
       FROM events e ${options.hint || ""}
       WHERE e.active = '1'
       ${where}
       ORDER BY e.created_at DESC, e.event_id DESC
-      LIMIT ${Number(limit)}
+      LIMIT ${Number(limit)}`}
     ),
     tagAgg AS (
       SELECT et.event_id,
@@ -406,6 +408,15 @@ const getArchivedEventsDB = async (filter: Filter, createdBefore: number, limit:
       if (tag) {
         const events = await selectByTagCreated(filter, tag, createdBefore, safeLimit, tenantid);
         if (events) return events;
+      }
+      // A few authors and kinds: one ordered index range per pair, nothing to sort.
+      const branches = authorHintUsable ? buildAuthorKindQuery(filter, createdBefore, safeLimit, tenantid) : null;
+      if (branches) {
+        try {
+          return await selectEventsDB("", branches.params, safeLimit, ARCHIVE_STATEMENT_SECONDS, { evQuery: branches.query, throwOnError: true });
+        } catch (error) {
+          if ((error as { errno?: number })?.errno !== ER_KEY_DOES_NOT_EXIST) throw error;
+        }
       }
       return await withArchiveHint(filter, hint =>
         selectEventsDB(clause.where, clause.params, safeLimit, ARCHIVE_STATEMENT_SECONDS, { hint, throwOnError: true }));

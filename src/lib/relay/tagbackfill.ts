@@ -54,6 +54,7 @@ let backfillRunning = false;
 let backfillDone = false;
 let indexReady = false;
 let indexPolling = false;
+let prefixWarned = false;
 let readCommitted = true;
 
 const emptyState = (): TagBackfillState => ({ lastId: 0, maxId: 0, updated: 0, orphans: 0, startedAt: 0, finishedAt: 0 });
@@ -172,7 +173,13 @@ const pollTagCreatedIndex = async (): Promise<void> => {
       try {
         const pool = await connect("tagBackfill");
         const [rows] = await pool.execute("SHOW INDEXES FROM eventtags WHERE Key_name = ?", [TAG_CREATED_INDEX]);
-        if (Array.isArray(rows) && rows.length > 0) {
+        const parts = Array.isArray(rows) ? rows as { Column_name: string, Sub_part: number | null }[] : [];
+        // A prefix on tag_value (an old definition, or one the server cut to fit the row
+        // format) can't be read in created_at order: the archive stays on the old query.
+        if (parts.some(part => part.Sub_part != null)) {
+          if (!prefixWarned) logger.warn(`pollTagCreatedIndex - ${TAG_CREATED_INDEX} indexes a prefix, not the whole tag_value. Tag filters stay on the old archive query until it is dropped and built again`);
+          prefixWarned = true;
+        } else if (parts.length > 0) {
           indexReady = true;
           logger.info(`pollTagCreatedIndex - ${TAG_CREATED_INDEX} is in place, tag filters on the archive now read from it`);
           break;

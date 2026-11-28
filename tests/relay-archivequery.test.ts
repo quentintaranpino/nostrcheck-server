@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { Filter } from "nostr-tools";
-import { TAG_WALK_MAX, archiveUntil, buildArchiveWhere, buildTagCandidatesQuery, buildTagIdsQuery, getArchiveHint, isTagWalkDone, pickDrivingTag, tagWalkLimit } from "../src/lib/relay/archivequery.js";
+import { AUTHOR_KIND_MAX_BRANCHES, TAG_WALK_MAX, buildAuthorKindQuery, archiveUntil, buildArchiveWhere, buildTagCandidatesQuery, buildTagIdsQuery, getArchiveHint, isTagWalkDone, pickDrivingTag, tagWalkLimit } from "../src/lib/relay/archivequery.js";
 
 const pk = "3c9849383bdea883b0bd16fece1ed36d37e37cdde3ce43b17ea4e9192ec11289";
 const id = "5b4fc7fed15672fefe65d2426f67197b71ccc82aa0cc8a9e94f683eb78e07651";
@@ -48,6 +48,32 @@ describe("archive index hint", () => {
 		expect(getArchiveHint({ authors: [pk] })).toBe("FORCE INDEX (idx_pubkey_kind_created)");
 		expect(getArchiveHint({ ids: [id], authors: [pk] })).toBe("");
 		expect(getArchiveHint({ kinds: [1], "#t": ["nostr"] })).toBe("");
+	});
+});
+
+describe("authors + kinds as ordered index ranges", () => {
+	it("reads one branch per author and kind, ordered by created_at alone", () => {
+		const q = buildAuthorKindQuery({ authors: [pk], kinds: [1, 7], since: 100 }, 5000, 101, 3)!;
+		expect(q.query.match(/FORCE INDEX \(idx_pubkey_kind_created\)/g)?.length).toBe(2);
+		expect(q.query.match(/UNION ALL/g)?.length).toBe(1);
+		expect(q.query.match(/ORDER BY e\.created_at DESC LIMIT 101/g)?.length).toBe(2);
+		expect(q.query).toContain("WHERE e.active = '1' AND e.pubkey = ? AND e.kind = ? AND e.created_at >= ? AND e.created_at <= ? AND e.tenantid = ?");
+		expect(q.query.trim().endsWith("b ORDER BY b.created_at DESC, b.event_id DESC LIMIT 101")).toBe(true);
+		expect(q.params).toEqual([pk, 1, 100, 4999, 3, pk, 7, 100, 4999, 3]);
+		expect(placeholders(q.query)).toBe(q.params.length);
+	});
+	it("is left for the plain query when the filter has ids, tags, no kinds or bad values", () => {
+		expect(buildAuthorKindQuery({ authors: [pk] }, 5000, 10)).toBe(null);
+		expect(buildAuthorKindQuery({ kinds: [1] }, 5000, 10)).toBe(null);
+		expect(buildAuthorKindQuery({ ids: [id], authors: [pk], kinds: [1] }, 5000, 10)).toBe(null);
+		expect(buildAuthorKindQuery({ authors: [pk], kinds: [1], "#t": ["nostr"] }, 5000, 10)).toBe(null);
+		expect(buildAuthorKindQuery({ authors: [pk, "nope"], kinds: [1] }, 5000, 10)).toBe(null);
+		expect(buildAuthorKindQuery({ authors: [pk], kinds: [1, -1] }, 5000, 10)).toBe(null);
+	});
+	it("is not used past a few branches", () => {
+		const kinds = Array.from({ length: AUTHOR_KIND_MAX_BRANCHES + 1 }, (_, i) => i);
+		expect(buildAuthorKindQuery({ authors: [pk], kinds }, 5000, 10)).toBe(null);
+		expect(buildAuthorKindQuery({ authors: [pk], kinds: kinds.slice(1) }, 5000, 10)).not.toBe(null);
 	});
 });
 

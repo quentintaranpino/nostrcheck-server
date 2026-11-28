@@ -592,8 +592,11 @@ const eventTagsTableFields: EventTagsTableStructure = {
 	_indexes: [
 		"INDEX idx_tag_name_value (tag_name, tag_value(100))",
 		"INDEX idx_event_group (event_id, tag_name, tag_value(100))",
-		"INDEX idx_tag_created (tag_name, tag_value(100), created_at)"
+		"INDEX idx_tag_created (tag_name, tag_value, created_at)"
 	],
+	// idx_tag_created holds the whole tag_value: after an equality on a prefix (tag_value(100))
+	// MariaDB can't read the index in created_at order and sorts every row of the tag. In
+	// utf8mb4 the key is 258 + 2050 + 9 bytes, under the 3072 of ROW_FORMAT DYNAMIC.
 	// On a big table idx_tag_created is built once the backfill is done: one sorted build
 	// instead of moving every row inside the index as its created_at is filled.
 	_indexAfterJob: {

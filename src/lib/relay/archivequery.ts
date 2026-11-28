@@ -7,6 +7,8 @@ const ARCHIVE_MAX_VALUES = 256;
 const TAG_WALK_MIN = 100;
 const TAG_WALK_MAX = 2000;
 const TAG_WALK_ROUNDS = 4;
+// Authors x kinds up to which an authors + kinds query reads one index range per pair.
+const AUTHOR_KIND_MAX_BRANCHES = 16;
 
 const isU32 = (n: unknown) => Number.isInteger(n) && (n as number) >= 0 && (n as number) <= 0xFFFFFFFF;
 const isHex64 = (s: unknown) => typeof s === "string" && /^[a-f0-9]{64}$/i.test(s);
@@ -22,6 +24,8 @@ interface ArchiveWhereOptions {
   skipTag?: string;
   // Event ids the caller got from eventtags; added on top of the filter's own conditions.
   eventIds?: string[];
+  // Leave authors and kinds out: the caller puts one pair on each branch of its query.
+  skipAuthorsKinds?: boolean;
 }
 
 interface DrivingTag {
@@ -57,13 +61,13 @@ const buildArchiveWhere = (filter: Filter, createdBefore: number, tenantid?: num
     where += ` AND e.event_id IN (${ids.map(() => "?").join(",")})`;
     params.push(...ids);
   }
-  if (filter.authors && filter.authors.length > 0) {
+  if (filter.authors && filter.authors.length > 0 && !options.skipAuthorsKinds) {
     const authors = filter.authors.filter(isHex64).slice(0, ARCHIVE_MAX_VALUES);
     if (authors.length === 0) return null;
     where += ` AND e.pubkey IN (${authors.map(() => "?").join(",")})`;
     params.push(...authors);
   }
-  if (filter.kinds && filter.kinds.length > 0) {
+  if (filter.kinds && filter.kinds.length > 0 && !options.skipAuthorsKinds) {
     const kinds = filter.kinds.filter(k => Number.isInteger(k) && k >= 0).slice(0, ARCHIVE_MAX_VALUES);
     if (kinds.length === 0) return null;
     where += ` AND e.kind IN (${kinds.map(() => "?").join(",")})`;
@@ -98,6 +102,45 @@ const getArchiveHint = (filter: Filter): string => {
   if (filter.ids && filter.ids.length > 0) return "";
   if (filter.authors && filter.authors.length > 0) return "FORCE INDEX (idx_pubkey_kind_created)";
   return "";
+};
+
+/**
+ * Authors + kinds, a few of each and nothing else to look up (no ids, no tags): the newest
+ * `limit` events read as one branch per author and kind. Each branch walks
+ * idx_pubkey_kind_created (pubkey, kind, created_at) backwards and stops at `limit` rows.
+ * With IN lists, or with event_id in the ORDER BY of the branch, MariaDB reads and sorts
+ * every event of the author instead (435 ms for 120k rows). Events of one author and kind
+ * created in the same second may come in any order at the cut of a branch.
+ * @returns The SELECT that takes the place of the `ev` CTE and its params, or null when the
+ * filter doesn't fit.
+ */
+const buildAuthorKindQuery = (filter: Filter, createdBefore: number, limit: number, tenantid?: number): { query: string, params: (string | number)[] } | null => {
+  if (filter.ids && filter.ids.length > 0) return null;
+  if (!filter.authors || !filter.kinds) return null;
+  if (Object.keys(filter).some(key => isTagKey(filter, key))) return null;
+  const authors = Array.from(new Set(filter.authors.filter(isHex64)));
+  const kinds = Array.from(new Set(filter.kinds.filter(k => Number.isInteger(k) && k >= 0)));
+  if (authors.length === 0 || kinds.length === 0 || authors.length !== new Set(filter.authors).size || kinds.length !== new Set(filter.kinds).size) return null;
+  if (authors.length * kinds.length > AUTHOR_KIND_MAX_BRANCHES) return null;
+  const rest = buildArchiveWhere(filter, createdBefore, tenantid, { skipAuthorsKinds: true });
+  if (!rest) return null;
+
+  const branch = `SELECT e.event_id, e.pubkey, e.kind, e.created_at, e.content, e.sig, e.tenantid
+        FROM events e FORCE INDEX (idx_pubkey_kind_created)
+        WHERE e.active = '1' AND e.pubkey = ? AND e.kind = ?${rest.where}
+        ORDER BY e.created_at DESC LIMIT ${Number(limit)}`;
+  const branches: string[] = [];
+  const params: (string | number)[] = [];
+  for (const author of authors) {
+    for (const kind of kinds) {
+      branches.push(`(${branch})`);
+      params.push(author, kind, ...rest.params);
+    }
+  }
+  const query = `SELECT b.event_id, b.pubkey, b.kind, b.created_at, b.content, b.sig, b.tenantid FROM (
+        ${branches.join("\n        UNION ALL\n        ")}
+      ) b ORDER BY b.created_at DESC, b.event_id DESC LIMIT ${Number(limit)}`;
+  return { query, params };
 };
 
 /**
@@ -185,5 +228,5 @@ const tagWalkLimit = (wanted: number, round: number): number =>
 const isTagWalkDone = (createdAts: number[], wanted: number, exhausted: boolean, boundary: number): boolean =>
   exhausted || (createdAts.length >= wanted && createdAts[wanted - 1] > boundary);
 
-export { ARCHIVE_MAX_VALUES, TAG_WALK_MAX, TAG_WALK_MIN, TAG_WALK_ROUNDS, isU32, isHex64, isTagKey, archiveUntil, buildArchiveWhere, getArchiveHint, pickDrivingTag, buildTagCandidatesQuery, buildTagIdsQuery, tagWalkLimit, isTagWalkDone };
+export { AUTHOR_KIND_MAX_BRANCHES, buildAuthorKindQuery, ARCHIVE_MAX_VALUES, TAG_WALK_MAX, TAG_WALK_MIN, TAG_WALK_ROUNDS, isU32, isHex64, isTagKey, archiveUntil, buildArchiveWhere, getArchiveHint, pickDrivingTag, buildTagCandidatesQuery, buildTagIdsQuery, tagWalkLimit, isTagWalkDone };
 export type { DrivingTag, ArchiveWhereOptions };
