@@ -50,27 +50,46 @@ The server is highly customizable and can be deployed in any environment, allowi
 
 ## Installation
 
-The installation can be done in two ways, standalone where the system resources will be used natively and via docker where the software will be encapsulated in an isolated image. 
+There are two ways to run the server: standalone, directly on a Debian or Ubuntu machine, or with Docker. Use Docker if you are not sure which one to choose.
 
-The standalone installation allows you to configure more parameters, such as the database name, the public key of the server or other aspects. On the other hand, the docker installation is simpler and more secure, so use docker if you are not sure which one to choose.
-
-In either case, all parameters can be modified using the settings page in the server administration panel.
+In either case, all parameters can be changed later from the settings page of the administration panel.
 
 ### Installation (standalone)
 
-To make a standalone installation you can use the following script. You can find the code [here](https://github.com/quentintaranpino/nostrcheck-server/blob/main/scripts/install.sh)
+For Debian 12/13 and Ubuntu 22.04/24.04. Run it as root or as a user with sudo. You can read the script [here](https://github.com/quentintaranpino/nostrcheck-server/blob/main/scripts/install.sh).
 
+```bash
+curl -fsSLO https://raw.githubusercontent.com/quentintaranpino/nostrcheck-server/main/scripts/install.sh && bash install.sh
 ```
-curl https://raw.githubusercontent.com/quentintaranpino/nostrcheck-server/refs/heads/main/scripts/install.sh --output install.sh && chmod +x install.sh && ./install.sh
+
+It asks for the hostname and sets up Node.js, MariaDB, Redis, nginx (for `example.com`, `cdn.example.com` and `relay.example.com`), the local moderation engine, a systemd service called `nostrcheck` and, if you want, Let's Encrypt certificates. Point the three DNS names to the machine first if you want the certificates.
+
+For an unattended install pass everything as flags (`bash install.sh --help` lists them all):
+
+```bash
+bash install.sh -y --host example.com --email you@example.com
 ```
+
+Running the installer again is safe: an existing `config/local.json`, its database and the TLS setup are kept.
+
+To update a standalone install:
+
+```bash
+cd nostrcheck-server && ./scripts/update.sh
+```
+
+It pulls the latest code, rebuilds and restarts the service. Configuration, database and media are not touched.
 
 ### Installation (docker)
 
-To install and run the server using docker you can use the following script.
+```bash
+git clone https://github.com/quentintaranpino/nostrcheck-server.git && cd nostrcheck-server && sudo docker compose up -d
+```
+
+To update a docker install:
 
 ```bash
-git clone https://github.com/quentintaranpino/nostrcheck-server.git && cd nostrcheck-server && sudo docker-compose up -d
-
+git pull && sudo docker compose pull && sudo docker compose up -d
 ```
 
 [Video demonstration](https://github.com/quentintaranpino/nostrcheck-server/assets/125748180/dff0933a-0325-4c0b-bad5-5e2702337ea0)

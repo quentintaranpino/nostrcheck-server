@@ -1,0 +1,21 @@
+# Build context for Dockerfile.build. Local state, data and tooling stay out.
+.git
+.github
+.claude
+.vscode
+node_modules
+dist
+.venv
+models
+config/local.json*
+config/test.json
+files
+logs
+tmp
+data
+coverage
+tests
+*.log
+compose*.yml
+Dockerfile*
+.dockerignore

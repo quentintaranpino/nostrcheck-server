@@ -66,8 +66,9 @@ const homeFeedCache = async <T>(key: string, ttl: number, loader: () => Promise<
 // every tenant and refreshed at most every 10 min.
 const getActiveEventsTotal = (): Promise<number> =>
 	homeFeedCache("relay:events:total", 600, async () => {
-		// dbSelect returns "" on error: don't cache that as 0 events
-		const total = await dbSelect("SELECT COUNT(*) AS c FROM events WHERE active = 1", "c", []);
+		// dbSelect returns "" on error: don't cache that as 0 events. It also returns ""
+		// for a numeric 0, so the count comes back as text or an empty relay never loads.
+		const total = await dbSelect("SELECT CAST(COUNT(*) AS CHAR) AS c FROM events WHERE active = 1", "c", []);
 		if (total === "" || !Number.isFinite(Number(total))) throw new Error("events count failed");
 		return Number(total);
 	});
