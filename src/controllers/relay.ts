@@ -28,11 +28,14 @@ import { AuthEvent } from "../interfaces/nostr.js";
 import { dbUpdate } from "../lib/database/core.js";
 import { enqueueRelayTask, getEvents, getPendingHeavyTasks, getPendingLightTasks, getRelayHeavyWorkerLength, getRelayLightWorkerLength, getRelayQueueLength, relayWorkers } from "../lib/relay/workers.js";
 import { parseAuthHeader } from "../lib/authorization.js";
+import { startTagBackfill } from "../lib/relay/tagbackfill.js";
 import { getConfig, isModuleEnabled } from "../lib/config/core.js";
 import { IncomingMessage } from "http";
 import crypto from "crypto";
 
 await initEvents();
+// Old tag rows get their created_at in the background, once the store has loaded.
+startTagBackfill();
 const authSessions: WeakMap<WebSocket, string> = new WeakMap();
 
 // NIP-04 / NIP-17: direct messages and gift wraps are only served to the parties of the
