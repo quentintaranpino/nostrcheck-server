@@ -25,6 +25,8 @@ import { limiter } from "../lib/security/core.js";
 import { getSiteManifest, isAutoLoginEnabled } from "../lib/frontend.js";
 import { getClientInfo } from "../lib/security/ips.js";
 import { faviconPaths } from "../interfaces/media.js";
+import { NIP11Data } from "../controllers/nostr.js";
+import { isModuleEnabled } from "../lib/config/core.js";
 
 export const loadFrontendEndpoint = async (app: Application, version: string): Promise<void> => {
 
@@ -38,6 +40,12 @@ export const loadFrontendEndpoint = async (app: Application, version: string): P
 
 	// Current v2 routes (index)
 	app.get([`/api/${version}`, `/`], async (req, res) => {
+		// The relay also answers WebSockets on the root of the main host, so clients and relay
+		// testers ask for its NIP-11 here too. Vary keeps caches from mixing the two answers.
+		res.setHeader("Vary", "Accept");
+		if (req.path == "/" && (req.headers.accept || "").includes("application/nostr+json") && isModuleEnabled("relay", req.hostname)) {
+			return NIP11Data(req, res);
+		}
 		if(req.originalUrl.slice(-1) !== '/') {
 			return res.redirect(301, req.originalUrl + '/');
 		}
