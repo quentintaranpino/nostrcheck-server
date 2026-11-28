@@ -4,7 +4,7 @@ import { Request, Response } from "express";
 
 import { subscriptions, addSubscription, removeAllSubscriptions, removeSubscription, socketSafeSend, checkWSConnectionRate } from "../lib/relay/core.js";
 import { compressEvent, fillEventMetadata, getEventById, getEventsByTimerange, validateFilter, parseRelayMessage, getChunkSize, filterEarlyDiscard } from "../lib/relay/utils.js";
-import { getDTag, deactivateSupersededDB, deleteAddressDB, isEventDeletedDB, getArchivedEventsDB, getEventsByIdDB, getNewestReplaceableDB, getReplaceableIds, indexReplaceable, initEvents, isEventStoredDB, vanishPubkeyDB } from "../lib/relay/database.js";
+import { getDTag, deactivateSupersededDB, deleteAddressDB, isEventDeletedDB, getArchivedEventsDB, getEventsByIdDB, getNewestReplaceableDB, getReplaceableIds, indexReplaceable, initEvents, isEventStoredDB, vanishPubkeyDB, getVanishedUntil } from "../lib/relay/database.js";
 
 import { isEventValid } from "../lib/nostr/core.js";
 import { logger } from "../lib/logger.js";
@@ -16,6 +16,8 @@ import { checkPow } from "../lib/nostr/NIP13.js";
 import { hasCommentRootScope } from "../lib/nostr/NIP22.js";
 import { getDeletionTargets, getEventAddress } from "../lib/nostr/NIP09.js";
 import { rememberDeletion } from "../lib/relay/deletions.js";
+import { isVanishForRelay } from "../lib/nostr/NIP62.js";
+import { rememberVanish } from "../lib/relay/vanish.js";
 import { allowedTags, EventIndex, eventStore, ExtendedWebSocket, MetadataEvent, RelayStatusMessage } from "../interfaces/relay.js";
 import { isBase64 } from "../lib/utils.js";
 import { isRelayHidden } from "../lib/relay/bans.js";
@@ -226,6 +228,15 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
   }
 };
 
+// URLs this relay is reached at, for NIP-62 `relay` tags: the configured public URL, the
+// relay.<host> subdomain, <host>/relay, the WebSocket path, and the host the client is on.
+const getRelayServiceUrls = (domain: string): string[] => {
+  const hosts = new Set([String(getConfig(domain, ["server", "host"]) || ""), domain].filter(host => host !== ""));
+  const urls = [String(getConfig(domain, ["relay", "url"]) || "")];
+  for (const host of hosts) urls.push(host, `relay.${host}`, `${host}/relay`, `${host}/api/v2/relay`);
+  return urls;
+};
+
 // Handle EVENT
 const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
 
@@ -371,6 +382,18 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
       clientSubscriptions.forEach((listener) => listener(event));
     });
     await socketSafeSend(socket, ["OK", event.id, true, "ephemeral: accepted but not stored"]);
+    return;
+  }
+
+  // NIP-62: events of a pubkey that asked to vanish, up to its request, must not come back,
+  // nor the gift wraps that were addressed to it.
+  const vanishSubjects = event.kind === 1059
+    ? event.tags.filter(tag => tag[0] === "p" && typeof tag[1] === "string").map(tag => tag[1]).slice(0, 10)
+    : [event.pubkey];
+  for (const subject of vanishSubjects) {
+    if (event.created_at > await getVanishedUntil(subject, isIsolated ? event.tenantid : undefined)) continue;
+    logger.debug(`handleEvent - Blocked event older than a request to vanish of ${subject}: ${event.id}`);
+    await socketSafeSend(socket, ["OK", event.id, false, "blocked: this pubkey asked to vanish, events up to that request are not accepted"]);
     return;
   }
 
@@ -520,7 +543,7 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
 
   // Event kind 62 (NIP-62) Request to Vanish
   if (event.kind === 62) {
-    
+
     const relayTags = event.tags.filter(tag => tag[0] === "relay");
     if (relayTags.length === 0) {
       logger.debug(`handleEvent - Rejected kind:62 event ${event.id} due to missing required tags.`);
@@ -529,50 +552,38 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
       return;
     }
 
-    const relayUrl = getConfig(socket.reqInfo.domain, ["server", "host"]) + "/relay";
-    const eventUrl = relayTags.some(tag => tag[1].toUpperCase() === "ALL_RELAYS" || tag[1] === relayUrl);
-    if (!eventUrl) {
+    if (!isVanishForRelay(event.tags, getRelayServiceUrls(socket.reqInfo.domain))) {
       logger.debug(`handleEvent - Rejected kind:62 event ${event.id} due to invalid relay tag.`);
       await socketSafeSend(socket, ["NOTICE", "invalid: invalid relay tag"]);
       await socketSafeSend(socket, ["OK", event.id, false, "invalid: invalid relay tag"]);
       return;
     }
 
-    let pendingEvents = Array.from(eventStore.pending.values());
-    if (isIsolated) {
-      pendingEvents = pendingEvents.filter(e => e.tenantid === event.tenantid);
-    }
+    // What goes: the pubkey's own events up to the request, its NIP-09 deletions included,
+    // and the gift wraps addressed to it. Other people's events that mention it stay, and so
+    // do its requests to vanish.
+    const sameTenant = (e: { tenantid?: number }) => !isIsolated || e.tenantid === event.tenantid;
+    const vanishes = (e: MetadataEvent): boolean =>
+      e.created_at <= event.created_at && e.kind !== 62 && sameTenant(e) &&
+      (e.pubkey === event.pubkey || (e.kind === 1059 && e.tags.some(tag => tag[0] === "p" && tag[1] === event.pubkey)));
 
     const storedEvents = await getEventsByTimerange(
-      0,                    
-      event.created_at - 1, 
+      0,
+      event.created_at,
       eventStore,
-      entry => {
-        if (!isIsolated) {
-          return entry.pubkey === event.pubkey;
-        }
-        return entry.pubkey === event.pubkey && entry.tenantid === event.tenantid;
-      }
+      entry => (entry.pubkey === event.pubkey || entry.kind === 1059) && sameTenant(entry)
     );
 
-    const eventsToDelete: MetadataEvent[] = [
-      ...pendingEvents,
-      ...storedEvents
-    ].filter(e =>
-      (e.pubkey === event.pubkey ||
-       e.tags.some(tag => tag[0] === "p" && tag[1] === event.pubkey)) &&
-      e.kind !== 5 &&
-      e.kind !== 62
-    );
+    const eventsToDelete: MetadataEvent[] = [...eventStore.pending.values(), ...storedEvents].filter(vanishes);
 
-    // Older events are not in memory; remove them straight from the DB. Runs in the
-    // background and in batches: a big account would otherwise hold an event queue slot.
-    if (eventStore.memoryHorizon > 0) {
-      for (const [id, e] of eventStore.pendingArchive) {
-        if (e.pubkey === event.pubkey && e.created_at < event.created_at && (!isIsolated || e.tenantid === event.tenantid)) eventStore.pendingArchive.delete(id);
-      }
-      vanishPubkeyDB(event.pubkey, event.created_at, isIsolated ? event.tenantid : undefined).catch(() => {});
+    for (const [id, e] of eventStore.pendingArchive) {
+      if (vanishes(e)) eventStore.pendingArchive.delete(id);
     }
+
+    // Older events and inactive rows (superseded, expired) are not in memory; remove them
+    // straight from the DB. Runs in the background and in batches: a big account would
+    // otherwise hold an event queue slot.
+    vanishPubkeyDB(event.pubkey, event.created_at, isIsolated ? event.tenantid : undefined).catch(() => {});
 
     returnMessage = "deleted: events successfully deleted (kind 62)";
 
@@ -580,6 +591,9 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
     eventsToDelete.forEach(e => {
       eventStore.pendingDelete.set(e.id, e);
     });
+
+    // From here on nothing up to the request is taken back.
+    rememberVanish(event.pubkey, event.created_at, isIsolated ? event.tenantid : undefined);
 
   }
 

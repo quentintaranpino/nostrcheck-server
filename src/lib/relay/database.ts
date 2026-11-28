@@ -10,6 +10,7 @@ import { getConfig, isModuleEnabled } from "../config/core.js";
 import { isAddressable, isReplaceable } from "../nostr/NIP01.js";
 import { EventAddress, getEventAddress } from "../nostr/NIP09.js";
 import { cacheDeleted, isDeletedCached, isDeletedRecently } from "./deletions.js";
+import { cacheVanishLookup, getCachedVanish, getLocalVanish } from "./vanish.js";
 
 /**
  * created_at below which events live only in the DB: now minus relay.memoryDays, or 0
@@ -571,36 +572,47 @@ const deleteAddressDB = async (address: EventAddress, until: number, tenantid?: 
 };
 
 const VANISH_BATCH = 1000;
+const VANISH_STATEMENT_SECONDS = 30;
 const vanishRunning: Set<string> = new Set();
 
 /**
- * NIP-62: removes from the DB every event of a pubkey older than the request, including
- * the ones no longer held in memory, with their tags and metadata. Deletes in small
- * batches so a big account doesn't hold locks on the events table for long.
+ * NIP-62: removes from the DB every event of a pubkey up to the request (its NIP-09
+ * deletions too, but not its requests to vanish) and the gift wraps (kind 1059) addressed
+ * to it, with their tags and metadata, whether or not they are still held in memory.
+ * Events of other authors that only mention the pubkey stay. Deletes in small batches so a
+ * big account doesn't hold locks on the events table for long.
+ * @param pubkey - The pubkey that asked to vanish.
+ * @param until - created_at of the request.
+ * @param tenantid - Only this tenant's events (isolated mode).
+ * @returns The number of events deleted.
  */
-const vanishPubkeyDB = async (pubkey: string, before: number, tenantid?: number): Promise<number> => {
+const vanishPubkeyDB = async (pubkey: string, until: number, tenantid?: number): Promise<number> => {
   const key = `${tenantid ?? ""}:${pubkey}`;
   if (vanishRunning.has(key)) return 0;
   vanishRunning.add(key);
   let deleted = 0;
   try {
     const pool = await connect("vanishPubkeyDB");
-    let select = "SELECT event_id FROM events WHERE pubkey = ? AND created_at < ? AND kind NOT IN (5, 62)";
-    const params: (string | number)[] = [pubkey, before];
-    if (tenantid !== undefined) {
-      select += " AND tenantid = ?";
-      params.push(tenantid);
-    }
-    select += ` LIMIT ${VANISH_BATCH}`;
+    const tenantWhere = tenantid !== undefined ? " AND e.tenantid = ?" : "";
+    const params: (string | number)[] = tenantid !== undefined ? [pubkey, until, tenantid] : [pubkey, until];
+    const selects = [
+      `SELECT e.event_id FROM events e WHERE e.pubkey = ? AND e.created_at <= ? AND e.kind <> 62${tenantWhere} LIMIT ${VANISH_BATCH}`,
+      // Gift wraps to the pubkey: walks its p tags, which can be many for a well known account.
+      `SET STATEMENT max_statement_time = ${VANISH_STATEMENT_SECONDS} FOR
+       SELECT e.event_id FROM eventtags t JOIN events e ON e.event_id = t.event_id
+       WHERE t.tag_name = 'p' AND t.tag_value = ? AND e.kind = 1059 AND e.created_at <= ?${tenantWhere} LIMIT ${VANISH_BATCH}`,
+    ];
 
-    let more = true;
-    while (more) {
-      const [rows] = await pool.execute(select, params);
-      const ids = (rows as { event_id: string }[]).map(r => r.event_id);
-      if (ids.length === 0) break;
-      more = ids.length === VANISH_BATCH;
-      deleted += await deleteEventRowsDB(pool, ids);
-      if (more) await new Promise(resolve => setTimeout(resolve, 50));
+    for (const select of selects) {
+      let more = true;
+      while (more) {
+        const [rows] = await pool.execute(select, params);
+        const ids = (rows as { event_id: string }[]).map(r => r.event_id);
+        if (ids.length === 0) break;
+        more = ids.length === VANISH_BATCH;
+        deleted += await deleteEventRowsDB(pool, ids);
+        if (more) await new Promise(resolve => setTimeout(resolve, 50));
+      }
     }
     logger.info(`vanishPubkeyDB - Deleted ${deleted} events of ${pubkey}`);
   } catch (error) {
@@ -609,6 +621,35 @@ const vanishPubkeyDB = async (pubkey: string, before: number, tenantid?: number)
     vanishRunning.delete(key);
   }
   return deleted;
+};
+
+/**
+ * NIP-62: created_at of the newest request to vanish stored for a pubkey, 0 if it has none.
+ * Events of that pubkey up to it must not come back. Cached per pubkey; a miss is a MAX over
+ * idx_pubkey_kind_created. On a DB error only the requests seen by this process count.
+ * @param pubkey - The pubkey of an incoming event (or the recipient of a gift wrap).
+ * @param tenantid - Only requests stored for this tenant count (isolated mode).
+ */
+const getVanishedUntil = async (pubkey: string, tenantid?: number): Promise<number> => {
+  const cached = getCachedVanish(pubkey, tenantid);
+  if (cached !== null) return cached;
+  if (!isHex64(pubkey)) return 0;
+  try {
+    const pool = await connect("getVanishedUntil");
+    const params: (string | number)[] = [pubkey];
+    let query = "SELECT MAX(created_at) AS newest FROM events WHERE pubkey = ? AND kind = 62";
+    if (tenantid !== undefined) {
+      query += " AND tenantid = ?";
+      params.push(tenantid);
+    }
+    const [rows] = await pool.execute(query, params);
+    const newest = Number((rows as { newest: unknown }[])[0]?.newest) || 0;
+    cacheVanishLookup(pubkey, newest, tenantid);
+    return Math.max(newest, getLocalVanish(pubkey, tenantid));
+  } catch (error) {
+    logger.error(`getVanishedUntil - Error reading the requests to vanish of ${pubkey}: ${error}`);
+    return getLocalVanish(pubkey, tenantid);
+  }
 };
 
 /**
@@ -782,4 +823,4 @@ const deleteEvents = async (eventsInput: MetadataEvent | MetadataEvent[], delete
   return affectedCount;
 };
 
-export { getDTag, storeEvents, initEvents, deleteEvents, getArchivedEventsDB, getArchivedIdsDB, isArchiveFilterSelective, getEventsByIdDB, isEventStoredDB, getNewestReplaceableDB, deactivateSupersededDB, isEventDeletedDB, deleteAddressDB, vanishPubkeyDB, getMemoryHorizon, indexReplaceable, getReplaceableIds };
+export { getDTag, storeEvents, initEvents, deleteEvents, getArchivedEventsDB, getArchivedIdsDB, isArchiveFilterSelective, getEventsByIdDB, isEventStoredDB, getNewestReplaceableDB, deactivateSupersededDB, isEventDeletedDB, deleteAddressDB, vanishPubkeyDB, getVanishedUntil, getMemoryHorizon, indexReplaceable, getReplaceableIds };

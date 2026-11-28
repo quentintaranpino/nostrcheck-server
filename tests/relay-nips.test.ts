@@ -3,6 +3,8 @@ import { hasCommentRootScope } from "../src/lib/nostr/NIP22.js";
 import { checkPow, countLeadingZeroes } from "../src/lib/nostr/NIP13.js";
 import { getDeletionTargets, getEventAddress, parseAddress } from "../src/lib/nostr/NIP09.js";
 import { cacheDeleted, isDeletedCached, isDeletedRecently, rememberDeletion } from "../src/lib/relay/deletions.js";
+import { isVanishForRelay, normalizeRelayUrl } from "../src/lib/nostr/NIP62.js";
+import { cacheVanishLookup, getCachedVanish, getLocalVanish, rememberVanish } from "../src/lib/relay/vanish.js";
 
 const pk = "3c9849383bdea883b0bd16fece1ed36d37e37cdde3ce43b17ea4e9192ec11289";
 const id = "5b4fc7fed15672fefe65d2426f67197b71ccc82aa0cc8a9e94f683eb78e07651";
@@ -104,5 +106,52 @@ describe("NIP-09 deletions waiting for the flush", () => {
 		expect(isDeletedCached(id, undefined, now + 1000)).toBe(true);
 		expect(isDeletedCached(id, 2, now + 1000)).toBe(false);
 		expect(isDeletedCached(id, undefined, now + 11 * 60 * 1000)).toBe(false);
+	});
+});
+
+describe("NIP-62 relay tag", () => {
+	const urls = ["wss://relay.example.com", "example.com", "relay.example.com", "example.com/relay", "example.com/api/v2/relay", ""];
+	it("accepts ALL_RELAYS and every form of the relay URL", () => {
+		expect(isVanishForRelay([["relay", "ALL_RELAYS"]], urls)).toBe(true);
+		expect(isVanishForRelay([["relay", "wss://relay.example.com"]], urls)).toBe(true);
+		expect(isVanishForRelay([["relay", "wss://relay.example.com/"]], urls)).toBe(true);
+		expect(isVanishForRelay([["relay", "WSS://Example.com/relay/"]], urls)).toBe(true);
+		expect(isVanishForRelay([["relay", "ws://example.com/api/v2/relay"]], urls)).toBe(true);
+		expect(isVanishForRelay([["relay", "wss://other.example"], ["relay", "example.com/relay"]], urls)).toBe(true);
+	});
+	it("rejects other relays and events without a relay value", () => {
+		expect(isVanishForRelay([["relay", "wss://relay.other.com"]], urls)).toBe(false);
+		expect(isVanishForRelay([["relay", "wss://relay.example.com.evil.net"]], urls)).toBe(false);
+		expect(isVanishForRelay([["relay", ""]], urls)).toBe(false);
+		expect(isVanishForRelay([["relay"]], urls)).toBe(false);
+		expect(isVanishForRelay([["r", "ALL_RELAYS"]], urls)).toBe(false);
+	});
+	it("normalises scheme, case and trailing slashes", () => {
+		expect(normalizeRelayUrl(" WSS://Relay.Example.com// ")).toBe("relay.example.com");
+		expect(normalizeRelayUrl("example.com/relay")).toBe("example.com/relay");
+	});
+});
+
+describe("NIP-62 vanish cache", () => {
+	const user = "c".repeat(64);
+	const now = 5_000_000;
+	it("asks the DB when it knows nothing, then keeps the answer for a while", () => {
+		expect(getCachedVanish(user, undefined, now)).toBeNull();
+		cacheVanishLookup(user, 0, undefined, now);
+		expect(getCachedVanish(user, undefined, now + 1000)).toBe(0);
+		expect(getCachedVanish(user, undefined, now + 11 * 60 * 1000)).toBeNull();
+	});
+	it("a request accepted here counts at once and keeps its newest created_at", () => {
+		cacheVanishLookup(user, 0, undefined, now);
+		rememberVanish(user, 2000);
+		rememberVanish(user, 1500);
+		expect(getCachedVanish(user, undefined, now + 1000)).toBe(2000);
+		expect(getLocalVanish(user)).toBe(2000);
+		cacheVanishLookup(user, 3000, undefined, now);
+		expect(getCachedVanish(user, undefined, now + 1000)).toBe(3000);
+	});
+	it("keeps tenants apart in isolated mode", () => {
+		expect(getLocalVanish(user, 2)).toBe(0);
+		expect(getCachedVanish(user, 2, now)).toBeNull();
 	});
 });
