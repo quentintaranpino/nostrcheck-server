@@ -215,7 +215,7 @@ const runBackfill = async (): Promise<void> => {
   let lastLog = Date.now();
   let lastReason = "";
 
-  while (true) {
+  for (;;) {
     const range = nextBatchRange(state, batchSize);
     if (!range) break;
 

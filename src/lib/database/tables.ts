@@ -134,7 +134,7 @@ const getTableStats = async (table: string): Promise<TableStats> => {
 		"SELECT TABLE_ROWS AS tableRows, ENGINE AS engine FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?",
 		[table]
 	);
-	const row = (rows as any[])[0];
+	const row = (rows as { tableRows: number | null, engine: string | null }[])[0];
 	return { rows: Number(row?.tableRows) || 0, engine: String(row?.engine || "") };
 }
 
