@@ -140,8 +140,11 @@ See multi-tenancy [here](https://github.com/quentintaranpino/nostrcheck-server/w
 - [x] BUD05 - Media Optimization
 - [x] BUD06 - Upload requirements
 - [x] BUD07 - Payment required
+- [x] BUD08 - Nostr File Metadata Tags
 - [x] BUD09 - Blob Report
 - [x] BUD11 - Nostr Authorization
+- [x] BUD12 - Blob listing (cursor pagination)
+- [x] BUD13 - Upload and mirror by hash path
 
 ### BUD07 payments
 
