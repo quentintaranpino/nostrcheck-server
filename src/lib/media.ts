@@ -150,13 +150,39 @@ const processFile = async ( inputFile: Express.Multer.File,	options: FileData, r
 	
 }
 
+// Fits a video inside width x height without ever stretching or upscaling it.
+// ffmpeg applies the rotation before the filters, so iw/ih are already the
+// displayed size and no previous ffprobe is needed.
+const getVideoFitFilters = (width: number, height: number) => {
+
+	const ratio = `min(1,min(${width}/(iw*sar),${height}/ih))`;
+
+	return [
+		{ filter: "scale", options: { w: `max(2,trunc(iw*sar*${ratio}/2)*2)`, h: `max(2,trunc(ih*${ratio}/2)*2)` } },
+		{ filter: "setsar", options: "1" },
+	];
+
+}
+
 const initVideoConversionEngine = (file: FileData) => {
 
-    const ffmpegEngine = ffmpeg(file.conversionInputPath)
-        .outputOption(["-loop 0"]) //Always loop. If is an image it will not apply.
-        .setSize(file.newFileDimensions)
-        .output(file.conversionOutputPath)
-        .toFormat(file.filename.split(".").pop() || "");
+	const ffmpegEngine = ffmpeg(file.conversionInputPath)
+		.outputOption(["-loop 0"]); //Always loop. If is an image it will not apply.
+
+	// Avatars and banners keep their fixed size, the rest of the videos keep their aspect ratio.
+	const boxWidth = Number(getConfig(file.tenant, ["media", "transform", "media", "video", "width"]));
+	const boxHeight = Number(getConfig(file.tenant, ["media", "transform", "media", "video", "height"]));
+	const fitVideo = file.originalmime.startsWith("video") && file.media_type != "avatar" && file.media_type != "banner" && boxWidth > 0 && boxHeight > 0;
+
+	if (fitVideo) {
+		ffmpegEngine.videoFilters(getVideoFitFilters(boxWidth, boxHeight));
+	} else {
+		ffmpegEngine.setSize(file.newFileDimensions);
+	}
+
+	ffmpegEngine
+		.output(file.conversionOutputPath)
+		.toFormat(file.filename.split(".").pop() || "");
 
     if (file.filename.split(".").pop() == "webp" && file.originalmime != "image/gif") {
         ffmpegEngine.frames(1); //Fix IOS issue when uploading some portrait images.
@@ -350,20 +376,20 @@ const getMediaDimensions = async (file: string, fileData: { originalmime: string
 
 				ffmpeg.ffprobe(file, (err, metadata) => {
 					if (err) {
-						logger.debug(`getMediaDimensions - Error getting media dimensions of file: ${file}, using defaults (640 x 480): ${err}`);
-						resolve({ width: 640, height: 480 });
+						logger.warn(`getMediaDimensions - Error getting media dimensions of file: ${file}: ${err}`);
+						resolve({ width: 0, height: 0 });
 						return;
 					}
 
 					const videoStream = metadata.streams.find(stream => stream.codec_type === 'video');
 					if (!videoStream) {
-						logger.debug(`getMediaDimensions - Could not get media dimensions of file: ${file}, using defaults (640 x 480)`);
-						resolve({ width: 640, height: 480 });
+						logger.warn(`getMediaDimensions - Could not get media dimensions of file: ${file}, no video stream`);
+						resolve({ width: 0, height: 0 });
 						return;
 					}
 
-					let width = videoStream.width || 640;
-					let height = videoStream.height || 480;
+					let width = videoStream.width || 0;
+					let height = videoStream.height || 0;
 
 					// Rotation metadata may live on the stream itself, on `tags.rotate`,
 					// or on the displaymatrix side_data depending on muxer/encoder.
@@ -531,6 +557,17 @@ const finalizeFileProcessing = async (filedata: FileData): Promise<boolean> => {
 		const finalSize = getFileSize(filedata.no_transform == true ? filedata.conversionInputPath: filedata.conversionOutputPath, filedata);
 		filedata.filesize = finalSize;
 		await dbUpdate('mediafiles', {'filesize': finalSize}, ['id'], [filedata.fileid]);
+		// The size that counts is the one of the file we serve, not the one we asked for.
+		if (filedata.no_transform == false && filedata.originalmime.startsWith("video")) {
+			const realDimensions = await getMediaDimensions(filedata.conversionOutputPath, filedata);
+			if (realDimensions.width != 0 && realDimensions.height != 0) {
+				filedata.width = realDimensions.width;
+				filedata.height = realDimensions.height;
+				filedata.newFileDimensions = realDimensions.width + "x" + realDimensions.height;
+			} else {
+				logger.warn(`finalizeFileProcessing - Could not read the dimensions of the converted file: ${filedata.filename}`);
+			}
+		}
 		await dbUpdate('mediafiles',{'dimensions':filedata.newFileDimensions},['id'], [filedata.fileid]);
 		// Mime of the served bytes (converted_mime when transformed). Read by descriptors.
 		filedata.mimetype = filedata.no_transform == true
