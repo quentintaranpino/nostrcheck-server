@@ -27,6 +27,9 @@
 - Gallery rewritten Instagram-style: uniform CSS grid, virtual scroll, blurhash placeholders and cursor pagination — designed for 100k+ items.
 - New file-details modal with metadata panel (hash, pubkey, type, size, dimensions, uploaded, blurhash) reused across gallery, profile and admin.
 - Admin triage modal: keyboard navigation through the whole files dataset (↑/↓), instant checked / visibility toggles (Space / V) that respect the table's active filters.
+- New Tools page (`/tools`): key converter, keypair generator, event verifier and blob hash, all in the browser. `/converter` redirects to it.
+- Frontend refactor, phase 1: Tools, Terms, Privacy and Legal run on the new layout with no third-party requests. 72 legacy templates left.
+- The frontend now has a build step. `npm run build` does everything; after a plain `git pull` run it again, the server will not start without `dist/client`.
 
 ## 0.7.0
 
