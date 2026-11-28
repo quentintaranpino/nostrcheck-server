@@ -12,7 +12,7 @@ import { getClientInfo, isIpAllowed } from "../lib/security/ips.js";
 import { isEntityBanned } from "../lib/security/banned.js";
 import { isAddressable, isEphemeral, isReplaceable } from "../lib/nostr/NIP01.js";
 import { executePlugins } from "../lib/plugins/core.js";
-import { validatePow } from "../lib/nostr/NIP13.js";
+import { checkPow } from "../lib/nostr/NIP13.js";
 import { hasCommentRootScope } from "../lib/nostr/NIP22.js";
 import { allowedTags, EventIndex, eventStore, ExtendedWebSocket, MetadataEvent, RelayStatusMessage } from "../interfaces/relay.js";
 import { isBase64 } from "../lib/utils.js";
@@ -309,31 +309,13 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
     }
   }
 
-  // Valid proof of work (NIP-13) if required
-  if (getConfig(socket.reqInfo.domain, ["relay", "limitation", "min_pow_difficulty"]) > 0) {
-    const nonceTag = event.tags.find(tag => tag[0] === 'nonce');
-    if (!nonceTag || nonceTag.length < 3) {
-      logger.debug(`handleEvent - Blocked event with missing or malformed nonce tag: ${event.id}`);
-      await socketSafeSend(socket, ["NOTICE", "error: missing or malformed nonce tag"]);
-      await socketSafeSend(socket, ["OK", event.id, false, "error: missing or malformed nonce tag"]);
-      return;
-    }
-
-    const targetDifficulty  = parseInt(nonceTag[2], 10);
-    if (isNaN(targetDifficulty)) {
-      logger.debug(`handleEvent - Blocked event with invalid target difficulty in nonce tag: ${event.id}`);
-      await socketSafeSend(socket, ["NOTICE", "error: invalid target difficulty in nonce tag"]);
-      await socketSafeSend(socket, ["OK", event.id, false, "error: invalid target difficulty in nonce tag"]);
-      return;
-    }
-
-    const resultPow = await validatePow(event.id, targetDifficulty);
-    if (!resultPow) {
-      logger.debug(`handleEvent - Blocked event with invalid proof of work: ${event.id}`);
-      await socketSafeSend(socket, ["NOTICE", "error: invalid proof of work"]);
-      await socketSafeSend(socket, ["OK", event.id, false, "error: invalid proof of work"]);
-      return;
-    }
+  // Proof of work (NIP-13): measured on the id against the relay minimum, not against the
+  // target the event declares for itself.
+  const powError = checkPow(event.id, event.tags, Number(getConfig(socket.reqInfo.domain, ["relay", "limitation", "min_pow_difficulty"])) || 0);
+  if (powError !== "") {
+    logger.debug(`handleEvent - Blocked event without enough proof of work: ${event.id}, ${powError}`);
+    await socketSafeSend(socket, ["OK", event.id, false, powError]);
+    return;
   }
 
   // Check if the event has invalid tags that are not whitelisted (if whitelist is enabled)
