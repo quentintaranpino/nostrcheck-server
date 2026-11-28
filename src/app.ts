@@ -38,7 +38,8 @@ app.use(cors({
   maxAge: 86400,
 }));
 
-app.options('*', cors({
+// BUD-12: clients detect list/delete support from Allow as well as the CORS methods.
+app.options("*", (_req, res, next) => { res.setHeader("Allow", "GET,HEAD,PUT,POST,DELETE,OPTIONS"); next(); }, cors({
   origin: "*",
   methods: "GET,HEAD,PUT,POST,DELETE,OPTIONS",
   allowedHeaders: "Authorization,Content-Type,X-Lightning,X-Lightning-Amount,X-Content-Length,X-Content-Type,X-Sha-256,X-Content-Transform,*",

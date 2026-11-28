@@ -593,9 +593,11 @@ const loadDocsPage = async (req: Request, res: Response, version: string): Promi
         "08": "Nostr file metadata events",
         "09": "Blob reports",
         "11": "Nostr authorization (kind 24242)",
+        "12": "Blob listing with cursor pagination",
+        "13": "Upload and mirror by hash path",
     };
     res.locals.docsNips = supported_nips.map(n => ({ num: n, label: String(n).padStart(2, "0"), desc: nipDescriptions[n] || "" }));
-    res.locals.docsBuds = ["01", "02", "03", "04", "05", "06", "07", "09", "11"].map(b => ({ num: b, desc: budDescriptions[b] || "" }));
+    res.locals.docsBuds = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "11", "12", "13"].map(b => ({ num: b, desc: budDescriptions[b] || "" }));
     res.locals.docsLightning = isModuleEnabled("payments", req.hostname);
     res.locals.docsMediaEnabled = docsMediaEnabled;
     res.locals.docsRelayEnabled = docsRelayEnabled;
