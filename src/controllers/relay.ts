@@ -17,6 +17,7 @@ import { allowedTags, EventIndex, eventStore, ExtendedWebSocket, MetadataEvent, 
 import { isBase64 } from "../lib/utils.js";
 import { isRelayHidden } from "../lib/relay/bans.js";
 import { handleNegClose, handleNegMsg, handleNegOpen } from "./nip77.js";
+import { handleCount } from "./nip45.js";
 import { MEMBERSHIP_LIST_KIND, getMembershipList, isRegisteredPubkey, isRelayMember, redeemClaim, setRelayMember } from "../lib/relay/members.js";
 import { AuthEvent } from "../interfaces/nostr.js";
 import { dbUpdate } from "../lib/database/core.js";
@@ -927,6 +928,9 @@ const handleReqOrCount = async (socket: ExtendedWebSocket, subId: string, filter
   if (isIsolated) {
     filters.push({tenantid: socket.reqInfo.domainId } as any);
   }
+
+  // NIP-45: exact counts (and HLL) for selective filters; the rest use the in-memory count.
+  if (type === "COUNT" && await handleCount(socket, subId, clientFilters)) return;
 
   try {
    const memoryEvents = memoryDiscard ? [] : await getEvents(filters, maxLimit, eventStore.sharedDBChunks);
