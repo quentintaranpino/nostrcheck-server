@@ -21,10 +21,10 @@
             <p class="text-white-50 mb-3" style="max-width: 620px;"><%= locals.intro %></p>
             <% } %>
             <div class="relay-endpoint" role="button" tabindex="0"
-                 data-value="wss://relay.<%= locals.serverHost %>"
+                 data-value="<%= locals.relayUrl %>"
                  title="Click to copy">
               <span class="relay-endpoint-label">Connect</span>
-              <code class="relay-endpoint-url">wss://relay.<%= locals.serverHost %></code>
+              <code class="relay-endpoint-url"><%= locals.relayUrl %></code>
               <span class="btn btn-sm btn-outline-light pe-none"><i class="fa-solid fa-copy"></i></span>
             </div>
           </div>

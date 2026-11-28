@@ -71,6 +71,17 @@ const getActiveEventsTotal = (): Promise<number> =>
 		return Number(total);
 	});
 
+/**
+ * Public relay WebSocket URL for a host: relay.url from the config (per tenant), or the
+ * relay.<host> subdomain when it isn't set (#58).
+ * @param hostname - The host of the request.
+ * @returns The wss:// URL to show and copy.
+ */
+const getRelayUrl = (hostname: string): string => {
+    const configured = String(getConfig(hostname, ["relay", "url"]) || "").trim();
+    return configured != "" ? configured : `wss://relay.${hostname}`;
+};
+
 const loadDashboardPage = async (req: Request, res: Response, version:string): Promise<Response | void> => {
 
     // Check if current module is enabled
@@ -476,7 +487,7 @@ const loadHomePage = async (req: Request, res: Response, version:string): Promis
     // users to paste into their Nostr client. Shown with copy buttons.
     const useCDNPrefix = getConfig(req.hostname, ["media", "useCDNPrefix"]);
     res.locals.homeEndpoints = {
-        relay: relayEnabled ? `wss://relay.${req.hostname}` : null,
+        relay: relayEnabled ? getRelayUrl(req.hostname) : null,
         nip96: mediaEnabled ? `https://${req.hostname}/.well-known/nostr/nip96.json` : null,
         blossom: mediaEnabled ? (useCDNPrefix ? `https://cdn.${req.hostname}` : `https://${req.hostname}`) : null,
     };
@@ -531,7 +542,7 @@ const loadDocsPage = async (req: Request, res: Response, version: string): Promi
     const docsUseCDNPrefix = getConfig(req.hostname, ["media", "useCDNPrefix"]);
 
     res.locals.docsEndpoints = {
-        relay: docsRelayEnabled ? `wss://relay.${req.hostname}` : null,
+        relay: docsRelayEnabled ? getRelayUrl(req.hostname) : null,
         nip96: docsMediaEnabled ? `https://${req.hostname}/.well-known/nostr/nip96.json` : null,
         blossom: docsMediaEnabled ? (docsUseCDNPrefix ? `https://cdn.${req.hostname}` : `https://${req.hostname}`) : null,
         nip05: docsNostraddressEnabled ? `https://${req.hostname}/.well-known/nostr.json` : null,
@@ -913,6 +924,7 @@ const loadRelayPage = async (req: Request, res: Response, version:string): Promi
 
     // General locals
     const page = "relay"
+    res.locals.relayUrl = getRelayUrl(req.hostname);
     res.locals.version = getConfig(req.hostname, ["version"]);
     res.locals.serverHost = getConfig(req.hostname, ["server", "host"]);
     res.locals.siteName = getConfig(req.hostname, ["appearance", "siteName"]) || res.locals.serverHost;

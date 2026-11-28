@@ -313,6 +313,8 @@ const defaultConfig = {
 		"workers": 2,
 		"isolated": false,
 		"memoryDays": 90,
+		// Public WebSocket URL shown on the pages. Empty means wss://relay.<host>.
+		"url": "",
 	},
 	"appearance": {
 		"siteName": "",
