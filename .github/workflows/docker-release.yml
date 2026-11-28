@@ -1,0 +1,81 @@
+name: Docker release
+
+# Builds the multi-arch image from Dockerfile.build and pushes it to Docker Hub.
+# - A published release pushes :<x.y.z> and :latest (or :testing for a pre-release).
+# - Run it by hand (Actions > Docker release > Run workflow) to push :<x.y.z> plus an
+#   optional extra tag, e.g. "testing".
+# Needs two repository secrets: DOCKERHUB_USERNAME and DOCKERHUB_TOKEN (an access token
+# from Docker Hub > Account settings > Personal access tokens, read & write).
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Extra tag to push besides the version (optional, e.g. testing)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docker-release
+  cancel-in-progress: false
+
+env:
+  IMAGE: nostrcheckme/nostrcheck-server
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Work out the tags
+        id: tags
+        env:
+          EVENT: ${{ github.event_name }}
+          PRERELEASE: ${{ github.event.release.prerelease }}
+          EXTRA_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          version=$(node -p "require('./package.json').version.split('.').slice(0, 3).join('.')")
+          tags="${IMAGE}:${version}"
+          if [ "$EVENT" = "release" ]; then
+            if [ "$PRERELEASE" = "true" ]; then tags="${tags},${IMAGE}:testing"; else tags="${tags},${IMAGE}:latest"; fi
+          fi
+          if [ -n "${EXTRA_TAG:-}" ]; then
+            if ! printf '%s' "$EXTRA_TAG" | grep -Eq '^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$'; then
+              echo "Invalid tag: $EXTRA_TAG" >&2; exit 1
+            fi
+            tags="${tags},${IMAGE}:${EXTRA_TAG}"
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "tags=${tags}" >> "$GITHUB_OUTPUT"
+          echo "Pushing: ${tags}"
+
+      - uses: docker/setup-qemu-action@v3
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.build
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.tags.outputs.tags }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.version=${{ steps.tags.outputs.version }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
