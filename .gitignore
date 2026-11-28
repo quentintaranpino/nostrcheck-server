@@ -48,3 +48,6 @@ profiles/*
 # Installer and updater logs
 install.log
 update.log
+
+# update.sh --backup-db
+backups/
