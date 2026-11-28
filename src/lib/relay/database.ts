@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { Event, Filter } from "nostr-tools";
-import { ResultSetHeader } from "mysql2/promise";
+import { Pool, ResultSetHeader } from "mysql2/promise";
 import { connect, dbBulkInsert, dbDelete, dbSimpleSelect, dbUpdate} from "../database/core.js";
 import { logger } from "../logger.js";
 import { CHUNK_SIZE, EventIndex, MetadataEvent, eventStore } from "../../interfaces/relay.js";
@@ -8,6 +8,8 @@ import { decompressEvent, encodeChunk } from "./utils.js";
 import { createSlots, safeJSONParse, Slots } from "../utils.js";
 import { getConfig, isModuleEnabled } from "../config/core.js";
 import { isAddressable, isReplaceable } from "../nostr/NIP01.js";
+import { EventAddress, getEventAddress } from "../nostr/NIP09.js";
+import { cacheDeleted, isDeletedCached, isDeletedRecently } from "./deletions.js";
 
 /**
  * created_at below which events live only in the DB: now minus relay.memoryDays, or 0
@@ -475,6 +477,99 @@ const deactivateSupersededDB = async (event: MetadataEvent, tenantid?: number): 
   }
 };
 
+const DELETION_STATEMENT_SECONDS = 1;
+const ADDRESS_DELETE_MAX = 500;
+
+/**
+ * NIP-09: whether the author of an event already asked to delete it, so it is not taken back.
+ * A kind 5 from the same pubkey has to carry its id in an `e` tag, or its address in an `a`
+ * tag with a created_at not older than the event's. Looks at the deletions still waiting for
+ * the flush, then at the DB (eventtags by tag_name + tag_value). On a DB error or timeout the
+ * event is let through.
+ * @param event - The incoming event.
+ * @param tenantid - Only deletions stored for this tenant count (isolated mode).
+ */
+const isEventDeletedDB = async (event: MetadataEvent, tenantid?: number): Promise<boolean> => {
+  if (!isHex64(event.id) || !isHex64(event.pubkey)) return false;
+  if (isDeletedRecently(event, tenantid) || isDeletedCached(event.id, tenantid)) return true;
+
+  const tenantWhere = tenantid !== undefined ? " AND e.tenantid = ?" : "";
+  const tenantParams = tenantid !== undefined ? [tenantid] : [];
+  const address = getEventAddress(event);
+
+  let query = `SET STATEMENT max_statement_time = ${DELETION_STATEMENT_SECONDS} FOR
+    SELECT t.tag_name, t.tag_value FROM eventtags t JOIN events e ON e.event_id = t.event_id
+    WHERE t.tag_name = 'e' AND t.tag_value = ? AND e.kind = 5 AND e.pubkey = ?${tenantWhere}`;
+  const params: (string | number)[] = [event.id, event.pubkey, ...tenantParams];
+  if (address !== null) {
+    query += `
+    UNION ALL
+    SELECT t.tag_name, t.tag_value FROM eventtags t JOIN events e ON e.event_id = t.event_id
+    WHERE t.tag_name = 'a' AND t.tag_value = ? AND e.kind = 5 AND e.pubkey = ? AND e.created_at >= ?${tenantWhere}`;
+    params.push(address, event.pubkey, event.created_at, ...tenantParams);
+  }
+  query += " LIMIT 20";
+
+  const result: unknown = await dbSimpleSelect("eventtags", query, "", params);
+  if (!Array.isArray(result)) return false;
+  // The column collation ignores case: 'E' tags and addresses that differ only in case match too.
+  const deleted = (result as { tag_name: string, tag_value: string }[]).some(row =>
+    (row.tag_name === "e" && row.tag_value === event.id) || (row.tag_name === "a" && row.tag_value === address));
+  if (deleted) cacheDeleted(event.id, tenantid);
+  return deleted;
+};
+
+// Removes events with their tags and metadata (there are no foreign keys).
+const deleteEventRowsDB = async (pool: Pool, ids: string[]): Promise<number> => {
+  if (ids.length === 0) return 0;
+  const placeholders = ids.map(() => "?").join(",");
+  await pool.execute(`DELETE FROM eventtags WHERE event_id IN (${placeholders})`, ids);
+  await pool.execute(`DELETE FROM eventmetadata WHERE event_id IN (${placeholders})`, ids);
+  const [result] = await pool.execute(`DELETE FROM events WHERE event_id IN (${placeholders})`, ids);
+  return (result as ResultSetHeader).affectedRows || 0;
+};
+
+/**
+ * NIP-09 deletion by address (`a` tag): removes from the DB every stored version of a
+ * replaceable or addressable event up to the deletion's created_at, superseded ones included.
+ * Walks the author's events of that kind (idx_pubkey_kind_created) and reads their d tag.
+ * @param address - Kind, pubkey and d identifier.
+ * @param until - created_at of the deletion request.
+ * @param tenantid - Only this tenant's events (isolated mode).
+ * @returns The number of events deleted.
+ */
+const deleteAddressDB = async (address: EventAddress, until: number, tenantid?: number): Promise<number> => {
+  if (!isHex64(address.pubkey) || !isU32(until)) return 0;
+  try {
+    const pool = await connect("deleteAddressDB");
+    const params: (string | number)[] = [address.pubkey, address.kind, until];
+    let where = "e.pubkey = ? AND e.kind = ? AND e.created_at <= ?";
+    if (tenantid !== undefined) {
+      where += " AND e.tenantid = ?";
+      params.push(tenantid);
+    }
+    let ids: string[];
+    if (isAddressable(address.kind)) {
+      const [rows] = await pool.execute(`SET STATEMENT max_statement_time = ${ARCHIVE_STATEMENT_SECONDS} FOR
+        SELECT e.event_id, (SELECT t.tag_value FROM eventtags t WHERE t.event_id = e.event_id AND t.tag_name = 'd' ORDER BY t.position LIMIT 1) AS d
+        FROM events e WHERE ${where}
+        HAVING COALESCE(d, '') = ?
+        LIMIT ${ADDRESS_DELETE_MAX}`, [...params, address.d]);
+      // Compared again here: the collation would also take "Post" for "post".
+      ids = (rows as { event_id: string, d: string | null }[]).filter(r => (r.d ?? "") === address.d).map(r => r.event_id);
+    } else {
+      const [rows] = await pool.execute(`SELECT e.event_id FROM events e WHERE ${where} LIMIT ${ADDRESS_DELETE_MAX}`, params);
+      ids = (rows as { event_id: string }[]).map(r => r.event_id);
+    }
+    const deleted = await deleteEventRowsDB(pool, ids);
+    if (deleted > 0) logger.debug(`deleteAddressDB - Deleted ${deleted} versions of ${address.kind}:${address.pubkey}:${address.d}`);
+    return deleted;
+  } catch (error) {
+    logger.error(`deleteAddressDB - Error deleting ${address.kind}:${address.pubkey}:${address.d}: ${error}`);
+    return 0;
+  }
+};
+
 const VANISH_BATCH = 1000;
 const vanishRunning: Set<string> = new Set();
 
@@ -504,11 +599,7 @@ const vanishPubkeyDB = async (pubkey: string, before: number, tenantid?: number)
       const ids = (rows as { event_id: string }[]).map(r => r.event_id);
       if (ids.length === 0) break;
       more = ids.length === VANISH_BATCH;
-      const placeholders = ids.map(() => "?").join(",");
-      await pool.execute(`DELETE FROM eventtags WHERE event_id IN (${placeholders})`, ids);
-      await pool.execute(`DELETE FROM eventmetadata WHERE event_id IN (${placeholders})`, ids);
-      const [result] = await pool.execute(`DELETE FROM events WHERE event_id IN (${placeholders})`, ids);
-      deleted += (result as ResultSetHeader).affectedRows || 0;
+      deleted += await deleteEventRowsDB(pool, ids);
       if (more) await new Promise(resolve => setTimeout(resolve, 50));
     }
     logger.info(`vanishPubkeyDB - Deleted ${deleted} events of ${pubkey}`);
@@ -691,4 +782,4 @@ const deleteEvents = async (eventsInput: MetadataEvent | MetadataEvent[], delete
   return affectedCount;
 };
 
-export { getDTag, storeEvents, initEvents, deleteEvents, getArchivedEventsDB, getArchivedIdsDB, isArchiveFilterSelective, getEventsByIdDB, isEventStoredDB, getNewestReplaceableDB, deactivateSupersededDB, vanishPubkeyDB, getMemoryHorizon, indexReplaceable, getReplaceableIds };
+export { getDTag, storeEvents, initEvents, deleteEvents, getArchivedEventsDB, getArchivedIdsDB, isArchiveFilterSelective, getEventsByIdDB, isEventStoredDB, getNewestReplaceableDB, deactivateSupersededDB, isEventDeletedDB, deleteAddressDB, vanishPubkeyDB, getMemoryHorizon, indexReplaceable, getReplaceableIds };

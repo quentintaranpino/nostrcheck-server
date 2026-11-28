@@ -4,7 +4,7 @@ import { Request, Response } from "express";
 
 import { subscriptions, addSubscription, removeAllSubscriptions, removeSubscription, socketSafeSend, checkWSConnectionRate } from "../lib/relay/core.js";
 import { compressEvent, fillEventMetadata, getEventById, getEventsByTimerange, validateFilter, parseRelayMessage, getChunkSize, filterEarlyDiscard } from "../lib/relay/utils.js";
-import { getDTag, deactivateSupersededDB, getArchivedEventsDB, getEventsByIdDB, getNewestReplaceableDB, getReplaceableIds, indexReplaceable, initEvents, isEventStoredDB, vanishPubkeyDB } from "../lib/relay/database.js";
+import { getDTag, deactivateSupersededDB, deleteAddressDB, isEventDeletedDB, getArchivedEventsDB, getEventsByIdDB, getNewestReplaceableDB, getReplaceableIds, indexReplaceable, initEvents, isEventStoredDB, vanishPubkeyDB } from "../lib/relay/database.js";
 
 import { isEventValid } from "../lib/nostr/core.js";
 import { logger } from "../lib/logger.js";
@@ -14,6 +14,8 @@ import { isAddressable, isEphemeral, isReplaceable } from "../lib/nostr/NIP01.js
 import { executePlugins } from "../lib/plugins/core.js";
 import { checkPow } from "../lib/nostr/NIP13.js";
 import { hasCommentRootScope } from "../lib/nostr/NIP22.js";
+import { getDeletionTargets, getEventAddress } from "../lib/nostr/NIP09.js";
+import { rememberDeletion } from "../lib/relay/deletions.js";
 import { allowedTags, EventIndex, eventStore, ExtendedWebSocket, MetadataEvent, RelayStatusMessage } from "../interfaces/relay.js";
 import { isBase64 } from "../lib/utils.js";
 import { isRelayHidden } from "../lib/relay/bans.js";
@@ -372,6 +374,13 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
     return;
   }
 
+  // NIP-09: an event its author already deleted is not taken back.
+  if (event.kind !== 5 && event.kind !== 62 && await isEventDeletedDB(event, isIsolated ? event.tenantid : undefined)) {
+    logger.debug(`handleEvent - Blocked event deleted by its author: ${event.id}`);
+    await socketSafeSend(socket, ["OK", event.id, false, "blocked: this event was deleted by its author"]);
+    return;
+  }
+
   // Replaceable and addressable events. Addressables (30000-39999) are keyed by their d tag
   // too; they used to be stored side by side, so every version stayed active.
   const dTag = isAddressable(event.kind) ? getDTag(event.tags) : "";
@@ -452,8 +461,8 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
   // Event kind 5 (NIP-09) Event deletion
   if (event.kind === 5) {
 
-    const receivedEventsToDelete = event.tags.filter(tag => tag[0] === "e" || tag[0] === "a").map(tag => tag[1].trim());
-    if (receivedEventsToDelete.length === 0) {
+    const targets = getDeletionTargets(event);
+    if (!targets.hasTargets) {
       logger.debug(`handleEvent - Rejected kind:5 event ${event.id} due to missing required tags.`);
       await socketSafeSend(socket, ["NOTICE", "invalid: missing required tags"]);
       await socketSafeSend(socket, ["OK", event.id, false, "invalid: missing required tags"]);
@@ -461,44 +470,51 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
     }
 
     // Events past the memory horizon are looked up in the DB.
-    const notInMemory = receivedEventsToDelete.filter(id => !eventStore.pending.has(id) && !eventStore.pendingArchive.has(id) && !eventStore.eventIndex.has(id));
+    const notInMemory = targets.ids.filter(id => !eventStore.pending.has(id) && !eventStore.pendingArchive.has(id) && !eventStore.eventIndex.has(id));
     const archivedToDelete = eventStore.memoryHorizon > 0 && notInMemory.length > 0
       ? await getEventsByIdDB(notInMemory, isIsolated ? event.tenantid : undefined)
       : [];
 
-    const eventsToDelete = (
-      await Promise.all(
-        receivedEventsToDelete.map(async id => {
-          const candidate =
-            eventStore.pending.get(id) ??
-            eventStore.pendingArchive.get(id) ??
-            (eventStore.eventIndex.has(id) ? await getEventById(id, eventStore) : null) ??
-            archivedToDelete.find(e => e.id === id) ??
-            null;
-          if (!candidate) return null;
-
-          if (isIsolated && candidate.tenantid !== event.tenantid) return null;
-
-          return candidate;
-        })
-    )).filter(
-      (e): e is MetadataEvent =>
-        e !== null && e.kind !== 5 && e.pubkey === event.pubkey
+    const candidates: (MetadataEvent | null | undefined)[] = await Promise.all(
+      targets.ids.map(async id =>
+        eventStore.pending.get(id) ??
+        eventStore.pendingArchive.get(id) ??
+        (eventStore.eventIndex.has(id) ? await getEventById(id, eventStore) : null) ??
+        archivedToDelete.find(e => e.id === id)
+      )
     );
-  
-    if (eventsToDelete.length === 0) {
-      logger.debug(`handleEvent - Rejected kind:5 event ${event.id} due to no events found for deletion.`);
-      await socketSafeSend(socket, ["NOTICE", "invalid: no events found for deletion"]);
-      await socketSafeSend(socket, ["OK", event.id, false, "invalid: no events found for deletion"]);
-      return;
+
+    // `a` tags: every version of that address up to the deletion's created_at.
+    let deletedInDB = 0;
+    for (const address of targets.addresses) {
+      for (const id of getReplaceableIds(address.pubkey, address.kind, address.d)) {
+        const entry = eventStore.eventIndex.get(id);
+        if (!entry || entry.created_at > event.created_at) continue;
+        candidates.push(eventStore.pending.get(id) ?? await getEventById(id, eventStore));
+      }
+      const addressValue = `${address.kind}:${address.pubkey}:${address.d}`;
+      for (const archived of eventStore.pendingArchive.values()) {
+        if (archived.created_at <= event.created_at && getEventAddress(archived) === addressValue) candidates.push(archived);
+      }
+      // Older and superseded versions are only in the DB.
+      deletedInDB += await deleteAddressDB(address, event.created_at, isIsolated ? event.tenantid : undefined);
     }
 
-    returnMessage = "deleted: events successfully deleted (kind 5)";
+    // Deleting a deletion or a request to vanish has no effect (NIP-09, NIP-62).
+    const eventsToDelete = candidates.filter((e): e is MetadataEvent =>
+      !!e && e.kind !== 5 && e.kind !== 62 && e.pubkey === event.pubkey && (!isIsolated || e.tenantid === event.tenantid)
+    );
+
+    // Stored even when nothing was found: clients send deletions to every relay, and it
+    // keeps the events from being published here later.
+    if (eventsToDelete.length > 0 || deletedInDB > 0) returnMessage = "deleted: events successfully deleted (kind 5)";
 
     // Add events to pendingDelete
     eventsToDelete.forEach(e => {
       eventStore.pendingDelete.set(e.id, e);
     });
+
+    rememberDeletion(event);
 
   }
 
