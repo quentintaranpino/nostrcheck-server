@@ -7,6 +7,7 @@ import { logger } from "../logger.js";
 import { dbMultiSelect, dbUpdate } from "../database/core.js";
 import { getFileUrl } from "../media.js";
 import { getConfig } from "../config/core.js";
+import { logAuditEvent } from "../audit/core.js";
 
 // Create the fastq queue for moderation tasks
 const moderationQueue: queueAsPromised<ModerationJob> = fastq.promise(moderationWorker, 1);
@@ -43,8 +44,29 @@ async function moderationWorker(task: ModerationJob): Promise<ModerationCategory
 
     // Update the final status in the database:
     // If result.code === '0', set status to '1' (approved); otherwise, set to '0' (rejected).
-    const updateChecked: boolean = await dbUpdate(task.originTable, { checked: result.code === "0" ? "1" : "0" }, ["id"], [task.originId]);
+    const checkedValue = result.code === "0" ? "1" : "0";
+    const updateChecked: boolean = await dbUpdate(task.originTable, { checked: checkedValue }, ["id"], [task.originId]);
     if (!updateChecked) logger.error(`moderateFile - Failed to update record | ${task.originId}`);
+
+    // The verdict of a machine on somebody's file. Auditing it is what makes an
+    // automatic rejection arguable later: which engine, what it answered, and
+    // what it did to the record. "2" is the in-progress value moderateFile wrote
+    // before enqueueing this task.
+    if (updateChecked) {
+        await logAuditEvent({
+            eventtype: "classified",
+            origintable: task.originTable,
+            originid: task.originId,
+            actor: "classifier",
+            source: "classifier",
+            tenant: task.tenant,
+            previous_value: "2",
+            new_value: checkedValue,
+            action: checkedValue === "1" ? "record approved" : "record left unchecked",
+            reason: result.description || "",
+            details: {code: result.code, description: result.description, engine: getConfig(task.tenant, ["media", "mediainspector", "type"]) || ""},
+        });
+    }
 
     return result;
   } catch (error) {
@@ -68,6 +90,16 @@ async function moderationWorker(task: ModerationJob): Promise<ModerationCategory
 const moderateFile = async (originTable: string, originId: string, tenant: string): Promise<boolean> => {
 
     if (getConfig(tenant, ["media", "mediainspector", "enabled"]) === false) return false;
+
+    // A hidden file has nothing to approve, and the remote engine would grade the
+    // not-found banner as SAFE and write checked = 1 over a reported blob.
+    if (originTable == "mediafiles") {
+        const fileData = await dbMultiSelect(["active"], originTable, "id = ?", [originId], true);
+        if (fileData.length > 0 && fileData[0].active != 1) {
+            logger.info(`moderateFile - Skipped, record is not active | ${originTable}#${originId}`);
+            return false;
+        }
+    }
 
     // Update the record status to "2" to indicate moderation is in progress
     const updateModerating: boolean = await dbUpdate(originTable, { checked: "2" }, ["id"], [originId]);
@@ -94,4 +126,29 @@ const getModerationQueueLength = (): number => {
     return moderationQueue.length();
 }
 
-export { moderateFile, getModerationQueueLength };
+/**
+ * Returns records left at checked = 2 to pending.
+ * The queue lives in memory, so a restart strands whatever was in it.
+ *
+ * @returns A Promise resolving to the number of records released.
+ */
+const cleanStuckModeration = async (): Promise<number> => {
+
+    const stuck = await dbMultiSelect(["id"], "mediafiles", "checked = 2", [], false);
+    if (stuck.length == 0) return 0;
+
+    let released = 0;
+    for (const record of stuck) {
+        const update = await dbUpdate("mediafiles", { checked: "0" }, ["id"], [record.id]);
+        if (!update) {
+            logger.error(`cleanStuckModeration - Failed to release record | ${record.id}`);
+            continue;
+        }
+        released++;
+    }
+
+    logger.info(`cleanStuckModeration - Released ${released} record(s) stuck in moderation`);
+    return released;
+}
+
+export { moderateFile, getModerationQueueLength, cleanStuckModeration };

@@ -1,20 +1,95 @@
+// Why a ban exists, as a closed set. banCategories in interfaces/admin.ts is the
+// source of truth and validates every request; this list has to mirror it, name
+// for name, because modal.js is served static and can't read server locals. CSAM
+// first because it is 93% of the bans this server has issued, so it is the
+// shortest reach. The severity drives the colour so CSAM never reads like
+// QUESTIONABLE, and SERVICE_ABUSE stays neutral because it is misuse of resources,
+// not illegal content.
+const banCategoryTags = [
+    { name: 'CSAM',          severity: 'danger',    description: 'Child sexual abuse material' },
+    { name: 'ILLEGAL',       severity: 'danger',    description: 'Otherwise illegal content' },
+    { name: 'VIOLENCE',      severity: 'warning',   description: 'Graphic violence or gore' },
+    { name: 'QUESTIONABLE',  severity: 'secondary', description: 'Borderline, kept out of the public listings' },
+    { name: 'SERVICE_ABUSE', severity: 'secondary', description: 'Resource abuse: declared type that does not match the content, or the server used as hosting or a CDN' },
+    { name: 'OTHER',         severity: 'secondary', description: 'Anything the categories above do not cover' },
+];
+
 const initConfirmModal = async (objectId, ids, action, objectName, value = null, enableEditText = false) => {
 
     var alert = new bootstrap.Modal($(objectId + '-confirm-modal'));
+    const isBan = action == 'ban';
+    // Marking objects as reported to an authority. Same dialog as the ban on
+    // purpose: one prompt for the whole selection, because one filing covers
+    // several objects and they all carry the same reference.
+    const isReport = action == 'report';
+    // One category per dialog, so a bulk ban asks once for the whole selection.
+    let selectedCategory = '';
 
     // .off() first: this init runs on every open, stacking handlers otherwise.
     $(alert._element).off('show.bs.modal').on('show.bs.modal', function () {
-        $(objectId + '-confirm-modal .modal-body').text('Are you sure you want to ' + action + ' ' + ids.length + ' ' + objectName + (ids.length > 1 ? 's' : '') + '?');
-        if (action == 'remove')$(objectId + '-confirm-modal .modal-body').append('<br><br><strong>Warning:</strong> This action cannot be undone.');
-        if (action == 'disable')$(objectId + '-confirm-modal .modal-body').append('<br><br><strong>Attention:</strong> Disabling a record can take up to 5 minutes to become effective.');
-        if (action == 'balance')$(objectId + '-confirm-modal .modal-body').text('Specify the amount to be added to user balance:');
-        if (action == 'ban')$(objectId + '-confirm-modal .modal-body').append('<br><br>Specify the reason for banning:');
+        const body = $(objectId + '-confirm-modal .modal-body');
+        const saveButton = $(objectId + '-confirm-modal .save-button');
+        selectedCategory = '';
+
+        body.text('Are you sure you want to ' + action + ' ' + ids.length + ' ' + objectName + (ids.length > 1 ? 's' : '') + '?');
+        if (action == 'remove') body.append('<br><br><strong>Warning:</strong> This action cannot be undone.');
+        if (action == 'disable') body.append('<br><br><strong>Attention:</strong> Disabling a record can take up to 5 minutes to become effective.');
+        if (action == 'balance') body.text('Specify the amount to be added to user balance:');
+
+        // A ban is categorised, not described. Typing the reason by hand is what
+        // produced 32 spellings for five categories, so the category is a click
+        // from a closed set and the comment is optional detail on top.
+        if (isBan) {
+            body.append('<br><br><strong>Category</strong> (required):');
+            const tagRow = $('<div class="d-flex flex-wrap gap-2 mt-2 mb-1"></div>');
+            for (const tag of banCategoryTags) {
+                $('<button type="button" class="btn btn-sm btn-outline-' + tag.severity + ' ban-category-tag"></button>')
+                    .attr('data-category', tag.name)
+                    .attr('data-severity', tag.severity)
+                    // What each category is for, so SERVICE_ABUSE doesn't have to be
+                    // guessed from its name and OTHER stops being the default dump.
+                    .attr('title', tag.description)
+                    .text(tag.name)
+                    .appendTo(tagRow);
+            }
+            body.append(tagRow);
+
+            // Nothing to confirm until a category is picked: cheaper than an alert
+            // after the fact, and it makes the requirement obvious.
+            saveButton.prop('disabled', true);
+            body.off('click', '.ban-category-tag').on('click', '.ban-category-tag', function () {
+                const button = $(this);
+                body.find('.ban-category-tag').each(function () {
+                    const other = $(this);
+                    other.removeClass('btn-' + other.attr('data-severity')).addClass('btn-outline-' + other.attr('data-severity'));
+                });
+                button.removeClass('btn-outline-' + button.attr('data-severity')).addClass('btn-' + button.attr('data-severity'));
+                selectedCategory = button.attr('data-category');
+                saveButton.prop('disabled', false);
+            });
+            body.append('<div class="mt-3">Comment (optional):</div>');
+        } else if (isReport && value != null && enableEditText) {
+            body.append('<br><br><strong>Report reference</strong> (required):');
+            saveButton.prop('disabled', true);
+        } else {
+            // The button is shared across actions, so it has to be re-enabled.
+            saveButton.prop('disabled', false);
+        }
+
         if (value != null && enableEditText){
-            $(objectId + '-confirm-modal .modal-body').append(  '<input type="text" class="form-control mt-4 mb-2" id="data" placeholder="' +
-                                                                escapeHtml(action) +
+            body.append(  '<input type="text" class="form-control mt-2 mb-2" id="data" placeholder="' +
+                                                                escapeHtml(isBan ? 'optional comment' : isReport ? 'Policía Nacional, denuncia 12345' : action) +
                                                                 '" value="' +
                                                                 escapeHtml(value) +
                                                                 '">');
+        }
+
+        // A mark with no reference records nothing, so it gets the same gate the
+        // category puts on a ban.
+        if (isReport) {
+            body.off('input', '#data').on('input', '#data', function () {
+                saveButton.prop('disabled', $(this).val().trim() == '');
+            });
         }
 
         // Clear the modal title and append the title
@@ -26,13 +101,13 @@ const initConfirmModal = async (objectId, ids, action, objectName, value = null,
     let result = await new Promise((resolve) => {
         $(objectId + '-confirm-modal .save-button').off('click').on('click', function () {
             value = $('#data').val();
-            resolve({result : true, value : value});
+            resolve({result : true, value : value, category : selectedCategory});
         });
         $(objectId + '-confirm-modal .cancel-button').off('click').on('click', function () {
-            resolve({result : false, value : value});
+            resolve({result : false, value : value, category : ''});
         });
         $(alert._element).off('hidden.bs.modal').on('hidden.bs.modal', function () {
-            resolve({result : false, value : value});
+            resolve({result : false, value : value, category : ''});
         });
     });
 
@@ -448,6 +523,11 @@ const initMediaModal = async (filename, checked, visible, showButtons = true, fi
     let navRows = nav && Array.isArray(nav.rows) ? nav.rows.slice() : null;
     let navIndex = navRows && typeof nav.index === 'number' ? nav.index : -1;
     let navLoadMore = nav && typeof nav.loadMore === 'function' ? nav.loadMore : null;
+    // onPersist(row, field, value, previous) lets the caller mirror the change in
+    // whatever it is showing behind the modal; onBan(row) delegates the ban to the
+    // caller, which owns its own confirmation dialog and its reason prompt.
+    const navOnPersist = nav && typeof nav.onPersist === 'function' ? nav.onPersist : null;
+    const navOnBan = nav && typeof nav.onBan === 'function' ? nav.onBan : null;
     let navLoading = false;
     let navExhausted = !navLoadMore;
     // Sliding window: never hold more than NAV_WINDOW_MAX rows in memory.
@@ -460,6 +540,11 @@ const initMediaModal = async (filename, checked, visible, showButtons = true, fi
     let curFilename = filename;
     let curChecked = checked;
     let curVisible = visible;
+    // nsfw isn't a modal parameter (that would mean touching every call site),
+    // it travels inside the row / fileInfo the caller already passes.
+    let curNsfw = fileInfo && fileInfo.nsfw != null ? Number(fileInfo.nsfw) : 0;
+    // Same story as nsfw: active travels inside the row the caller passes.
+    let curActive = fileInfo && fileInfo.active != null ? Number(fileInfo.active) : 1;
     let curFileInfo = fileInfo;
     let curRow = navRows && navIndex >= 0 ? navRows[navIndex] : null;
 
@@ -478,11 +563,22 @@ const initMediaModal = async (filename, checked, visible, showButtons = true, fi
 
     $('#modalSwitch-checked').prop('checked', checked == '1' || checked === 1);
     $('#modalSwitch-visible').prop('checked', visible == '1' || visible === 1 || visible === true);
+    $('#modalSwitch-nsfw').prop('checked', curNsfw === 1);
+    $('#modalSwitch-active').prop('checked', curActive === 1);
 
     if (!showButtons) {
         $('#modalSwitch-footer').addClass('d-none');
     } else {
         $('#modalSwitch-footer').removeClass('d-none');
+    }
+
+    // Ban needs somewhere to ask for the reason, and that dialog belongs to
+    // whoever opened the modal. No callback, no button.
+    const banButton = $('#modalButton-ban');
+    if (navOnBan) {
+        banButton.removeClass('d-none');
+    } else {
+        banButton.addClass('d-none');
     }
 
     // Switches: when in nav mode, persist via admin endpoint; otherwise
@@ -503,27 +599,80 @@ const initMediaModal = async (filename, checked, visible, showButtons = true, fi
             curVisible = next;
         }
     });
+    $('#modalSwitch-nsfw').off('change').on('change', function () {
+        const next = this.checked ? 1 : 0;
+        if (navRows && curRow?.id != null) {
+            persistField('nsfw', next);
+        } else {
+            curNsfw = next;
+        }
+    });
+    $('#modalSwitch-active').off('change').on('change', function () {
+        const next = this.checked ? 1 : 0;
+        if (navRows && curRow?.id != null) {
+            persistField('active', next);
+        } else {
+            curActive = next;
+        }
+    });
+
+    // Ban is not a switch: it needs a reason, so it goes back to whoever opened
+    // the modal and reuses their confirmation dialog.
+    banButton.off('click').on('click', async function () {
+        if (!navOnBan || !curRow || curRow.id == null) return;
+        const banned = await navOnBan(curRow);
+        if (banned === true) {
+            curRow.banned = 1;
+            syncSwitches();
+        }
+    });
+
+    const syncSwitches = () => {
+        $('#modalSwitch-checked').prop('checked', curChecked == 1 || curChecked === '1');
+        $('#modalSwitch-visible').prop('checked', curVisible == 1 || curVisible === '1' || curVisible === true);
+        $('#modalSwitch-nsfw').prop('checked', curNsfw === 1);
+        $('#modalSwitch-active').prop('checked', curActive === 1);
+    };
 
     function persistField(field, value) {
         if (!curRow || curRow.id == null) return;
         const id = curRow.id;
+        // Everything the modal writes goes through the batch endpoint with a
+        // single id. One path for the four actions instead of two, and the same
+        // path the cards use: same validation, same audit row with actor and
+        // source admin, and nsfw keeps writing nsfw + checked in one statement.
+        const previous = field === 'nsfw'
+                            ? { nsfw: Number(curNsfw) || 0, checked: Number(curChecked) || 0 }
+                            : { [field]: Number(field === 'checked' ? curChecked : field === 'visibility' ? curVisible : curActive) || 0 };
         $.ajax({
-            url: '/api/v2/admin/updaterecord/',
+            url: '/api/v2/admin/bulkmoderate',
             method: 'POST',
             contentType: 'application/json',
-            data: JSON.stringify({ table: 'filesData', field, value: String(value), id }),
+            data: JSON.stringify({ table: 'filesData', ids: [id], field: field, value: String(value) }),
             success: function () {
                 if (field === 'checked') { curChecked = value; curRow.checked = value; }
                 if (field === 'visibility') { curVisible = value; curRow.visibility = value; }
+                if (field === 'active') { curActive = value; curRow.active = value; }
+                if (field === 'nsfw') {
+                    curNsfw = value;
+                    curRow.nsfw = value;
+                    // The server sets checked with it, keep the other switch honest.
+                    curChecked = 1;
+                    curRow.checked = 1;
+                    $('#modalSwitch-checked').prop('checked', true);
+                }
+                // Tell the opener so what is behind the modal matches the database.
+                if (navOnPersist) {
+                    try { navOnPersist(curRow, field, value, previous); } catch (e) { console.error('media modal - onPersist failed', e); }
+                }
                 if (typeof refreshTable === 'function') {
                     try { refreshTable('#filesData'); } catch (e) { /* table may not exist on this page */ }
                 }
             },
             error: function (err) {
                 console.error(`Error updating ${field}`, err);
-                // revert UI
-                $('#modalSwitch-checked').prop('checked', curChecked == 1 || curChecked === '1');
-                $('#modalSwitch-visible').prop('checked', curVisible == 1 || curVisible === '1');
+                syncSwitches();
+                if (typeof showMessage === 'function') showMessage(`Could not update ${escapeHtml(field)}`, 'alert-danger');
             }
         });
     }
@@ -576,6 +725,8 @@ const initMediaModal = async (filename, checked, visible, showButtons = true, fi
         curFilename = url ? url.substring(url.lastIndexOf('/') + 1) : (curRow.filename || '');
         curChecked = curRow.checked ?? curChecked;
         curVisible = curRow.visibility ?? curVisible;
+        curNsfw = curRow.nsfw != null ? Number(curRow.nsfw) : 0;
+        curActive = curRow.active != null ? Number(curRow.active) : 1;
         curFileInfo = curRow;
         renderFile();
         // Background prefetch so the next ↓ is instant.
@@ -599,6 +750,18 @@ const initMediaModal = async (filename, checked, visible, showButtons = true, fi
             e.preventDefault();
             const cb = document.getElementById('modalSwitch-visible');
             if (cb) { cb.checked = !cb.checked; $(cb).trigger('change'); }
+        } else if (e.key === 'n' || e.key === 'N') {
+            e.preventDefault();
+            const cb = document.getElementById('modalSwitch-nsfw');
+            if (cb) { cb.checked = !cb.checked; $(cb).trigger('change'); }
+        } else if (e.key === 'a' || e.key === 'A') {
+            e.preventDefault();
+            const cb = document.getElementById('modalSwitch-active');
+            if (cb) { cb.checked = !cb.checked; $(cb).trigger('change'); }
+        } else if (e.key === 'b' || e.key === 'B') {
+            // Ban still asks for a reason: the dialog is the confirmation.
+            e.preventDefault();
+            banButton.trigger('click');
         }
     }
 
@@ -625,11 +788,32 @@ const initMediaModal = async (filename, checked, visible, showButtons = true, fi
         }
     }
 
+    // Dropping the src attribute and calling load() is what actually aborts an
+    // in-flight media transfer; setting src="" leaves the element pointing at the
+    // page URL and keeps the connection. With 954 MB videos in the backlog,
+    // stepping through files with the arrows has to release the previous one or a
+    // triage session ends up holding hundreds of megabytes per file visited.
+    function releaseMediaElement($element) {
+        const element = $element.get(0);
+        if (!element) return;
+        try {
+            element.pause();
+        } catch (e) {
+            // Not a media element or already gone.
+        }
+        if (element.getAttribute && element.getAttribute('src')) {
+            element.removeAttribute('src');
+            try { element.load(); } catch (e) { /* nothing buffered to drop */ }
+        }
+    }
+
     function resetPreviews() {
         mediaPreviewIframe.attr('src', '').addClass('d-none');
         mediapreviewImg.attr('src', '').addClass('d-none');
-        mediaPreviewVideo.attr('src', '').addClass('d-none');
-        mediaPreviewAudio.attr('src', '').addClass('d-none');
+        releaseMediaElement(mediaPreviewVideo);
+        releaseMediaElement(mediaPreviewAudio);
+        mediaPreviewVideo.addClass('d-none');
+        mediaPreviewAudio.addClass('d-none');
         mediaPreview3d.addClass('d-none');
         fontPreview.addClass('d-none');
         yamlPreview.addClass('d-none');
@@ -725,6 +909,20 @@ const initMediaModal = async (filename, checked, visible, showButtons = true, fi
     }
 
     async function loadPreview(name) {
+
+        // Video and audio are pointed straight at the URL instead of being fetched
+        // into a blob first. A blob has to arrive whole before anything plays, so a
+        // 954 MB video means downloading 954 MB into memory to look at one frame;
+        // a plain src streams it and honours Range, and the cookie goes with the
+        // request just the same because it is same-origin. Everything else keeps
+        // the blob path, which is also what tells us the real mimetype.
+        const declaredMime = String(curFileInfo?.mimetype || curFileInfo?.type || '');
+        if (declaredMime.startsWith('video/') || declaredMime.startsWith('audio/')) {
+            const target = declaredMime.startsWith('video/') ? mediaPreviewVideo : mediaPreviewAudio;
+            target.attr('src', '/api/v2/media/' + name).removeClass('d-none');
+            return;
+        }
+
         $('#media-loading').removeClass('d-none');
         const data = await loadMediaWithToken('/api/v2/media/' + name);
         $('#media-loading').addClass('d-none');
@@ -775,8 +973,7 @@ const initMediaModal = async (filename, checked, visible, showButtons = true, fi
     async function renderFile() {
         resetPreviews();
         renderInfoPanel(curFileInfo);
-        $('#modalSwitch-checked').prop('checked', curChecked == 1 || curChecked === '1');
-        $('#modalSwitch-visible').prop('checked', curVisible == 1 || curVisible === '1' || curVisible === true);
+        syncSwitches();
         updateNavPos();
         if (curFilename) await loadPreview(curFilename);
     }

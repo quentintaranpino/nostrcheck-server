@@ -61,6 +61,35 @@ const publishEvent = async (event : NostrEvent): Promise<boolean> => {
 }
 
 /**
+ * Publishes an event to the given relays only (NIP-17 gift wraps go to the recipient's DM relays).
+ */
+const publishEventTo = async (event : NostrEvent, targetRelays: string[]): Promise<boolean> => {
+	try{
+			await Promise.any(relaysPool.publish(targetRelays, event))
+			logger.debug(`publishEventTo - Event published successfully: ${event.id}`)
+			return true
+	}catch (error) {
+			logger.error(`publishEventTo - Error publishing event: ${error}`)
+			return false
+	}
+}
+
+/**
+ * Relays where a pubkey wants to receive direct messages (NIP-17 kind 10050), up to five.
+ * Empty when it has none or the lookup fails.
+ */
+const getDMRelays = async (pubkey: string): Promise<string[]> => {
+	try{
+		const event = await relaysPool.get(relays, { kinds: [10050], authors: [pubkey] }, { maxWait: 3000 })
+		if (!event) return []
+		return event.tags.filter(tag => tag[0] === "relay" && /^wss?:\/\//i.test(tag[1] || "")).map(tag => tag[1]).slice(0, 5)
+	}catch (error) {
+		logger.debug(`getDMRelays - Error getting DM relays for ${pubkey}: ${error}`)
+		return []
+	}
+}
+
+/**
  * Verifies the integrity of an event.
  * @param event - The event to be verified.
  * @param created_at_lower_limit - The maximum number of seconds the event timestamp can be in the past. Optional
@@ -115,4 +144,4 @@ function isEventTimestampValid(event: Event, created_at_lower_limit = 60, create
 	return true;
 }
 
-export {publishEvent, isEventValid, isEventTimestampValid, createkeyPair, getPubkeyFromSecret, relays, relaysPool}
+export {publishEvent, publishEventTo, getDMRelays, isEventValid, isEventTimestampValid, createkeyPair, getPubkeyFromSecret, relays, relaysPool}

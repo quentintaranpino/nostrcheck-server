@@ -39,6 +39,15 @@ const startServer = async () => {
     const { loadAPIs } = await import("./routes/routes.js");
     await loadAPIs(app, server);
 
+    // Audit notification sweeper. After the database is up, so the first pass
+    // can requeue whatever the previous run left pending.
+    const { initAudit } = await import("./lib/audit/core.js");
+    await initAudit();
+
+    // Release records the previous run left mid-moderation
+    const { cleanStuckModeration } = await import("./lib/moderation/core.js");
+    await cleanStuckModeration();
+
     // Initialise plugins
     const { initPlugins } = await import("./lib/plugins/core.js");
     await initPlugins("");

@@ -21,6 +21,11 @@ import {
     banDBRecord,
     updateSettingsFile,
     serverUpdates,
+    getMediaModerationData,
+    bulkModerateRecords,
+    getBannedObjectStatus,
+    deleteBannedObject,
+    deleteBannedObjectsBulk,
 } from "../controllers/admin.js";
 
 const adminCORS = {
@@ -52,6 +57,9 @@ export const loadAdminEndpoint = async (app: Application, version: string): Prom
     app.post(`${base}/deleterecord`, limiter(), cors(adminCORS), express.json(), deleteDBRecord);
     app.post(`${base}/moderaterecord`, limiter(), cors(adminCORS), express.json(), moderateDBRecord);
     app.post(`${base}/ban`, limiter(), cors(adminCORS), express.json(), banDBRecord);
+    app.post(`${base}/objectstatus`, limiter(), cors(adminCORS), express.json(), getBannedObjectStatus);
+    app.post(`${base}/deleteobject`, limiter(), cors(adminCORS), express.json(), deleteBannedObject);
+    app.post(`${base}/deleteobjects`, limiter(), cors(adminCORS), express.json(), deleteBannedObjectsBulk);
 
     // Update settings
     app.post(`${base}/updatesettings`, limiter(), cors(adminCORS), express.json(), updateSettings);
@@ -62,6 +70,10 @@ export const loadAdminEndpoint = async (app: Application, version: string): Prom
     // Module data endpoints
     app.get(`${base}/moduledata`, limiter(), cors(adminCORS), getModuleData);
     app.get(`${base}/modulecountdata`, limiter(), cors(adminCORS), getModuleCountData);
+
+    // Moderation gallery: paged thumbnails and batch actions
+    app.get(`${base}/mediamoderation`, limiter(), cors(adminCORS), getMediaModerationData);
+    app.post(`${base}/bulkmoderate`, limiter(), cors(adminCORS), express.json(), bulkModerateRecords);
 
     // Ban a remote source
     app.post(`${base}/ban`, limiter(), cors(adminCORS), express.json(), banDBRecord);

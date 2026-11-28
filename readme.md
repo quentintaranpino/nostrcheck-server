@@ -105,42 +105,46 @@ See multi-tenancy [here](https://github.com/quentintaranpino/nostrcheck-server/w
 
 - [x] NIP01 - Basic protocol flow description
 - [x] NIP02 - Follow List
-- [x] NIP03 - OpenTimestamps Attestations for Events
-- [x] NIP04 - Encrypted Direct Message
+- [x] NIP04 - Encrypted Direct Message (deprecated, NIP17 preferred)
 - [x] NIP05 - Mapping Nostr keys to DNS-based internet identifiers
 - [x] NIP07 - window.nostr capability for web browsers
 - [x] NIP09 - Event Deletion Request
 - [x] NIP11 - Relay Information Document
 - [x] NIP13 - Proof of Work
 - [x] NIP14 - Subject tag in Text events
+- [x] NIP17 - Private Direct Messages (relay side: served only to their recipients)
 - [x] NIP19 - bech32-encoded entities
-- [x] NIP28 - Public Chat
 - [x] NIP40 - Expiration Timestamp
 - [x] NIP42 - Authentication of clients to relays
+- [x] NIP43 - Relay Access Metadata and Requests
 - [x] NIP44 - Versioned Encryption
 - [x] NIP45 - Event Counts
 - [x] NIP47 - Nostr Wallet Connect (NWC)
-- [x] NIP48 - Proxy Tags
+- [x] NIP48 - Bridged Events
 - [x] NIP50 - Search Capability
 - [x] NIP56 - Reporting
+- [x] NIP59 - Gift Wrap
 - [x] NIP62 - Request to Vanish
 - [x] NIP65 - Relay List Metadata
 - [x] NIP70 - Protected Events
 - [x] NIP73 - External Content IDs
+- [x] NIP77 - Negentropy Syncing
 - [x] NIP78 - Arbitrary custom app data
+- [x] NIP86 - Relay Management API
 - [x] NIP94 - File Metadata
-- [x] NIP96 - HTTP File Storage Integration
+- [x] NIP96 - HTTP File Storage Integration (deprecated, Blossom preferred)
 - [x] NIP98 - HTTP Auth
+- [x] NIPB7 - Blossom
 
 ## Supported Blossom BUD's
 
 - [x] BUD01 - Server requirements and blob retrieval
 - [x] BUD02 - Blob upload and management
 - [x] BUD03 - User Server List
-- [x] BUD04 - Mirroring blobs
+- [x] BUD04 - Mirroring blobs (deprecated upstream)
 - [x] BUD05 - Media Optimization
 - [x] BUD06 - Upload requirements
-- [x] BUD07 - Paid upload and download
+- [x] BUD07 - Payment required
 - [x] BUD09 - Blob Report
 - [x] BUD11 - Nostr Authorization
 
@@ -168,7 +172,7 @@ with an `X-Reason` header, as BUD07 requires. One payment unlocks the file for e
 - [x] Lightning redirects
 - [x] Standalone Installation script
 - [x] Docker installation
-- [x] Nostr DM integration (NIP04)
+- [x] Nostr DM integration (NIP04, NIP17)
 - [x] Frontend UI (dashboard)
 - [x] Frontend UI (settings)
 - [x] Frontend UI (homepage)
@@ -183,7 +187,7 @@ with an `X-Reason` header, as BUD07 requires. One payment unlocks the file for e
 - [x] Ban system
 - [x] AI media moderation
 - [x] Plugins engine
-- [ ] Private Direct Messages (NIP17)
+- [x] Private Direct Messages (NIP17)
 - [ ] Import / Export data
 - [ ] Custom frontend templates
 - [x] Frontend UI (directory)

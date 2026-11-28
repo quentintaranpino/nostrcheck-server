@@ -595,7 +595,10 @@ function createTile(file) {
         img.decoding = 'async';
         img.fetchPriority = 'low';
         img.alt = '';
-        img.src = url;
+        // Server-side thumbnail, the smallest width that still covers the tile
+        const needed = galleryState.tileSize * (window.devicePixelRatio || 1);
+        const thumbW = needed <= 200 ? 200 : needed <= 400 ? 400 : 800;
+        img.src = url + (url.includes('?') ? '&' : '?') + 'w=' + thumbW;
         // Cache hit: the load event already fired and won't fire again, so
         // mark it loaded synchronously to skip the fade-in (and the flash
         // that would happen on every virtual-scroll re-mount).

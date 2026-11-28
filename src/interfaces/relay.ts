@@ -173,6 +173,12 @@ interface RelayEvents {
   globalIds: Set<string>;
   globalPubkeys: Set<string>;
   globalExpirable: Set<string>;
+  // created_at below which events are only in the DB (0 = everything in memory)
+  memoryHorizon: number;
+  // Accepted events older than the horizon, waiting for the next persistEvents to reach the DB
+  pendingArchive: Map<string, MetadataEvent>;
+  // "pubkey:kind" -> ids of replaceable events in eventIndex (may hold stale ids)
+  replaceableIndex: Map<string, Set<string>>;
 }
 
 interface EventIndex {
@@ -196,6 +202,9 @@ const eventStore: RelayEvents = {
   globalIds: new Set<string>(),
   globalPubkeys: new Set<string>(),
   globalExpirable: new Set<string>(),
+  memoryHorizon: 0,
+  pendingArchive: new Map<string, MetadataEvent>(),
+  replaceableIndex: new Map<string, Set<string>>(),
 };
 
 type WSConnectionBucket = { 

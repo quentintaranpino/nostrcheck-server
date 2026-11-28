@@ -74,7 +74,19 @@
             </button>
           </li>
           <li class="nav-item" role="presentation">
-            <button class="nav-link <%= locals.availableModules['security'] && locals.availableModules['security'].enabled ? '' : 'disabled' %>" 
+            <button class="nav-link"
+                    id="notifications-tab"
+                    data-bs-toggle="tab"
+                    data-bs-target="#notifications"
+                    type="button"
+                    role="tab"
+                    aria-controls="notifications"
+                    aria-selected="false">
+                    <i class="fas fa-bell me-2"></i>Notifications
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link <%= locals.availableModules['security'] && locals.availableModules['security'].enabled ? '' : 'disabled' %>"
 
                     id="security-tab" 
                     data-bs-toggle="tab" 
@@ -193,6 +205,9 @@
           </div>
           <div class="tab-pane fade" id="logging" role="tabpanel" aria-labelledby="logging-tab">
             <%- include('./components/settings/logging'); %>
+          </div>
+          <div class="tab-pane fade" id="notifications" role="tabpanel" aria-labelledby="notifications-tab">
+            <%- include('./components/settings/notifications'); %>
           </div>
           <div class="tab-pane fade" id="security" role="tabpanel" aria-labelledby="security-tab">
             <%- include('./components/settings/security'); %>

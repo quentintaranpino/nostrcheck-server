@@ -162,12 +162,12 @@
 
         const fetchBucketData = async (bucket) => {
             try {
-                const r = await fetch(`/api/v2/admin/modulecountdata?module=${datakey}&action=bucketCount&field=${monthField}&bucket=${bucket}`);
-                if (!r.ok) return { data: [] };
-                return await r.json();
-            } catch (e) {
-                console.error("bucket chart fetch failed", e);
-                return { data: [] };
+                return await fetchJSON(`/api/v2/admin/modulecountdata?module=${datakey}&action=bucketCount&field=${monthField}&bucket=${bucket}`);
+            } catch (error) {
+                // Rethrown so the poller counts it as a failure and slows down
+                // instead of asking a struggling endpoint at the same rate.
+                console.error(`bucket chart ${chartId} - ${datakey} bucketCount failed:`, error.message);
+                throw error;
             }
         };
 
@@ -177,17 +177,19 @@
         };
 
         selectEl.addEventListener("change", () => {
+            // Explicit request from the operator, always honoured.
             currentBucket = selectEl.value;
-            updateChart();
+            updateChart().catch(() => { /* reported in fetchBucketData */ });
         });
 
-        setInterval(updateChart, timeout);
-
         const activeChart = document.getElementById(chartId);
+        // Only while visible, never overlapping, backing off on failure. The
+        // observer below still does the first paint when it comes into view.
+        pollWhenVisible(activeChart, timeout, () => updateChart());
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
-                    setTimeout(updateChart, 150);
+                    setTimeout(() => updateChart().catch(() => { /* reported in fetchBucketData */ }), 150);
                     observer.unobserve(entry.target);
                 }
             });

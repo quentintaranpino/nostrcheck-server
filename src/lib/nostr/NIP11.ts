@@ -10,6 +10,7 @@ const getNIP11file = (hostname: string): NIP11File => {
     description: getConfig(hostname, ["relay", "description"]) || `${getConfig(hostname, ["server", "host"])} nostr relay`,
     icon: `${getHostInfo(hostname).url}/static/resources/relay-icon.png`,
     pubkey: getConfig(hostname, ["server", "pubkey"]),
+    self: getConfig(hostname, ["server", "pubkey"]),
     contact: getConfig(hostname, ["relay", "contact"]),
     supported_nips: supported_nips,
     software: "https://github.com/quentintaranpino/nostrcheck-server",

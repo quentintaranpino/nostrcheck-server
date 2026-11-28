@@ -66,6 +66,7 @@ interface MediafilesTableStructure extends RowDataPacket {
 	filesize: string;
 	comments: string;
 	checked: string;
+	nsfw: string;
 	transactionid: string;
 	localPath: string;
 	banid: string;
@@ -91,6 +92,10 @@ const mediafilesTableFields: MediafilesTableStructure = {
 	filesize: "bigint unsigned NOT NULL DEFAULT 0",
 	comments: "varchar(150)",
 	checked: "boolean NOT NULL DEFAULT 0",
+	// Reviewed and legal, but not for the shop window. Independent from
+	// visibility (which belongs to the uploader): an nsfw file stays out of every
+	// public listing even with visibility = 1, and is still served by direct URL.
+	nsfw: "boolean NOT NULL DEFAULT 0",
 	transactionid: "int(11)",
 	localPath: "varchar(4)",
 	banid: "int(11)",
@@ -103,7 +108,40 @@ const mediafilesTableFields: MediafilesTableStructure = {
 		"INDEX idx_localPath (localPath)",
 		"INDEX idx_checked (checked)",
 		"INDEX idx_checked_active (checked, active)",
-		"INDEX idx_public_id (active, visibility, checked, id)"
+		"INDEX idx_public_id (active, visibility, checked, id)",
+		// Public listings now carry a fourth flag. New name rather than a change
+		// to idx_public_id: checkAndCreateIndexes only ever adds missing indexes,
+		// it never redefines one that already exists.
+		"INDEX idx_public_nsfw_id (active, visibility, checked, nsfw, id)",
+		// Leading nsfw, for the moderation gallery bucket.
+		"INDEX idx_nsfw (nsfw)",
+		// The moderation gallery filters by uploader and by mimetype, and without
+		// these two it scans the whole table for both.
+		//
+		// Simple and not composite with checked, on purpose. Every gallery query
+		// ends in ORDER BY id DESC with an id keyset, and in InnoDB a secondary
+		// index already carries the primary key as its row locator, so (pubkey) is
+		// physically (pubkey, id) and the optimizer can use that suffix for the
+		// ordering. Adding checked instead would help only the checked = 1 bucket:
+		// "pending" filters checked <> 1 (an inequality, so nothing after it in the
+		// index is usable) and the active / nsfw / banned buckets don't mention
+		// checked at all. With three distinct values over ~280k rows its
+		// selectivity after a pubkey equality is nil, so it would be a composite
+		// that never pays for itself.
+		//
+		// mimetype is also queried as a prefix range (LIKE 'image/%'), and no
+		// column after a range can be used either, which rules out
+		// (mimetype, checked) for the filter that gets used most.
+		//
+		// Neither one overlaps what is already there: no existing index on this
+		// table starts with pubkey or mimetype (idx_filename_hash_pubkey has pubkey
+		// third, which a lookup cannot use).
+		"INDEX idx_pubkey (pubkey)",
+		"INDEX idx_mimetype (mimetype)",
+		// The moderation gallery's date window resolves its id bounds with
+		// MIN(id)/MAX(id) over a date range; without this index each of those
+		// probes is a full scan.
+		"INDEX idx_date (date)"
 	],
 	constructor: {
 		name: 'RowDataPacket',
@@ -257,7 +295,10 @@ interface BannedTableStructure extends RowDataPacket{
 	originid: string;
 	origintable: string
 	createddate: string;
+	category: string;
 	reason: string;
+	reported: string;
+	reportref: string;
 }
 
 const bannedTableFields: BannedTableStructure = {
@@ -266,9 +307,107 @@ const bannedTableFields: BannedTableStructure = {
 	"originid" : "varchar(11) NOT NULL",
 	"origintable" : "varchar(50) NOT NULL",
 	"createddate" : "bigint NOT NULL",
+	// Why the ban exists, as one of a closed set: CSAM, ILLEGAL, VIOLENCE,
+	// QUESTIONABLE, OTHER. Before this column the category lived inside the reason
+	// text, which produced 32 spellings for five real categories (typos included)
+	// and made grouping impossible.
+	"category" : "varchar(20)",
+	// Free comment, still optional. It no longer has to carry the category.
 	"reason" : "varchar(150)",
+	// When the object was reported to an authority. NULL means not reported yet,
+	// which is the operator's to-do list. Reporting adds to the ban, it does not
+	// replace it, so `active` is untouched by it.
+	//
+	// datetime in UTC like auditlog, not epoch seconds like createddate above: an
+	// evidence date must not depend on the timezone of the box, and createddate
+	// stays as it is because 488 existing rows are stored that way.
+	"reported" : "datetime",
+	// Reference of the filing ("Policía Nacional, denuncia 12345", "NCMEC
+	// CyberTipline 987654"). Its own column and not `reason`, which is why the ban
+	// exists and answers a different question.
+	"reportref" : "varchar(150)",
 	_indexes: [
 		"INDEX idx_origin (originid, origintable, active)",
+		// No index on category or reported on purpose: the whole table is 488 rows
+		// and only grows one moderation decision at a time, so filtering or
+		// grouping by them is a scan of a few hundred rows. An index here would be
+		// rent paid for nothing.
+	],
+	constructor: {
+		name: 'RowDataPacket',
+	},
+}
+
+/**
+ * Audit trail of the life cycle of a record: one row per state change, saying
+ * what happened, when (UTC), to which file or user, who did it (`actor`), where
+ * the change came from (`source`) and what the value went from and to.
+ *
+ * Some of those events also have to reach the operator. Those carry `notified = 1`
+ * and the delivery columns (`channel`, `status`, `attempts`, `lasterror`,
+ * `sentdate`), which stay NULL on rows that are only audited. Notification is an
+ * attribute of an event, not the reason the row exists.
+ *
+ * `payload` is the structured record of the event; on notifiable rows it holds
+ * the exact bytes that were signed and sent, so the HMAC stays verifiable
+ * afterwards.
+ */
+interface AuditlogTableStructure extends RowDataPacket{
+	id: string;
+	active: string;
+	eventtype: string;
+	origintable: string;
+	originid: string;
+	tenant: string;
+	actor: string;
+	source: string;
+	pubkey: string;
+	ip: string;
+	filehash: string;
+	previous_value: string;
+	new_value: string;
+	reason: string;
+	payload: string;
+	notified: string;
+	channel: string;
+	status: string;
+	attempts: string;
+	lasterror: string;
+	createddate: string;
+	sentdate: string;
+}
+
+const auditlogTableFields: AuditlogTableStructure = {
+	"id" : "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
+	"active" : "boolean NOT NULL DEFAULT 1",
+	"eventtype" : "varchar(50) NOT NULL",
+	"origintable" : "varchar(50) NOT NULL",
+	"originid" : "varchar(64) NOT NULL",
+	"tenant" : "varchar(64)",
+	"actor" : "varchar(64)",
+	"source" : "varchar(20)",
+	"pubkey" : "varchar(64)",
+	"ip" : "varchar(64)",
+	"filehash" : "varchar(64)",
+	"previous_value" : "varchar(255)",
+	"new_value" : "varchar(255)",
+	"reason" : "varchar(255)",
+	"payload" : "TEXT",
+	"notified" : "boolean NOT NULL DEFAULT 0",
+	"channel" : "varchar(20)",
+	"status" : "varchar(10)",
+	"attempts" : "int(11) NOT NULL DEFAULT 0",
+	"lasterror" : "varchar(255)",
+	"createddate" : "datetime NOT NULL",
+	"sentdate" : "datetime",
+	_indexes: [
+		// Timeline of one record, and the prefix serves the per-record lookups.
+		"INDEX idx_auditlog_origin_created (origintable, originid, createddate)",
+		// The notification queue: leading notified keeps the audit-only rows,
+		// which are the bulk of the table, out of the sweep entirely.
+		"INDEX idx_auditlog_delivery (notified, status, createddate)",
+		// "everything this pubkey did", the other half of an audit question.
+		"INDEX idx_auditlog_actor_created (actor, createddate)",
 	],
 	constructor: {
 		name: 'RowDataPacket',
@@ -296,6 +435,32 @@ const ipsTableFields: IpsTableStructure = {
 	lastseen: "BIGINT NOT NULL",
 	reqcount: "int(11) NOT NULL DEFAULT 0",
 	infractions: "int(11) NOT NULL DEFAULT 0",
+	comments: "varchar(150)",
+	constructor: {
+		name: 'RowDataPacket',
+	},
+};
+
+// Pubkeys that aren't registered but still need a row, so the ban system can point at them
+// (NIP-86 banpubkey). A ban on one of these sets the same Redis key as a registered ban, so
+// every isEntityBanned(pubkey, "registered") check covers it.
+// relaymember (NIP-43): 1 = relay member, 0 = left or removed, NULL = the default (registered
+// users are members, everyone else is not).
+interface PubkeysTableStructure extends RowDataPacket {
+	id: string;
+	hex: string;
+	createddate: string;
+	relaymember: string;
+	relaymemberdate: string;
+	comments: string;
+}
+
+const pubkeysTableFields: PubkeysTableStructure = {
+	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
+	hex: "varchar(64) NOT NULL UNIQUE",
+	createddate: "bigint NOT NULL",
+	relaymember: "boolean",
+	relaymemberdate: "bigint",
 	comments: "varchar(150)",
 	constructor: {
 		name: 'RowDataPacket',
@@ -381,6 +546,7 @@ const eventsTableFields: EventsTableStructure = {
 	comments: "varchar(150)",
 	_indexes: [
 		"INDEX idx_pubkey (pubkey)",
+		"INDEX idx_pubkey_kind_created (pubkey, kind, created_at)",
 		"INDEX idx_kind_created_at (kind, created_at)",
 		"INDEX idx_active_id (active, id)",
 		"INDEX idx_created_at (created_at)",
@@ -505,8 +671,10 @@ const newFieldcompatibility = [
 	{"ledger": ledgerTableFields},
 	{"accounts": accountsTableFields},
 	{"banned": bannedTableFields},
+	{"auditlog": auditlogTableFields},
 	{"invitations": invitationsTableFields},
 	{"ips": ipsTableFields},
+	{"pubkeys": pubkeysTableFields},
 	{"events": eventsTableFields},
 	{"eventtags": eventTagsTableFields},
 	{"userprefs": userPreferencesTableFields},

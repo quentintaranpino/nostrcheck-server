@@ -1,4 +1,4 @@
-import { Application} from "express";
+import express, { Application} from "express";
 import { getRelayStatus, handleWebSocketMessage } from "../controllers/relay.js";
 import { WebSocketServer, RawData } from "ws";
 import { IncomingMessage } from "http";
@@ -11,6 +11,7 @@ import { ExtendedWebSocket } from "../interfaces/relay.js";
 import { loadRelayPage, getRelayNotesAPI, getRelayStatsAPI } from "../controllers/frontend.js";
 import { getClientInfo, isIpAllowed } from "../lib/security/ips.js";
 import { getConfig } from "../lib/config/core.js";
+import { handleNIP86 } from "../controllers/nip86.js";
 
 export let wss: WebSocketServer;
 
@@ -115,6 +116,15 @@ export const loadRelayRoutes = (app: Application, version:string, httpServer : S
     return NIP11Data(req, res);
   });
 
+
+  // NIP-86 relay management API, on the relay URL (relay.<host>/ is proxied to /api/v2/relay/).
+  // The content type is checked by hand: type-is doesn't match application/nostr+json+rpc.
+  app.post([`/api/v2/relay`, `/relay`], limiter(), (req, res, next) => {
+    if (!(req.headers["content-type"] || "").startsWith("application/nostr+json+rpc")) {
+      return res.status(415).send({ error: "use Content-Type: application/nostr+json+rpc" });
+    }
+    next();
+  }, express.text({ type: () => true, limit: "64kb" }), handleNIP86);
 
   // Get Relay status
   app.get("/api/v2/relay/status", limiter(), (req, res) => getRelayStatus(req, res, wss));

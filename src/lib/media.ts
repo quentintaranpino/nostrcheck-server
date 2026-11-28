@@ -234,6 +234,11 @@ const getFileMimeType = async (file : Express.Multer.File): Promise<string> => {
 	// fallback below doesn't override a real detection (a JPEG saying it's an STL).
 	const sniffed = fileType.mime;
 
+	// Image, video and audio always carry a signature file-type knows (SVG is text, so
+	// it's left out). If the bytes don't match one, the client is lying about the type
+	// (encrypted blobs sent as video/mp4).
+	if (sniffed == "" && /^(image\/(?!svg)|video\/|audio\/)/.test(file.mimetype || "")) return "";
+
 	// Try to get mime type from file object.
 	if (fileType.mime == "") fileType.mime = file.mimetype
 

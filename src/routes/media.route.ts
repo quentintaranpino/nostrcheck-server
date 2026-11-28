@@ -24,6 +24,22 @@ export const loadMediaEndpoint = async (app: Application, version:string): Promi
 		async (req, res) => { uploadBlossom(req, res, version) }
 	);
 
+	// PUT /<sha256> (Blossom BUD-13 upload, bound to the hash in the path)
+	app.put(
+		withRoot([`${base}/:id([a-fA-F0-9]{64})(\\.[a-zA-Z0-9._-]{1,15})?`, `/:id([a-fA-F0-9]{64})(\\.[a-zA-Z0-9._-]{1,15})?`]),
+		limiter(getConfig(null, ["security", "media", "maxUploadsMinute"])),
+		rawUploadMiddleware(),
+		async (req, res) => { uploadBlossom(req, res, version) }
+	);
+
+	// POST /<sha256> (Blossom BUD-13 mirror). Body: source URLs, one per line.
+	app.post(
+		withRoot([`${base}/:id([a-fA-F0-9]{64})(\\.[a-zA-Z0-9._-]{1,15})?`, `/:id([a-fA-F0-9]{64})(\\.[a-zA-Z0-9._-]{1,15})?`]),
+		express.text({ type: () => true, limit: "16kb" }),
+		limiter(getConfig(null, ["security", "media", "maxUploadsMinute"])),
+		async (req, res) => { uploadBlossom(req, res, version) }
+	);
+
 	// POST (NIP96 upload)
 	app.post(
 		`${base}`,

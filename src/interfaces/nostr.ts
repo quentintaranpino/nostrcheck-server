@@ -47,6 +47,7 @@ interface NIP94_data {
             ["no_transform", string],
             ["payment_request", string],
             ["visibility", string],
+            ["nsfw", string],
     ],
     content: string,
     created_at: number,
@@ -134,7 +135,23 @@ const NIP01_event = z.union([
   z.tuple([
     z.literal("COUNT"),
     z.string(),
-  ]).rest(z.object({}).passthrough())
+  ]).rest(z.object({}).passthrough()),
+  // NIP-77 negentropy syncing
+  z.tuple([
+    z.literal("NEG-OPEN"),
+    z.string(),
+    z.object({}).passthrough(),
+    z.string(),
+  ]),
+  z.tuple([
+    z.literal("NEG-MSG"),
+    z.string(),
+    z.string(),
+  ]),
+  z.tuple([
+    z.literal("NEG-CLOSE"),
+    z.string(),
+  ]),
 ]);
 
 const NIP01_Filter = z.object({
@@ -192,6 +209,7 @@ interface NIP11File {
   banner?: string;
   icon?: string;
   pubkey?: string;
+  self?: string;
   contact?: string;
   supported_nips: number[];
   software?: string;
@@ -218,7 +236,7 @@ interface AuthEvent {
   sig: string;
 }
 
-const supported_nips = [1, 2, 3, 4, 5, 7, 9, 11, 13, 14, 19, 28, 40, 42, 44, 45, 47, 48, 50, 56, 62, 65, 70, 73, 78, 94, 96, 98];
+const supported_nips = [1, 2, 4, 5, 9, 11, 13, 14, 17, 40, 42, 43, 44, 45, 47, 48, 50, 56, 59, 62, 65, 70, 73, 77, 78, 86, 94, 96, 98];
 
 export {
           supported_nips,

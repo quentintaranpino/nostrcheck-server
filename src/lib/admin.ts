@@ -1,12 +1,100 @@
-import { ModuleDataTables, moduleDataSelectFields, moduleDataWhereFields } from "../interfaces/admin.js";
+import { mediaModerationFilters, mediaModerationSelectFields, ModuleDataTables, moduleDataSelectFields, moduleDataWhereFields } from "../interfaces/admin.js";
 import { dbMultiSelect, dbSelect, dbSimpleSelect } from "./database/core.js";
 import { logger } from "./logger.js";
+import { initRedis } from "./redis/client.js";
+import { escape } from "mysql2/promise";
+
+const redisCore = await initRedis(0, false);
+
+// Dashboard figures, not balances: a number up to this many seconds old is
+// invisible to the operator, while the polling that asked for it several times a
+// minute per widget is what took the database down.
+const countCacheTTL = 45;
+
+// Above this many estimated rows an exact COUNT(*) stops being affordable: on
+// InnoDB it walks an index, and on the events table (millions of rows, being
+// written to by the relay at the same time) it can sit there for minutes. Below
+// it the exact count is cheap and stays exact, so the small modules behave
+// exactly as they do today.
+const exactCountRowLimit = 500000;
+
+// Reads never fail loudly: RedisService.get already swallows its own errors and
+// returns null, so a cache miss and a cache outage look the same to the caller
+// and both fall through to the query.
+const countCacheGet = async (key: string): Promise<string | null> => {
+	try {
+		return await redisCore.get(key);
+	} catch (error) {
+		logger.debug(`countCacheGet - cache unavailable, using the query instead: ${error}`);
+		return null;
+	}
+};
+
+const countCacheSet = async (key: string, value: string): Promise<void> => {
+	try {
+		await redisCore.set(key, value, { EX: countCacheTTL });
+	} catch (error) {
+		logger.debug(`countCacheSet - could not store ${key}: ${error}`);
+	}
+};
+
+/**
+ * Total rows of a module's table, exact on small tables and estimated on the ones
+ * where an exact count is what brings the server down.
+ *
+ * The estimate comes from information_schema, which is metadata: it answers
+ * instantly and never touches the table. On InnoDB it is an approximation, so the
+ * flag travels with the number and the UI has to say so; a figure that looks
+ * exact and isn't is worse than one that admits it.
+ *
+ * @param module - Module key (relay, media, ...).
+ * @returns The count and whether it is an estimate.
+ */
+const dbCountTableRows = async (module: string): Promise<{ count: number; approximate: boolean }> => {
+
+	const table = ModuleDataTables[module];
+	if (!table) return { count: 0, approximate: false };
+
+	const estimated = Number(await dbSelect(
+									"SELECT table_rows FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?",
+									"table_rows",
+									[table])) || 0;
+
+	if (estimated <= exactCountRowLimit) {
+		const exact = await dbSelect(`SELECT COUNT(*) FROM ${table}`, "COUNT(*)", []);
+		// An empty answer means the query failed, not that the table is empty.
+		// Reporting 0 for a full table reads as "nothing to review here".
+		if (exact !== "" && exact !== null && exact !== undefined) return { count: Number(exact) || 0, approximate: false };
+		logger.error(`dbCountTableRows - Exact count of ${table} failed, falling back to the information_schema estimate`);
+	}
+
+	return { count: estimated, approximate: true };
+};
 
 const dbCountModuleData = async (module: string, field = ""): Promise<number> => {
+
 	const table = ModuleDataTables[module];
 	if (!table) {return 0;}
-	if (field) {return Number(await dbSelect(`SELECT COUNT(${field}) FROM ${table} WHERE ${field} = '1' `, `COUNT(${field})`, [])) || 0;}
-    return Number(await dbSelect(`SELECT COUNT(*) FROM ${table}`, "COUNT(*)", [])) || 0;
+
+	// Filtered count: information_schema cannot answer a WHERE, so this one is
+	// memoised instead of estimated. The query itself is untouched.
+	if (field) {
+		const cacheKey = `admincount:v1:field:global:${module}:${field}`;
+		const cached = await countCacheGet(cacheKey);
+		if (cached !== null) return Number(cached) || 0;
+
+		const counted = await dbSelect(`SELECT COUNT(${field}) FROM ${table} WHERE ${field} = '1' `, `COUNT(${field})`, []);
+		if (counted === "" || counted === null || counted === undefined) {
+			logger.error(`dbCountModuleData - Count of ${table}.${field} failed, returning 0 without caching it`);
+			return 0;
+		}
+
+		const count = Number(counted) || 0;
+		await countCacheSet(cacheKey, String(count));
+		return count;
+	}
+
+	return (await dbCountTableRows(module)).count;
 }
 
 
@@ -33,6 +121,18 @@ const dbCountBucketModuleData = async (module: string, field: string, bucket: "w
 	};
 	const { fmt, limit } = formatByBucket[bucket] || formatByBucket.month;
 
+	// Grouped counts can't come from information_schema either, and this one
+	// scans the whole table to bucket it. Memoised, query untouched.
+	const cacheKey = `admincount:v1:bucket:global:${module}:${field}:${bucket}`;
+	const cached = await countCacheGet(cacheKey);
+	if (cached !== null) {
+		try {
+			return JSON.parse(cached);
+		} catch (error) {
+			logger.debug(`dbCountBucketModuleData - cached value for ${cacheKey} was unreadable, querying again`);
+		}
+	}
+
 	const data = await dbMultiSelect(
 		[
 		`COUNT(*) as 'count'`,
@@ -50,7 +150,42 @@ const dbCountBucketModuleData = async (module: string, field: string, bucket: "w
 		false
 	);
 
+	// An empty result is what dbMultiSelect returns when the query fails, so it
+	// never gets cached: a chart frozen empty for the TTL reads as "no activity".
+	if (data && data.length > 0) await countCacheSet(cacheKey, JSON.stringify(data));
+
 	return data;
+};
+
+// Splits a select list on its top-level commas (not the ones inside functions or quotes).
+const splitSelectList = (selectList: string): string[] => {
+	const items: string[] = [];
+	let depth = 0, quote = "", current = "";
+	for (const ch of selectList) {
+		if (quote) { if (ch == quote) quote = ""; }
+		else if (ch == "'" || ch == '"') quote = ch;
+		else if (ch == "(") depth++;
+		else if (ch == ")") depth--;
+		else if (ch == "," && depth == 0) { items.push(current.trim()); current = ""; continue; }
+		current += ch;
+	}
+	if (current.trim()) items.push(current.trim());
+	return items;
+};
+
+/**
+ * The columns a module's admin list can sort and filter on. The list query wraps the select in
+ * a derived table, so the dashboard sends the output names (date, checked, banned, severity...);
+ * the table-qualified search columns are valid there too. Anything else never reaches the SQL.
+ */
+const moduleDataColumns = (module: string): Set<string> => {
+	const columns = new Set<string>();
+	for (const item of splitSelectList(moduleDataSelectFields[module] || "")) {
+		const alias = item.match(/\s+as\s+['"`]?([A-Za-z0-9_]+)['"`]?\s*$/i);
+		columns.add(alias ? alias[1] : item.split(".").pop()!.trim());
+	}
+	for (const field of (moduleDataWhereFields[module] || []).join(",").split(",")) columns.add(field.trim());
+	return new Set([...columns].filter(column => /^[A-Za-z_][A-Za-z0-9_.]*$/.test(column)));
 };
 
 async function dbSelectModuleData(module:string, offset:number, limit:number, order:string = "DESC", sort:string, search:string, filter: any): Promise<{ total: number; totalNotFiltered: number; rows: string | never[]; }>{
@@ -60,22 +195,29 @@ async function dbSelectModuleData(module:string, offset:number, limit:number, or
 
 	let {fieldsLogic, fromLogic, whereLogic, sortLogic, limitLogic} = {fieldsLogic: "", fromLogic: "", whereLogic: "WHERE (1=1) ", sortLogic: "", limitLogic: ""};
 
+	// Sort, order, search and filter come straight from the request: columns are checked
+	// against the module's own list and values are escaped (reported in #63 by aroh3006).
+	const columns = moduleDataColumns(module);
+	const sortOrder = String(order || "").trim().toUpperCase() == "ASC" ? "ASC" : "DESC";
+
 	fieldsLogic = moduleDataSelectFields[module];
 	fromLogic = `FROM ${table}`;
     if (search) {
         const fieldsArray = moduleDataWhereFields[module].join(',').split(',');
         const fields = fieldsArray.map(field => `COALESCE(${field.trim()}, '')`).join(", ");
-        whereLogic += `AND CONCAT(${fields}) LIKE "%${search}%"`;
+        whereLogic += `AND CONCAT(${fields}) LIKE ${escape(`%${search}%`)}`;
     } else {
         whereLogic = "WHERE (1=1) ";
     }
-	sort? sortLogic = `ORDER BY ${sort} ${order}`: sortLogic = `ORDER BY ${table}.id ${order}`;
-	limitLogic = `LIMIT ${offset} , ${limit}`;
+	sortLogic = sort && columns.has(sort) ? `ORDER BY ${sort} ${sortOrder}` : `ORDER BY ${table}.id ${sortOrder}`;
+	limitLogic = `LIMIT ${Math.max(0, Math.floor(Number(offset)) || 0)} , ${Math.max(0, Math.floor(Number(limit)) || 0)}`;
 
 	if (filter && filter.length > 0){
 		for (const item of filter) {
-			if (item.field && item.value) {
-				item.value.startsWith("!") ? whereLogic += ` AND ${item.field} != '${item.value.split("!")[1]}'` : whereLogic += ` AND ${item.field} = '${item.value}'`;
+			if (item.field && typeof item.value == "string" && item.value != "" && columns.has(item.field)) {
+				whereLogic += item.value.startsWith("!")
+					? ` AND ${item.field} != ${escape(item.value.substring(1))}`
+					: ` AND ${item.field} = ${escape(item.value)}`;
 			}
 		}
 	}
@@ -83,12 +225,38 @@ async function dbSelectModuleData(module:string, offset:number, limit:number, or
 	logger.debug(`dbSelectModuleData - executing query: SELECT ${fieldsLogic} ${fromLogic} ${whereLogic} ${sortLogic} ${limitLogic}`);
 	logger.debug(`dbSelectModuleData - executing query: SELECT COUNT(*) as total FROM (SELECT ${fieldsLogic} ${fromLogic}) as ${table} ${whereLogic}`);
 
-	const total = await dbSimpleSelect(table, `SELECT COUNT(*) as total FROM (SELECT ${fieldsLogic} ${fromLogic}) as ${table} ${whereLogic}`);
+	// This total drives the page count of the table, so it stays exact: an
+	// estimate here would leave the last page empty or hide rows. What it gets
+	// instead is a short-lived cache, and only in the unfiltered case, which is
+	// the one the dashboard polls (a search or a filter is an interactive query
+	// and would fragment the key space for nothing).
+	const plainQuery = whereLogic.trim() === "WHERE (1=1)";
+	const totalCacheKey = `admincount:v1:total:global:${module}`;
+
+	let totalValue: number | null = null;
+	if (plainQuery) {
+		const cached = await countCacheGet(totalCacheKey);
+		if (cached !== null) totalValue = Number(cached) || 0;
+	}
+
+	if (totalValue === null) {
+		const total = await dbSimpleSelect(table, `SELECT COUNT(*) as total FROM (SELECT ${fieldsLogic} ${fromLogic}) as ${table} ${whereLogic}`);
+		if (total) {
+			totalValue = Number(JSON.parse(JSON.stringify(total[0])).total) || 0;
+			if (plainQuery) await countCacheSet(totalCacheKey, String(totalValue));
+		} else {
+			// Failed query: report 0 for this response but don't freeze it into
+			// the cache for the next TTL.
+			logger.error(`dbSelectModuleData - Count of ${table} failed, returning 0 without caching it`);
+			totalValue = 0;
+		}
+	}
+
 	const totalNotFiltered =  await dbCountModuleData(module);
 	const data = await dbSimpleSelect(table, `SELECT * FROM (SELECT ${fieldsLogic} ${fromLogic}) as ${table} ${whereLogic} ${sortLogic} ${limitLogic}`);
 
 	const result = {
-		total: total? JSON.parse(JSON.stringify(total[0])).total : 0,
+		total: totalValue,
 		totalNotFiltered: totalNotFiltered,
 		rows: data || []
 	}
@@ -96,4 +264,337 @@ async function dbSelectModuleData(module:string, offset:number, limit:number, or
 	return result;
 }
 
-export { dbCountModuleData, dbSelectModuleData, dbCountMonthModuleData, dbCountBucketModuleData };
+// An active ban on a mediafiles row. Used both to select the banned bucket and
+// to keep banned files out of the pending one.
+const mediaBannedExists = "EXISTS (SELECT 1 FROM banned WHERE banned.originid = mediafiles.id AND banned.origintable = 'mediafiles' AND banned.active = '1')";
+
+/**
+ * Builds the WHERE clause for the moderation gallery.
+ * Every value the operator can type (mimetype, pubkey) travels as a bound
+ * parameter, the status only ever picks a hardcoded clause. dbSelectModuleData
+ * concatenates its filters into the SQL and we don't want to widen that.
+ *
+ * @param filters - status bucket, mimetype ("image/webp" or "image/*") and pubkey.
+ * @returns The clause and its bound parameters.
+ */
+const mediaModerationWhere = (filters: mediaModerationFilters): { clause: string; params: (string | number)[] } => {
+
+	const clauses: string[] = [];
+	const params: (string | number)[] = [];
+
+	switch (filters.status) {
+		case "pending":
+			// A ban is a decision already taken, so it leaves the queue. Done
+			// here rather than by forcing checked = 1 on ban: checked means "the
+			// classifier or the operator reviewed this" and writing it from the
+			// ban path would falsify that for every other consumer of the column.
+			clauses.push("mediafiles.checked <> 1 AND NOT " + mediaBannedExists);
+			break;
+		case "checked":
+			// Deliberately every reviewed file, nsfw ones included. "checked" is
+			// the column and it means reviewed, nothing more; splitting it here
+			// would make this view disagree with the hosted files table and hide
+			// files from the very list the reviewer uses to audit their own work.
+			// The nsfw bucket below is the way to look at that subset, and the
+			// gallery badges each tile so the two never look alike.
+			clauses.push("mediafiles.checked = 1");
+			break;
+		case "safe":
+			// The other half of "checked": reviewed and kept public. This is the
+			// bucket to sweep for false safes, files marked reviewed that should
+			// have been flagged nsfw.
+			clauses.push("mediafiles.checked = 1 AND mediafiles.nsfw <> 1");
+			break;
+		case "nsfw":
+			// Its own flag now, so the uploader's visibility switch no longer
+			// leaks into this bucket.
+			clauses.push("mediafiles.nsfw = 1");
+			break;
+		case "active":
+			clauses.push("mediafiles.active = 1");
+			break;
+		case "inactive":
+			clauses.push("mediafiles.active <> 1");
+			break;
+		case "banned":
+			clauses.push(mediaBannedExists);
+			break;
+		default:
+			break;
+	}
+
+	if (filters.mimetype != "") {
+		if (filters.mimetype == "visual") {
+			// "visual" is not a real mimetype but the gallery's default lens:
+			// what a human can judge by looking at it. Kept server side so the
+			// filtered count and the page agree on what it means.
+			clauses.push("(mediafiles.mimetype LIKE 'image/%' OR mediafiles.mimetype LIKE 'video/%')");
+		} else if (filters.mimetype.endsWith("/*")) {
+			clauses.push("mediafiles.mimetype LIKE ?");
+			params.push(filters.mimetype.replace("/*", "/%"));
+		} else {
+			clauses.push("mediafiles.mimetype = ?");
+			params.push(filters.mimetype);
+		}
+	}
+
+	if (filters.pubkey != "") {
+		clauses.push("mediafiles.pubkey = ?");
+		params.push(filters.pubkey);
+	}
+
+	// Upload date window. The controller validated the shape (YYYY-MM-DD), here
+	// they only ever travel as bound parameters against the raw datetime column,
+	// never through DATE(): that would throw the index away on a 300k row table.
+	//
+	// Each date bound also becomes an id bound, resolved by an uncorrelated
+	// subquery (one instant idx_date probe). Without it the optimizer sees
+	// ORDER BY id DESC LIMIT n and walks the primary key backwards from the
+	// newest row until it reaches the window: for an old month that is millions
+	// of rows and the request dies in the proxy. id is AUTO_INCREMENT and date
+	// is set at insert, so the id window brackets the date window and the date
+	// clause itself trims the stragglers exactly.
+	if (filters.since != "") {
+		clauses.push("mediafiles.date >= ?");
+		params.push(`${filters.since} 00:00:00`);
+		clauses.push("mediafiles.id >= (SELECT COALESCE(MIN(m2.id), 0) FROM mediafiles m2 WHERE m2.date >= ?)");
+		params.push(`${filters.since} 00:00:00`);
+	}
+	if (filters.until != "") {
+		clauses.push("mediafiles.date <= ?");
+		params.push(`${filters.until} 23:59:59`);
+		clauses.push("mediafiles.id <= (SELECT COALESCE(MAX(m2.id), 0) FROM mediafiles m2 WHERE m2.date <= ?)");
+		params.push(`${filters.until} 23:59:59`);
+	}
+
+	return { clause: clauses.length > 0 ? clauses.join(" AND ") : "1=1", params };
+};
+
+/**
+ * How much is left to review on the whole server, regardless of what the gallery
+ * is filtered to. This is the number that answers "how much is left" after 1,500
+ * manual actions, which a per-filter total cannot.
+ *
+ * Uses the same predicate as the "pending" bucket (unchecked and not banned) so
+ * the figure matches what the grid shows when that bucket is selected; a global
+ * that counted banned files would never reach zero.
+ *
+ * Deliberately NOT the information_schema estimate: that shortcut is for whole
+ * table totals with no WHERE, and an approximate progress counter would drift
+ * between reloads without the operator having done anything, which is worse than
+ * showing nothing.
+ *
+ * Both counts are memoised for countCacheTTL so the incremental scroll never pays
+ * for them: the caller only asks on first load, on a filter change and on refresh.
+ *
+ * @returns Pending files, and how many of those are image or video.
+ */
+const dbCountPendingOverview = async (): Promise<{ total: number; visual: number }> => {
+
+	const { clause, params } = mediaModerationWhere({ status: "pending", mimetype: "", pubkey: "", since: "", until: "" });
+	const visualClause = `${clause} AND (mediafiles.mimetype LIKE 'image/%' OR mediafiles.mimetype LIKE 'video/%')`;
+
+	const readCount = async (cacheKey: string, whereClause: string): Promise<number> => {
+
+		const cached = await countCacheGet(cacheKey);
+		if (cached !== null) return Number(cached) || 0;
+
+		const counted = await dbMultiSelect(["COUNT(*) as total"], "mediafiles", whereClause, params, true);
+		if (counted.length === 0) {
+			// A failed count is not zero pending files. Report 0 for this response
+			// but never freeze it into the cache.
+			logger.error(`dbCountPendingOverview - Count failed for ${cacheKey}, returning 0 without caching it`);
+			return 0;
+		}
+
+		const total = Number(counted[0].total) || 0;
+		await countCacheSet(cacheKey, String(total));
+		return total;
+	};
+
+	const total = await readCount("admincount:v1:pending:global:total", clause);
+	const visual = await readCount("admincount:v1:pending:global:visual", visualClause);
+
+	return { total, visual };
+};
+
+/**
+ * Reads a page of files for the moderation gallery.
+ *
+ * Pages by id cursor, not by offset: the operator is changing the very flags
+ * the filter selects on, so an OFFSET window would slide and skip files that
+ * were never looked at. Sorted by id only (never by a user supplied column)
+ * and capped at 200 rows per call.
+ *
+ * @param filters - status bucket, mimetype and pubkey.
+ * @param cursor - Last id of the previous page, 0 for the first page.
+ * @param limit - Rows to return (1-200).
+ * @param order - "ASC" or "DESC", anything else falls back to "DESC".
+ * @returns The requested page. Counting is dbCountMediaModeration's job: the
+ *          page must paint in the time a LIMIT takes, never in the time a
+ *          COUNT over the whole predicate takes.
+ */
+const dbSelectMediaModerationData = async (filters: mediaModerationFilters, cursor: number, limit: number, order: string): Promise<{ rows: Record<string, unknown>[] }> => {
+
+	const { clause, params } = mediaModerationWhere(filters);
+	const safeCursor = Number.isFinite(cursor) && cursor > 0 ? Math.floor(cursor) : 0;
+	const safeLimit = Math.min(Math.max(Number.isFinite(limit) ? Math.floor(limit) : 60, 1), 200);
+	const safeOrder = order && order.toUpperCase() === "ASC" ? "ASC" : "DESC";
+
+	let pageClause = clause;
+	const pageParams = [...params];
+	if (safeCursor > 0) {
+		pageClause += safeOrder === "ASC" ? " AND mediafiles.id > ?" : " AND mediafiles.id < ?";
+		pageParams.push(safeCursor);
+	}
+
+	const rows = await dbMultiSelect(mediaModerationSelectFields,
+									"mediafiles",
+									`${pageClause} ORDER BY mediafiles.id ${safeOrder}`,
+									pageParams,
+									false,
+									`LIMIT ${safeLimit}`);
+
+	logger.debug(`dbSelectMediaModerationData - status: ${filters.status} | mimetype: ${filters.mimetype} | pubkey: ${filters.pubkey} | cursor: ${safeCursor} | rows: ${rows.length}`);
+
+	return { rows: rows || [] };
+};
+
+/**
+ * Exact count of what the current filter matches. Split from the page reader so
+ * the gallery can ask for it asynchronously: the pending predicate is an
+ * inequality plus a NOT EXISTS, a full scan the first paint must never wait on.
+ *
+ * @param filters - status bucket, mimetype and pubkey.
+ * @returns Matching rows.
+ */
+const dbCountMediaModeration = async (filters: mediaModerationFilters): Promise<number> => {
+
+	const { clause, params } = mediaModerationWhere(filters);
+	const counted = await dbMultiSelect(["COUNT(*) as total"], "mediafiles", clause, params, true);
+	return counted.length > 0 ? Number(counted[0].total) || 0 : 0;
+};
+
+/**
+ * Counts files per mimetype and per uploader inside a status bucket, so the
+ * gallery toolbar can offer real options instead of a blank text field. The
+ * uploader list is what makes the backlog tractable: a couple of pubkeys
+ * usually hold most of it.
+ *
+ * @param filters - status bucket (mimetype and pubkey are ignored on purpose).
+ * @returns Mimetypes and uploaders with their counts, most files first.
+ */
+const dbSelectMediaModerationFacets = async (filters: mediaModerationFilters): Promise<{ mimetypes: Record<string, unknown>[]; pubkeys: Record<string, unknown>[]; pending: { total: number; visual: number } }> => {
+
+	// Two GROUP BY scans over the whole bucket. Memoised like the counts: the
+	// figures move slower than the operator, and a stale-by-45s toolbar beats
+	// paying both scans on every status flip.
+	const cacheKey = `admincount:v1:facets:${filters.status}`;
+	const cached = await countCacheGet(cacheKey);
+	if (cached !== null) {
+		try {
+			return JSON.parse(cached);
+		} catch (error) {
+			logger.debug(`dbSelectMediaModerationFacets - discarding malformed cache entry ${cacheKey}: ${error}`);
+		}
+	}
+
+	const { clause, params } = mediaModerationWhere({ status: filters.status, mimetype: "", pubkey: "", since: "", until: "" });
+
+	const mimetypes = await dbMultiSelect(["mediafiles.mimetype", "COUNT(*) as 'count'"],
+										"mediafiles",
+										`${clause} GROUP BY mediafiles.mimetype ORDER BY count DESC`,
+										params,
+										false,
+										"LIMIT 40");
+
+	// The username is resolved outside the GROUP BY (on the already aggregated
+	// rows) so the grouped query stays plain COUNT and can't argue with
+	// ONLY_FULL_GROUP_BY.
+	const pubkeys = await dbMultiSelect(["uploaders.pubkey",
+										"uploaders.count",
+										"(SELECT registered.username FROM registered WHERE registered.hex = uploaders.pubkey LIMIT 1) as username"],
+										`(SELECT mediafiles.pubkey, COUNT(*) as 'count' FROM mediafiles WHERE ${clause} GROUP BY mediafiles.pubkey ORDER BY count DESC LIMIT 20) as uploaders`,
+										"1=1",
+										params,
+										false);
+
+	// Rides along with the facets because they share the same triggers: first load,
+	// status change and refresh. The scroll never asks for either.
+	const pending = await dbCountPendingOverview();
+
+	const result = { mimetypes: mimetypes || [], pubkeys: pubkeys || [], pending };
+	await countCacheSet(cacheKey, JSON.stringify(result));
+	return result;
+};
+
+// null = not probed yet. Installations that haven't migrated simply get no
+// notification state instead of an error on every gallery page.
+let auditlogTableAvailable: boolean | null = null;
+
+/**
+ * Bridge reader for delivery state, kept as the fallback for when
+ * lib/audit/core.getNotificationStatusBulk can't be reached (the controller
+ * prefers that helper and only lands here if the module isn't loadable). Same
+ * shape: one entry per originid.
+ *
+ * Only notifiable rows count. An audit-only row (notified = 0) has no channel
+ * and no status, and letting those in would drag every "worst status" down to
+ * an empty string and paint "not notified" on files that never had anything to
+ * notify.
+ *
+ * A record can have several notices (one per channel, plus retries), and the
+ * interesting one is never the newest but the worst: a failure means the
+ * operator believes they warned somebody and they didn't. So failed wins over
+ * pending, and pending over sent. That is also the row a manual retry should
+ * target, which is why the controller uses this to resolve the retry id even
+ * when the audit layer supplied the status.
+ *
+ * If the auditlog table isn't there dbMultiSelect logs and returns an empty
+ * array, which degrades to "no notification info" instead of breaking the
+ * caller.
+ *
+ * @param origintable - Table the events point at (e.g. "mediafiles").
+ * @param ids - Origin ids to look up.
+ * @returns Map of originid to the notice that matters for it.
+ */
+const dbSelectNotificationStatusBulk = async (origintable: string, ids: number[]): Promise<Record<string, { id: number; status: string; attempts: number; lasterror: string }>> => {
+
+	const result: Record<string, { id: number; status: string; attempts: number; lasterror: string }> = {};
+	const safeIds = ids.filter(id => Number.isInteger(id) && id > 0);
+	if (origintable === "" || safeIds.length === 0) return result;
+
+	// Probe once per process instead of letting every page load fail against a
+	// missing table and write an error line for it.
+	if (auditlogTableAvailable === null) {
+		const probe = await dbSimpleSelect("auditlog", "SHOW TABLES LIKE 'auditlog'");
+		auditlogTableAvailable = probe !== "" && probe.length > 0;
+		if (!auditlogTableAvailable) logger.info(`dbSelectNotificationStatusBulk - no auditlog table on this install, notification state stays empty`);
+	}
+	if (auditlogTableAvailable === false) return result;
+
+	// auditlog.originid is a varchar: bind the ids as strings or MySQL casts the
+	// column and idx_auditlog_origin_created stops being usable.
+	const rows = await dbMultiSelect(["id", "originid", "status", "attempts", "lasterror"],
+									"auditlog",
+									`origintable = ? AND notified = 1 AND originid IN (${safeIds.map(() => "?").join(",")}) ORDER BY id DESC`,
+									[origintable, ...safeIds.map(id => String(id))],
+									false);
+
+	const severity: { [key: string]: number } = { sent: 0, pending: 1, failed: 2 };
+	for (const row of rows) {
+		const key = String(row.originid);
+		const current = result[key];
+		const candidate = {
+			id: Number(row.id),
+			status: String(row.status || ""),
+			attempts: Number(row.attempts) || 0,
+			lasterror: String(row.lasterror || ""),
+		};
+		if (!current || (severity[candidate.status] || 0) > (severity[current.status] || 0)) result[key] = candidate;
+	}
+
+	return result;
+};
+
+export { dbCountModuleData, dbCountTableRows, dbSelectModuleData, dbCountMonthModuleData, dbCountBucketModuleData, dbSelectMediaModerationData, dbCountMediaModeration, dbSelectMediaModerationFacets, dbSelectNotificationStatusBulk };

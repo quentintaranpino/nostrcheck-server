@@ -4,7 +4,7 @@ import { Request, Response } from "express";
 
 import { subscriptions, addSubscription, removeAllSubscriptions, removeSubscription, socketSafeSend, checkWSConnectionRate } from "../lib/relay/core.js";
 import { compressEvent, fillEventMetadata, getEventById, getEventsByTimerange, validateFilter, parseRelayMessage, getChunkSize, filterEarlyDiscard } from "../lib/relay/utils.js";
-import { initEvents } from "../lib/relay/database.js";
+import { deactivateSupersededDB, getArchivedEventsDB, getEventsByIdDB, getNewestReplaceableDB, getReplaceableIds, indexReplaceable, initEvents, isEventStoredDB, vanishPubkeyDB } from "../lib/relay/database.js";
 
 import { isEventValid } from "../lib/nostr/core.js";
 import { logger } from "../lib/logger.js";
@@ -13,10 +13,13 @@ import { isEntityBanned } from "../lib/security/banned.js";
 import { isEphemeral, isReplaceable } from "../lib/nostr/NIP01.js";
 import { executePlugins } from "../lib/plugins/core.js";
 import { validatePow } from "../lib/nostr/NIP13.js";
-import { allowedTags, eventStore, ExtendedWebSocket, MetadataEvent, RelayStatusMessage } from "../interfaces/relay.js";
+import { allowedTags, EventIndex, eventStore, ExtendedWebSocket, MetadataEvent, RelayStatusMessage } from "../interfaces/relay.js";
 import { isBase64 } from "../lib/utils.js";
+import { isRelayHidden } from "../lib/relay/bans.js";
+import { handleNegClose, handleNegMsg, handleNegOpen } from "./nip77.js";
+import { MEMBERSHIP_LIST_KIND, getMembershipList, isRegisteredPubkey, isRelayMember, redeemClaim, setRelayMember } from "../lib/relay/members.js";
 import { AuthEvent } from "../interfaces/nostr.js";
-import { dbMultiSelect, dbUpdate } from "../lib/database/core.js";
+import { dbUpdate } from "../lib/database/core.js";
 import { enqueueRelayTask, getEvents, getPendingHeavyTasks, getPendingLightTasks, getRelayHeavyWorkerLength, getRelayLightWorkerLength, getRelayQueueLength, relayWorkers } from "../lib/relay/workers.js";
 import { parseAuthHeader } from "../lib/authorization.js";
 import { getConfig, isModuleEnabled } from "../lib/config/core.js";
@@ -24,7 +27,39 @@ import { IncomingMessage } from "http";
 import crypto from "crypto";
 
 await initEvents();
-const authSessions: Map<WebSocket, string> = new Map(); 
+const authSessions: WeakMap<WebSocket, string> = new WeakMap();
+
+// NIP-04 / NIP-17: direct messages and gift wraps are only served to the parties of the
+// message, once they have authenticated (NIP-42). Anyone can still publish them.
+const PRIVATE_KINDS = new Set([4, 14, 1059]);
+const canReadEvent = (socket: ExtendedWebSocket, event: Event): boolean => {
+  if (isRelayHidden(event)) return false;
+  if (!PRIVATE_KINDS.has(event.kind)) return true;
+  const authed = authSessions.get(socket);
+  if (!authed) return false;
+  if (event.kind == 4 && event.pubkey == authed) return true;
+  return event.tags.some(tag => tag[0] == "p" && tag[1] == authed);
+};
+
+// NIP-43: join (28934) and leave (28936) requests carry their own signature, so they get past
+// auth_required; so do REQs that only ask for the membership list or roles, so a client can see
+// whether it is a member before it authenticates.
+const MEMBERSHIP_REQUEST_KINDS = new Set([28934, 28936]);
+const MEMBERSHIP_INFO_KINDS = new Set([MEMBERSHIP_LIST_KIND, 33534]);
+const MEMBERSHIP_REQUEST_WINDOW = 300;
+const isMembershipMessage = (type: unknown, args: unknown[]): boolean => {
+  if (type === "EVENT") return MEMBERSHIP_REQUEST_KINDS.has((args[0] as Event)?.kind);
+  if (type === "REQ" || type === "COUNT") {
+    const filters = args.slice(1) as Filter[];
+    return filters.length > 0 && filters.every(f => Array.isArray(f?.kinds) && f.kinds.length > 0 && f.kinds.every(kind => MEMBERSHIP_INFO_KINDS.has(kind)));
+  }
+  return false;
+};
+
+const sendAuthChallenge = async (socket: ExtendedWebSocket): Promise<void> => {
+  if (!socket.challenge) socket.challenge = crypto.randomBytes(32).toString("hex");
+  await socketSafeSend(socket, ["AUTH", socket.challenge]);
+};
 
 const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket.RawData, req: IncomingMessage) => {
 
@@ -100,11 +135,11 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
       return;
     }
     const authRequired = getConfig(socket.reqInfo.domain, ["relay","limitation","auth_required"]);
-    if (authRequired === true && !authSessions.has(socket)) {
-      if (!socket.challenge) {
-        socket.challenge = crypto.randomBytes(32).toString("hex");
-        await socketSafeSend(socket, ["AUTH", socket.challenge]);
-      }
+    if (authRequired === true && !authSessions.has(socket) && !isMembershipMessage(type, args)) {
+      if (!socket.challenge) await sendAuthChallenge(socket);
+      const reason = "auth-required: this relay requires authentication";
+      if (type === "EVENT" && typeof (args[0] as Event)?.id === "string") await socketSafeSend(socket, ["OK", (args[0] as Event).id, false, reason]);
+      if ((type === "REQ" || type === "COUNT") && typeof args[0] === "string") await socketSafeSend(socket, ["CLOSED", args[0], reason]);
       return;
     }
 
@@ -136,6 +171,30 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
           socket.close(1011, "error: internal server error");
         }
       
+        break;
+      }
+
+      // NIP-77 negentropy syncing
+      case "NEG-OPEN": {
+        try {
+          await handleNegOpen(socket, args);
+        } catch (error) {
+          logger.error(`handleWebSocketMessage - Failed to handle NEG-OPEN: ${error}`);
+          if (typeof args[0] === "string") await socketSafeSend(socket, ["NEG-ERR", args[0], "error: internal server error"]);
+        }
+        break;
+      }
+      case "NEG-MSG": {
+        try {
+          await handleNegMsg(socket, args);
+        } catch (error) {
+          logger.error(`handleWebSocketMessage - Failed to handle NEG-MSG: ${error}`);
+          if (typeof args[0] === "string") await socketSafeSend(socket, ["NEG-ERR", args[0], "error: internal server error"]);
+        }
+        break;
+      }
+      case "NEG-CLOSE": {
+        handleNegClose(socket, args);
         break;
       }
 
@@ -192,6 +251,12 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
     logger.debug(`handleEvent - Invalid event: ${event.id}, ${validEvent.message}`);
     await socketSafeSend(socket, ["NOTICE", `invalid: ${validEvent.message}`]);
     await socketSafeSend(socket, ["OK", event.id, false, `invalid: ${validEvent.message}`]);
+    return;
+  }
+
+  // NIP-43 join and leave requests: answered here, never stored or broadcast (the claim is secret).
+  if (MEMBERSHIP_REQUEST_KINDS.has(event.kind)) {
+    await handleMembershipRequest(socket, event);
     return;
   }
 
@@ -273,11 +338,11 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
     }
   }
 
-  // NIP-70 Check if the event has a ["-"] tag and "auth_required" is enabled
-  if (getConfig(socket.reqInfo.domain, ["relay", "limitation", "auth_required"]) == true && event.tags.some(tag => tag[0] === "-") && authSessions.get(socket) !== event.pubkey) {
-      logger.debug(`handleEvent - Blocked private message without authentication: ${event.id}`);
-      await socketSafeSend(socket, ["NOTICE", "error: unauthorized to post private messages"]);
-      await socketSafeSend(socket, ["OK", event.id, false, "error: unauthorized to post private messages"]);
+  // NIP-70: protected events are only accepted from their authenticated author
+  if (event.tags.some(tag => tag[0] === "-") && authSessions.get(socket) !== event.pubkey) {
+      logger.debug(`handleEvent - Blocked protected event without author authentication: ${event.id}`);
+      await sendAuthChallenge(socket);
+      await socketSafeSend(socket, ["OK", event.id, false, "auth-required: this event may only be published by its author"]);
       return;
   }
 
@@ -298,6 +363,14 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
     return;
   }
 
+  // Events older than the memory horizon live only in the DB.
+  const isArchived = eventStore.memoryHorizon > 0 && event.created_at < eventStore.memoryHorizon && !isEphemeral(event.kind);
+  if (!existing && isArchived && (eventStore.pendingArchive.has(event.id) || await isEventStoredDB(event.id))) {
+    logger.debug(`handleEvent - Duplicate archived event: ${event.id}`);
+    await socketSafeSend(socket, ["OK", event.id, false, "duplicate: already have this event"]);
+    return;
+  }
+
   // Ephemeral events
   if (isEphemeral(event.kind)) {
     subscriptions.forEach((clientSubscriptions) => {
@@ -309,15 +382,27 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
 
   // Replaceable events
   if (isReplaceable(event.kind)) {
-    const replacementCandidates = Array.from(eventStore.eventIndex.entries())
-    .filter(([_id, entry]) =>
-      entry.kind === event.kind &&
-      entry.pubkey === event.pubkey &&
-      (isIsolated && entry.tenantid === event.tenantid)
-    );
+    // Newest stored version in memory. Outside isolated mode any tenant's version counts;
+    // the old condition only matched in isolated mode, so nothing was ever replaced.
+    let oldEventEntry: [string, EventIndex] | null = null;
+    for (const id of getReplaceableIds(event.pubkey, event.kind)) {
+      const entry = eventStore.eventIndex.get(id);
+      if (!entry) continue;
+      if (isIsolated && entry.tenantid !== event.tenantid) continue;
+      if (!oldEventEntry || entry.created_at > oldEventEntry[1].created_at) oldEventEntry = [id, entry];
+    }
 
-    if (replacementCandidates.length > 0) {
-      const oldEventEntry = replacementCandidates[0];
+    // Not in memory: an older-than-horizon version may still be the current one in the DB.
+    if (!oldEventEntry && eventStore.memoryHorizon > 0) {
+      const newestStored = await getNewestReplaceableDB(event.pubkey, event.kind, isIsolated ? event.tenantid : undefined);
+      if (newestStored !== null && newestStored >= event.created_at) {
+        logger.debug(`handleEvent - Rejected replaceable event older than the stored one: ${event.id}`);
+        await socketSafeSend(socket, ["OK", event.id, false, "rejected: replaceable event is older or equal to existing event"]);
+        return;
+      }
+    }
+
+    if (oldEventEntry) {
       const oldEvent = await getEventById(oldEventEntry[0], eventStore);
 
       // If the event is not processed yet, we delete it and accept the new one
@@ -379,16 +464,25 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
       return;
     }
 
+    // Events past the memory horizon are looked up in the DB.
+    const notInMemory = receivedEventsToDelete.filter(id => !eventStore.pending.has(id) && !eventStore.pendingArchive.has(id) && !eventStore.eventIndex.has(id));
+    const archivedToDelete = eventStore.memoryHorizon > 0 && notInMemory.length > 0
+      ? await getEventsByIdDB(notInMemory, isIsolated ? event.tenantid : undefined)
+      : [];
+
     const eventsToDelete = (
       await Promise.all(
         receivedEventsToDelete.map(async id => {
           const candidate =
             eventStore.pending.get(id) ??
-            (eventStore.eventIndex.has(id) ? await getEventById(id, eventStore) : null);
+            eventStore.pendingArchive.get(id) ??
+            (eventStore.eventIndex.has(id) ? await getEventById(id, eventStore) : null) ??
+            archivedToDelete.find(e => e.id === id) ??
+            null;
           if (!candidate) return null;
-    
+
           if (isIsolated && candidate.tenantid !== event.tenantid) return null;
-    
+
           return candidate;
         })
     )).filter(
@@ -459,6 +553,15 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
       e.kind !== 62
     );
 
+    // Older events are not in memory; remove them straight from the DB. Runs in the
+    // background and in batches: a big account would otherwise hold an event queue slot.
+    if (eventStore.memoryHorizon > 0) {
+      for (const [id, e] of eventStore.pendingArchive) {
+        if (e.pubkey === event.pubkey && e.created_at < event.created_at && (!isIsolated || e.tenantid === event.tenantid)) eventStore.pendingArchive.delete(id);
+      }
+      vanishPubkeyDB(event.pubkey, event.created_at, isIsolated ? event.tenantid : undefined).catch(() => {});
+    }
+
     returnMessage = "deleted: events successfully deleted (kind 62)";
 
     // Add events to pendingDelete
@@ -522,8 +625,26 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
     clientSubs.forEach(listener => listener(event));
   });
 
-  // Save the event to memory
+  // Replaced versions past the memory horizon are only in the DB.
+  if (isReplaceable(event.kind) && eventStore.memoryHorizon > 0) {
+    await deactivateSupersededDB(event, isIsolated ? event.tenantid : undefined);
+  }
+
   event = await fillEventMetadata(event);
+
+  // Old events stay out of memory; persistArchivedEvents writes them to the DB in batches.
+  if (isArchived) {
+    if (eventStore.pendingArchive.size >= MAX_PENDING_ARCHIVE) {
+      logger.debug(`handleEvent - Too many old events waiting to be stored: ${event.id}`);
+      await socketSafeSend(socket, ["OK", event.id, false, "rate-limited: too many old events, try again later"]);
+      return;
+    }
+    eventStore.pendingArchive.set(event.id, event);
+    await socketSafeSend(socket, ["OK", event.id, true, returnMessage]);
+    return;
+  }
+
+  // Save the event to memory
   event = await compressEvent(event);
   const expiration = expirationTag ? Number(expirationTag[1]) : undefined;
   eventStore.eventIndex.set(event.id, {
@@ -538,6 +659,7 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
     tenantid: socket.reqInfo.domainId,
   });
   eventStore.pending.set(event.id, event);
+  indexReplaceable(event.id, event.pubkey, event.kind);
   eventStore.globalIds.add(event.id);
   if (event.pubkey) {
     eventStore.globalPubkeys.add(event.pubkey);
@@ -554,6 +676,180 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
   
 };
 
+const handleMembershipRequest = async (socket: ExtendedWebSocket, event: Event): Promise<void> => {
+  const reply = (accepted: boolean, message: string) => socketSafeSend(socket, ["OK", event.id, accepted, message]);
+
+  if (Math.abs(Math.floor(Date.now() / 1000) - event.created_at) > MEMBERSHIP_REQUEST_WINDOW) {
+    await reply(false, "invalid: created_at must be within a few minutes of now");
+    return;
+  }
+  if (getConfig(socket.reqInfo.domain, ["relay", "limitation", "auth_required"]) !== true) {
+    await reply(false, "unsupported: this relay is open to everyone, there is no membership");
+    return;
+  }
+
+  try {
+    const member = await isRelayMember(event.pubkey);
+
+    if (event.kind === 28936) {
+      if (!member) {
+        await reply(true, "duplicate: you are not a member of this relay.");
+        return;
+      }
+      if (!await setRelayMember(event.pubkey, false, "nip43 leave")) {
+        await reply(false, "error: could not update the membership");
+        return;
+      }
+      if (authSessions.get(socket) === event.pubkey) authSessions.delete(socket);
+      logger.info(`handleMembershipRequest - ${event.pubkey} left the relay | IP:`, socket.reqInfo.ip);
+      await reply(true, "info: you are no longer a member of this relay.");
+      return;
+    }
+
+    if (member) {
+      await reply(true, "duplicate: you are already a member of this relay.");
+      return;
+    }
+
+    // Registered users are members by default; one who left comes back without a code.
+    const joined = await isRegisteredPubkey(event.pubkey)
+      ? await setRelayMember(event.pubkey, true, "nip43 rejoin")
+      : await redeemClaim(String(event.tags.find(tag => tag[0] === "claim")?.[1] ?? "").trim(), event.pubkey);
+    if (!joined) {
+      logger.debug(`handleMembershipRequest - Invalid claim from ${event.pubkey} | IP:`, socket.reqInfo.ip);
+      await reply(false, "restricted: that is an invalid invite code.");
+      return;
+    }
+    logger.info(`handleMembershipRequest - ${event.pubkey} joined the relay | IP:`, socket.reqInfo.ip);
+    await reply(true, "info: welcome to the relay!");
+  } catch (error) {
+    logger.error(`handleMembershipRequest - Error handling kind ${event.kind} from ${event.pubkey}: ${error}`);
+    await reply(false, "error: could not process the request");
+  }
+};
+
+// Old events accepted but not yet written to the DB (flushed every minute).
+const MAX_PENDING_ARCHIVE = 20000;
+
+// Time a REQ may spend waiting for and reading archived events.
+const ARCHIVE_REQ_BUDGET_MS = 4000;
+
+// Same default as workers/getEvents.ts when a filter has no since.
+const DEFAULT_SINCE_SECONDS = 86400 * 90;
+
+const isAddressable = (kind: number) => kind >= 30000 && kind < 40000;
+
+const isExpiredEvent = (event: Event, now: number): boolean => {
+  const tag = event.tags.find(t => t[0] === "expiration");
+  if (!tag || tag.length < 2) return false;
+  const expiration = Number(tag[1]);
+  return Number.isFinite(expiration) && expiration < now;
+};
+
+// Keeps only the newest version of each replaceable / addressable event.
+const collapseReplaceable = (events: Event[]): Event[] => {
+  const keyOf = (e: Event): string | null => {
+    if (isReplaceable(e.kind)) return `${e.pubkey}:${e.kind}`;
+    if (isAddressable(e.kind)) return `${e.pubkey}:${e.kind}:${e.tags.find(t => t[0] === "d")?.[1] ?? ""}`;
+    return null;
+  };
+  const newest = new Map<string, Event>();
+  for (const e of events) {
+    const key = keyOf(e);
+    if (!key) continue;
+    const current = newest.get(key);
+    if (!current || e.created_at > current.created_at || (e.created_at === current.created_at && e.id < current.id)) {
+      newest.set(key, e);
+    }
+  }
+  return events.filter(e => {
+    const key = keyOf(e);
+    return !key || newest.get(key) === e;
+  });
+};
+
+/**
+ * Completes the in-memory results with events older than the memory horizon, read from the DB.
+ * The worker scans memory from max(since, now - 90 days); everything older than that and
+ * the horizon comes from the DB, as long as the filter is selective and still wants events.
+ */
+const addArchivedEvents = async (filters: Filter[], memoryEvents: Event[], maxLimit: number, tenantid: number | undefined, client: string): Promise<Event[]> => {
+
+  const horizon = eventStore.memoryHorizon;
+  if (!horizon) return memoryEvents;
+
+  const now = Math.floor(Date.now() / 1000);
+  const seen = new Set(memoryEvents.map(e => e.id));
+  const archived: Event[] = [];
+  // One budget for the whole REQ: up to max_filters filters would otherwise add up.
+  const deadline = Date.now() + ARCHIVE_REQ_BUDGET_MS;
+
+  for (const filter of filters) {
+    const scannedFrom = filter.since !== undefined ? filter.since : now - DEFAULT_SINCE_SECONDS;
+    const createdBefore = Math.max(scannedFrom, horizon);
+    if (filter.since !== undefined && filter.since >= createdBefore) continue;
+
+    const filterLimit = Math.min(filter.limit !== undefined ? filter.limit : maxLimit, maxLimit);
+    let wanted = filterLimit - memoryEvents.filter(e => matchFilter(filter, e)).length;
+    if (filter.ids && filter.ids.length > 0) {
+      wanted = Math.min(wanted, filter.ids.filter(id => !seen.has(id)).length);
+    }
+    if (wanted <= 0) continue;
+
+    const waitMs = deadline - Date.now();
+    if (waitMs <= 0) {
+      logger.debug(`addArchivedEvents - REQ time budget spent, skipping the remaining filters | ${client}`);
+      break;
+    }
+    const rows = await getArchivedEventsDB(filter, createdBefore, wanted, tenantid, client, waitMs);
+    if (rows === null) continue;
+    for (const row of rows) {
+      if (seen.has(row.id) || isExpiredEvent(row, now)) continue;
+      seen.add(row.id);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { metadata, tenantid: _tenantid, ...event } = row;
+      archived.push(event);
+    }
+  }
+
+  if (archived.length === 0) return memoryEvents;
+  return collapseReplaceable([...memoryEvents, ...archived]).slice(0, maxLimit);
+};
+
+// Accepted events wait in `pending` until the next flush (every minute, or until the store has
+// loaded after a restart), and the workers don't scan it. Selective filters look there too, so
+// a client can read what was just published.
+const PENDING_SCAN_MAX = 20000;
+const addPendingEvents = (filters: Filter[], events: Event[], maxLimit: number, tenantid: number | undefined): Event[] => {
+  const pending = eventStore.pending;
+  if (!pending || pending.size === 0) return events;
+
+  const now = Math.floor(Date.now() / 1000);
+  const seen = new Set(events.map(e => e.id));
+  const extra: Event[] = [];
+  const take = (e: MetadataEvent | undefined, filter: Filter) => {
+    if (!e || seen.has(e.id) || !matchFilter(filter, e) || isExpiredEvent(e, now)) return;
+    if (tenantid !== undefined && e.tenantid !== tenantid) return;
+    seen.add(e.id);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { metadata, tenantid: _tenantid, ...event } = e;
+    extra.push(event);
+  };
+
+  for (const filter of filters) {
+    if (filter.ids && filter.ids.length > 0) {
+      for (const id of filter.ids) take(pending.get(id), filter);
+      continue;
+    }
+    const selective = (filter.authors && filter.authors.length > 0) || Object.keys(filter).some(k => k.startsWith("#"));
+    if (!selective || pending.size > PENDING_SCAN_MAX) continue;
+    for (const e of pending.values()) take(e, filter);
+  }
+
+  if (extra.length === 0) return events;
+  return collapseReplaceable([...extra, ...events].sort((a, b) => b.created_at - a.created_at)).slice(0, maxLimit);
+};
+
 // Handle REQ or COUNT
 const handleReqOrCount = async (socket: ExtendedWebSocket, subId: string, filters: Filter[], type: string) => {
 
@@ -563,14 +859,13 @@ const handleReqOrCount = async (socket: ExtendedWebSocket, subId: string, filter
     return;
   }
 
-  if (getConfig(socket.reqInfo.domain, ["relay", "limitation", "auth_required"]) == true && !authSessions.has(socket)) {
-    const requestedKinds = filters.flatMap(f => f.kinds || []);
-
-    if (requestedKinds.some(kind => [4, 14, 1059].includes(kind))) {
-      logger.debug(`handleReqOrCount - Blocked REQ for private messages without authentication: ${subId} |`, socket.reqInfo.ip);
-      await socketSafeSend(socket, ["NOTICE", "auth-required: must authenticate to request private messages"]);
-      await socketSafeSend(socket, ["CLOSED", subId, "auth-required: must authenticate to request private messages"]);
-      socket.close(1003, "auth-required: must authenticate to request private messages");
+  // Private kinds need AUTH. Ask for it instead of dropping the connection (NIP-42).
+  if (!authSessions.has(socket)) {
+    const requestedKinds = filters.flatMap(f => Array.isArray(f?.kinds) ? f.kinds : []);
+    if (requestedKinds.some(kind => PRIVATE_KINDS.has(kind))) {
+      logger.debug(`handleReqOrCount - Private kinds requested without authentication: ${subId} |`, socket.reqInfo.ip);
+      await sendAuthChallenge(socket);
+      await socketSafeSend(socket, ["CLOSED", subId, "auth-required: direct messages are only served to their recipients"]);
       return;
     }
   }
@@ -605,8 +900,10 @@ const handleReqOrCount = async (socket: ExtendedWebSocket, subId: string, filter
     return;
   }
 
-  // Early discard filters that not match the event store (pubkey or id)
-  if (type === "REQ" && filterEarlyDiscard(filters, eventStore)) {
+  // Early discard filters that not match the event store (pubkey or id). With a memory
+  // horizon the ids/authors may still be in the DB, so only the memory lookup is skipped.
+  const memoryDiscard = type === "REQ" && filterEarlyDiscard(filters, eventStore);
+  if (memoryDiscard && !eventStore.memoryHorizon) {
     logger.debug(`handleReqOrCount - Filter early discard: ${subId}`);
     await socketSafeSend(socket, ["EOSE", subId]);
     return;
@@ -615,12 +912,23 @@ const handleReqOrCount = async (socket: ExtendedWebSocket, subId: string, filter
   const maxLimit = Math.min(Number(getConfig(socket.reqInfo.domain, ["relay", "limitation", "max_limit"])) || 5000, 5000);
 
   const isIsolated = getConfig(socket.reqInfo.domain, ["relay","isolated"]) === true;
+  const clientFilters = [...filters];
   if (isIsolated) {
     filters.push({tenantid: socket.reqInfo.domainId } as any);
   }
 
   try {
-   const eventsList = await getEvents(filters, maxLimit, eventStore.sharedDBChunks);
+   const memoryEvents = memoryDiscard ? [] : await getEvents(filters, maxLimit, eventStore.sharedDBChunks);
+   const tenantFilter = isIsolated ? socket.reqInfo.domainId : undefined;
+   const withArchive = await addArchivedEvents(clientFilters, memoryEvents, maxLimit, tenantFilter, socket.reqInfo.ip);
+   const eventsList = addPendingEvents(clientFilters, withArchive, maxLimit, tenantFilter).filter(event => canReadEvent(socket, event));
+
+   // NIP-43 membership list: generated and signed on request, only on relays that need membership.
+   if (clientFilters.some(f => Array.isArray(f.kinds) && f.kinds.includes(MEMBERSHIP_LIST_KIND)) &&
+       getConfig(socket.reqInfo.domain, ["relay", "limitation", "auth_required"]) === true) {
+     const membershipList = await getMembershipList(socket.reqInfo.domain);
+     if (membershipList && clientFilters.some(f => matchFilter(f, membershipList))) eventsList.unshift(membershipList);
+   }
 
     if (type === "COUNT") {
       await socketSafeSend(socket, ["COUNT", subId, { count: eventsList.length }]);
@@ -652,6 +960,7 @@ const handleReqOrCount = async (socket: ExtendedWebSocket, subId: string, filter
     if (type === "REQ") {
       const listener = async (event: MetadataEvent): Promise<void> => {
       if (isIsolated && event.tenantid !== socket.reqInfo.domainId) return;
+      if (!canReadEvent(socket, event)) return;
       if (filters.some((f) => matchFilter(f, event)) && socket.readyState === WebSocket.OPEN) {
         await socketSafeSend(socket, ["EVENT", subId, event]);
       }
@@ -690,9 +999,11 @@ const handleAuthMessage = async (socket: ExtendedWebSocket, message: ["AUTH", Au
     return;
   }
 
+  const authFail = (reason: string) => socketSafeSend(socket, typeof authData.id === "string" ? ["OK", authData.id, false, reason] : ["NOTICE", reason]);
+
   if (authData.kind !== 22242) {
     logger.debug(`handleAuthMessage - Invalid AUTH event kind: ${authData.kind}`);
-    await socketSafeSend(socket, ["NOTICE", "error: invalid AUTH event kind"]);
+    await authFail("invalid: AUTH event must be kind 22242");
     return;
   }
 
@@ -701,36 +1012,40 @@ const handleAuthMessage = async (socket: ExtendedWebSocket, message: ["AUTH", Au
 
   if (!relayTag || !challengeTag) {
     logger.debug(`handleAuthMessage - Missing relay or challenge tag: ${authData.tags}`);
-    await socketSafeSend(socket, ["NOTICE", "error: missing relay or challenge tag"]);
+    await authFail("invalid: missing relay or challenge tag");
     return;
   }
 
   const challenge = challengeTag[1];
   if (!socket.challenge || socket.challenge !== challenge) {
     logger.debug(`handleAuthMessage - Invalid challenge: ${challenge}`);
-    await socketSafeSend(socket, ["NOTICE", "error: invalid challenge"]);
+    await authFail("invalid: unknown challenge");
     return;
   }
 
   const validEvent = await isEventValid(authData, 60, 10);
   if (validEvent.status !== "success") {
     logger.debug(`handleAuthMessage - Invalid AUTH event: ${validEvent.message}`);
-    await socketSafeSend(socket, ["NOTICE", `error: ${validEvent.message}`]);
+    await authFail(`invalid: ${validEvent.message}`);
     return;
+  }
+
+  // A relay that requires auth is for members only (NIP-43: registered users, allowed pubkeys
+  // and those who joined with an invite code). Otherwise AUTH just proves the pubkey, which is
+  // enough to read its own direct messages.
+  if (getConfig(socket.reqInfo.domain, ["relay", "limitation", "auth_required"]) == true) {
+    if (!await isRelayMember(authData.pubkey)) {
+      logger.debug("AUTH failed: pubkey is not a member:", authData.id);
+      await authFail("restricted: you are not a member of this relay, join with an invite code (NIP-43)");
+      return;
+    }
   }
 
   authSessions.set(socket, authData.pubkey);
   delete socket.challenge;
   socket.reqInfo.pubkey = authData.pubkey;
 
-  const registeredData = await dbMultiSelect(["id", "username"],"registered","hex = ?", [authData.pubkey], true);
-  if (registeredData.length === 0) {
-    logger.debug("AUTH failed: pubkey not registered:", authData.id);
-    await socketSafeSend(socket, ["NOTICE", "error: pubkey not registered"]);
-    return;
-  }
-
-  await socketSafeSend(socket, ["OK", authData.id, true, "AUTH successful"]);
+  await socketSafeSend(socket, ["OK", authData.id, true, ""]);
 };
 
 const getRelayStatus = async (req: Request, res: Response, wss: WebSocketServer): Promise<Response> => {

@@ -25,7 +25,8 @@ const PrepareNIP94_event = async (filedata : FileData): Promise<NIP94_event> => 
                         ["no_transform", filedata.no_transform.valueOf().toString() ],
                         ["payment_request", filedata.payment_request],
                         ["visibility", filedata.visibility.valueOf().toString() ],
-                ],              
+                        ["nsfw", filedata.nsfw ? filedata.nsfw.valueOf().toString() : "0" ],
+                ],
                 content: '',
                 sig : "",
         }

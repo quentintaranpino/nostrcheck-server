@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import fs from "fs";
 import { logger } from "../lib/logger.js";
-import { markdownToHtml } from "../lib/utils.js";
+import { execWithTimeout, markdownToHtml } from "../lib/utils.js";
 import { dbMultiSelect, dbSelect, dbUpdate} from "../lib/database/core.js";
 import { generateAuthToken, generateOTC, isPubkeyAllowed, isPubkeyValid, isUserPasswordValid, verifyOTC } from "../lib/authorization.js";
 import { countPubkeyFiles, generateSitemap, getLegalText, getResource, isAutoLoginEnabled, renderMdPage, replaceTokens, setAuthCookie } from "../lib/frontend.js";
@@ -19,18 +19,57 @@ import { initRedis } from "../lib/redis/client.js";
 import { getFileUrl } from "../lib/media.js";
 import { supported_nips } from "../interfaces/nostr.js";
 
-const homeFeedCache = async <T>(key: string, ttl: number, loader: () => Promise<T>): Promise<T> => {
+// One loader per key at a time. Stale values keep being served for staleFactor x ttl
+// while a single background refresh runs, so a slow query never blocks a request
+// and an expired key doesn't fan out into N identical queries.
+const homeFeedInflight: Map<string, Promise<any>> = new Map();
+// A loader that never settles would pin its key: past this, the slot is freed.
+const HOME_FEED_LOADER_TIMEOUT_MS = 120000;
+
+const homeFeedRefresh = <T>(key: string, ttl: number, loader: () => Promise<T>, staleFactor: number): Promise<T> => {
+	const running = homeFeedInflight.get(key);
+	if (running) return running;
+	const job = (async () => {
+		try {
+			// A failed or timed out load throws: the previous value stays in Redis
+			const fresh = await execWithTimeout(loader(), HOME_FEED_LOADER_TIMEOUT_MS);
+			try {
+				const redis = await initRedis();
+				await redis.set(key, JSON.stringify({ v: fresh, t: Date.now() }), { EX: Math.max(ttl * staleFactor, ttl) });
+			} catch { /* cache write is best effort */ }
+			return fresh;
+		} finally {
+			homeFeedInflight.delete(key);
+		}
+	})();
+	homeFeedInflight.set(key, job);
+	return job;
+};
+
+const homeFeedCache = async <T>(key: string, ttl: number, loader: () => Promise<T>, staleFactor: number = 10): Promise<T> => {
+	let cached: { v: T, t: number } | null = null;
 	try {
 		const redis = await initRedis();
-		const cached = await redis.getJSON<T>(key);
-		if (cached !== null) return cached;
-		const fresh = await loader();
-		await redis.set(key, JSON.stringify(fresh), { EX: ttl });
-		return fresh;
-	} catch {
-		return loader();
+		cached = await redis.getJSON<{ v: T, t: number }>(key);
+	} catch { cached = null; }
+	if (cached && typeof cached === "object" && "t" in cached && "v" in cached) {
+		if (Date.now() - Number(cached.t) > ttl * 1000) {
+			homeFeedRefresh(key, ttl, loader, staleFactor).catch(() => {});
+		}
+		return cached.v;
 	}
+	return homeFeedRefresh(key, ttl, loader, staleFactor);
 };
+
+// Exact COUNT over the events table takes up to a minute in production. Shared by
+// every tenant and refreshed at most every 10 min.
+const getActiveEventsTotal = (): Promise<number> =>
+	homeFeedCache("relay:events:total", 600, async () => {
+		// dbSelect returns "" on error: don't cache that as 0 events
+		const total = await dbSelect("SELECT COUNT(*) AS c FROM events WHERE active = 1", "c", []);
+		if (total === "" || !Number.isFinite(Number(total))) throw new Error("events count failed");
+		return Number(total);
+	});
 
 const loadDashboardPage = async (req: Request, res: Response, version:string): Promise<Response | void> => {
 
@@ -92,6 +131,7 @@ const loadSettingsPage = async (req: Request, res: Response, version: string): P
         payments: getConfig(null, ["payments"]),
         register: getConfig(null, ["register"]),
         logger: getConfig(null, ["logger"]),
+        notifications: getConfig(null, ["notifications"]),
         security: getConfig(null, ["security"]),
         database: getConfig(null, ["database"]),
         plugins: getConfig(null, ["plugins"]),
@@ -108,6 +148,7 @@ const loadSettingsPage = async (req: Request, res: Response, version: string): P
         payments: getConfig(domain, ["payments"]),
         register: getConfig(domain, ["register"]),
         logger: getConfig(domain, ["logger"]),
+        notifications: getConfig(domain, ["notifications"]),
         security: getConfig(domain, ["security"]),
         database: getConfig(domain, ["database"]),
         plugins: getConfig(domain, ["plugins"]),
@@ -374,7 +415,7 @@ const loadHomePage = async (req: Request, res: Response, version:string): Promis
                 ? Number(await dbSelect("SELECT COALESCE(SUM(filesize), 0) AS s FROM mediafiles WHERE active = 1 AND visibility = 1", "s", []) || 0)
                 : 0;
             const eventsTotal = relayEnabled
-                ? Number(await dbSelect("SELECT COUNT(*) AS c FROM events WHERE active = 1", "c", []) || 0)
+                ? await getActiveEventsTotal()
                 : 0;
             return { users, files, bytes, eventsTotal };
         }),
@@ -382,7 +423,7 @@ const loadHomePage = async (req: Request, res: Response, version:string): Promis
             const rows = await dbMultiSelect(
                 ["id", "filename", "hash", "mimetype", "dimensions", "blurhash", "pubkey"],
                 "mediafiles",
-                "active = '1' AND visibility = '1' AND checked = '1' AND original_hash IS NOT NULL ORDER BY id DESC LIMIT 16",
+                "active = '1' AND visibility = '1' AND checked = '1' AND nsfw = '0' AND original_hash IS NOT NULL ORDER BY id DESC LIMIT 16",
                 [], false);
             return rows.map((r: any) => ({
                 ...r,
@@ -482,46 +523,48 @@ const loadDocsPage = async (req: Request, res: Response, version: string): Promi
     const nipDescriptions: Record<number, string> = {
         1: "Basic protocol flow",
         2: "Follow lists",
-        3: "OpenTimestamps",
-        4: "Encrypted DMs (deprecated)",
+        4: "Encrypted DMs (deprecated, see NIP-17)",
         5: "Mapping Nostr keys to DNS identifiers (name@server)",
-        7: "Browser extension signing",
         9: "Event deletion",
         11: "Relay information document",
         13: "Proof of work",
-        14: "Sensitive content tag",
-        19: "bech32 entities (npub, note, nprofile)",
-        28: "Public chat",
+        14: "Subject tag in text events",
+        17: "Private direct messages, served only to their recipients",
         40: "Expiration timestamp",
         42: "Auth on relays",
+        43: "Relay access and membership",
         44: "Encrypted payloads (v2)",
         45: "Event counts",
         47: "Nostr Wallet Connect",
-        48: "Proxy tags",
+        48: "Bridged events",
         50: "Search filter",
         56: "Reports",
+        59: "Gift wrap",
         62: "Request to vanish",
         65: "Relay list metadata",
         70: "Protected events",
         73: "External content IDs",
+        77: "Negentropy syncing",
         78: "Application-specific data",
+        86: "Relay management API",
         94: "File metadata",
-        96: "HTTP file storage integration",
+        96: "HTTP file storage integration (deprecated, see Blossom)",
         98: "HTTP auth",
     };
     const budDescriptions: Record<string, string> = {
-        "01": "Server requirements and blob descriptor",
-        "02": "Blob retrieval and listing",
+        "01": "Server requirements and blob retrieval",
+        "02": "Blob upload and management",
         "03": "User server list",
         "04": "Mirror blobs from another server",
+        "07": "Paid uploads (Lightning)",
         "05": "Media optimization",
         "06": "Upload requirements",
         "08": "Nostr file metadata events",
         "09": "Blob reports",
-        "11": "Authorization with NIP-98",
+        "11": "Nostr authorization (kind 24242)",
     };
     res.locals.docsNips = supported_nips.map(n => ({ num: n, label: String(n).padStart(2, "0"), desc: nipDescriptions[n] || "" }));
-    res.locals.docsBuds = ["01", "02", "03", "04", "05", "06", "08", "09", "11"].map(b => ({ num: b, desc: budDescriptions[b] || "" }));
+    res.locals.docsBuds = ["01", "02", "03", "04", "05", "06", "07", "09", "11"].map(b => ({ num: b, desc: budDescriptions[b] || "" }));
     res.locals.docsLightning = isModuleEnabled("payments", req.hostname);
     res.locals.docsMediaEnabled = docsMediaEnabled;
     res.locals.docsRelayEnabled = docsRelayEnabled;
@@ -766,11 +809,11 @@ const loadCdnPage = async (req: Request, res: Response, version:string): Promise
 const fetchRelayStats = async (hostname: string): Promise<{total: number, recent: number}> => {
     return homeFeedCache(`relay:stats:${hostname}`, 10, async () => {
         const oneHourAgo = Math.floor(Date.now() / 1000) - 3600;
-        const [totalRaw, recentRaw] = await Promise.all([
-            dbSelect("SELECT COUNT(*) AS c FROM events", "c", []),
+        const [total, recentRaw] = await Promise.all([
+            getActiveEventsTotal(),
             dbSelect("SELECT COUNT(*) AS c FROM events WHERE created_at >= ?", "c", [oneHourAgo.toString()]),
         ]);
-        return { total: Number(totalRaw || 0), recent: Number(recentRaw || 0) };
+        return { total, recent: Number(recentRaw || 0) };
     });
 };
 
@@ -1143,6 +1186,7 @@ const unifiedSearch = async (req: Request, res: Response): Promise<Response | vo
     const like = `%${q.replace(/[%_]/g, c => "\\" + c)}%`;
     const hostKey = req.hostname || "default";
 
+    // Keyed on user input: plain 30 s ttl, no stale copies that random queries would pile up
     const result = await homeFeedCache(`search:${hostKey}:${q.toLowerCase()}`, 30, async () => {
         const [users, media, events] = await Promise.all([
             registerEnabled
@@ -1152,7 +1196,7 @@ const unifiedSearch = async (req: Request, res: Response): Promise<Response | vo
                 : Promise.resolve([]),
             mediaEnabled
                 ? dbMultiSelect(["id", "filename", "hash", "mimetype", "dimensions", "blurhash", "pubkey"], "mediafiles",
-                    "active = 1 AND visibility = 1 AND checked = 1 AND original_hash IS NOT NULL AND filename LIKE ? ORDER BY id DESC LIMIT 8",
+                    "active = 1 AND visibility = 1 AND checked = 1 AND nsfw = 0 AND original_hash IS NOT NULL AND filename LIKE ? ORDER BY id DESC LIMIT 8",
                     [like], false)
                 : Promise.resolve([]),
             relayEnabled
@@ -1163,7 +1207,7 @@ const unifiedSearch = async (req: Request, res: Response): Promise<Response | vo
         ]);
         const mediaWithUrl = (media as any[]).map(m => ({ ...m, url: getFileUrl(m.filename, "", req.hostname) }));
         return { users, media: mediaWithUrl, events };
-    });
+    }, 1);
 
     return res.json(result);
 };

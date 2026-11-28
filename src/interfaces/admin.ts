@@ -1,5 +1,5 @@
 
-const allowedTableNames = ["registered", "mediafiles", "lightning", "domains", "banned", "invitations", "ips", "events", "filetypes", "plugins"];
+const allowedTableNames = ["registered", "mediafiles", "lightning", "domains", "banned", "invitations", "ips", "events", "filetypes", "plugins", "auditlog"];
 const allowedFieldNames = [ "allowed", 
                             "active", 
                             "banned",
@@ -25,7 +25,9 @@ const allowedFieldNames = [ "allowed",
                             "original_extension",
                             "converted_mime",
                             "converted_extension",
-                        ]; 
+                            "status",
+                            "nsfw",
+                        ];
 
 const allowedFieldNamesAndValues = [
     {field: "allowed", values: [0, 1]},
@@ -33,6 +35,7 @@ const allowedFieldNamesAndValues = [
     {field: "banned", values: [0, 1]},
     {field: "visibility", values: [0, 1]},
     {field: "checked", values: [0, 1]},
+    {field: "nsfw", values: [0, 1]},
     {field: "comments", values: ["string"]},
     {field: "username", values: ["string"]},
     {field: "pubkey", values: ["string"]},
@@ -56,12 +59,96 @@ const allowedFieldNamesAndValues = [
     {field: "original_extension", values: ["string"]},
     {field: "converted_mime", values: ["string"]},
     {field: "converted_extension", values: ["string"]},
+    // auditlog.status. Putting a row back to "pending" is how a failed
+    // notification gets retried by the sweeper. Note the allowlist is keyed by
+    // field name, not by table, so this also narrows mediafiles.status edits to
+    // these three values (nothing in the frontend writes that column).
+    {field: "status", values: ["pending", "sent", "failed"]},
 ];
 
 interface moduleDataReturnMessage {
     total: number;
     totalNotFiltered: number;
     rows: any;
+}
+
+// Moderation gallery (dense thumbnail grid on the dashboard). It needs the
+// blurhash for the tile placeholder and the raw filesize, neither of which the
+// hosted files table asks for, so it carries its own field list.
+const mediaModerationSelectFields: string[] = [
+    "mediafiles.id",
+    "mediafiles.pubkey",
+    "mediafiles.filename",
+    "mediafiles.mimetype",
+    "mediafiles.original_hash",
+    "mediafiles.blurhash",
+    "mediafiles.dimensions",
+    "mediafiles.filesize",
+    "mediafiles.checked",
+    "mediafiles.active",
+    "mediafiles.visibility",
+    "mediafiles.nsfw",
+    "DATE_FORMAT(mediafiles.date, '%Y-%m-%d %H:%i') as date",
+    "CASE WHEN EXISTS (SELECT 1 FROM banned WHERE banned.originid = mediafiles.id AND banned.origintable = 'mediafiles' AND banned.active = '1') THEN 1 ELSE 0 END as banned",
+    "(SELECT registered.username FROM registered WHERE registered.hex = mediafiles.pubkey LIMIT 1) as username",
+];
+
+// Why a ban exists, as a closed set instead of free text. Ordered by how often
+// they get used, not alphabetically: CSAM is 93% of the existing 488 bans, so it
+// is the first thing the operator's hand reaches for. `severity` drives the
+// colour, so CSAM never reads like QUESTIONABLE.
+//
+// SERVICE_ABUSE and not ABUSE: in a list where CSAM is most of the traffic,
+// "abuse" gets read as child abuse. It is also not illegal content, so it stays
+// neutral in colour and away from the two reds. It covers resource abuse: a
+// declared type that doesn't match the bytes, or the server being used as private
+// hosting or a CDN.
+const banCategories: { name: string; severity: string; description: string }[] = [
+    { name: "CSAM",          severity: "danger",    description: "Child sexual abuse material" },
+    { name: "ILLEGAL",       severity: "danger",    description: "Otherwise illegal content" },
+    { name: "VIOLENCE",      severity: "warning",   description: "Graphic violence or gore" },
+    { name: "QUESTIONABLE",  severity: "secondary", description: "Borderline, kept out of the public listings" },
+    { name: "SERVICE_ABUSE", severity: "secondary", description: "Resource abuse: declared type that does not match the content, or the server used as hosting or a CDN" },
+    { name: "OTHER",         severity: "secondary", description: "Anything the categories above do not cover" },
+];
+
+const banCategoryNames: string[] = banCategories.map(category => category.name);
+
+// Status buckets the gallery can filter by. Anything else is rejected, the
+// value never reaches the SQL.
+// "nsfw" is its own column now, and it overlaps "checked" on purpose: flagging a
+// file is a review decision, so an nsfw file is also a checked one. The gallery
+// tells them apart with its own badge.
+// "safe" is the complement inside checked: reviewed and NOT nsfw, the bucket to
+// audit for false safes.
+const mediaModerationStatus = ["pending", "checked", "safe", "nsfw", "active", "inactive", "banned", "all"];
+
+// Fields the "nsfw" action writes, and the value each one takes. The flag never
+// travels alone: marking also sets checked = 1 because deciding a file is nsfw
+// *is* reviewing it, and unmarking leaves checked where it was. visibility is
+// never touched, it belongs to the uploader. Both columns go in a single UPDATE
+// per row so a file can't end up half marked.
+const mediaModerationNsfwFields: { [key: string]: { nsfw: number; checked: number } } = {
+    "1": { nsfw: 1, checked: 1 },
+    "0": { nsfw: 0, checked: 1 },
+};
+
+interface mediaModerationFilters {
+    status: string;
+    mimetype: string;
+    pubkey: string;
+    since: string;   // "YYYY-MM-DD" or "" (inclusive, from midnight)
+    until: string;   // "YYYY-MM-DD" or "" (inclusive, to 23:59:59)
+}
+
+// What the gallery needs to know about a notification: which row to retry, how
+// it went, and why it failed. Whatever the notification layer hands back gets
+// coerced into this before it reaches a tile.
+interface notificationStatusRow {
+    id: number;
+    status: string;
+    attempts: number;
+    lasterror: string;
 }
 
 const ModuleDataTables: { [key: string]: string } = {
@@ -73,8 +160,9 @@ const ModuleDataTables: { [key: string]: string } = {
     "banned": "banned",
     "register": "invitations",
     "ips": "ips",
-    "relay": "events", 
+    "relay": "events",
     "filetypes": "filetypes",
+    "auditlog": "auditlog",
 };
 
 const moduleDataKeys: { [key: string]: string } = {
@@ -89,6 +177,23 @@ const moduleDataKeys: { [key: string]: string } = {
     "eventsData": "events",
     "filetypesData": "filetypes",
     "pluginsData": "plugins",
+    "auditlogData": "auditlog",
+};
+
+// What identifies a row in human terms, per table. Read before a delete so the
+// audit entry can say what was removed: after the DELETE the row is gone and an
+// id on its own tells nobody anything a year later.
+const recordKeyFields: { [key: string]: string[] } = {
+    "mediafiles": ["filename"],
+    "registered": ["username", "hex"],
+    "ips": ["ip"],
+    "events": ["event_id"],
+    "banned": ["originid", "origintable"],
+    "domains": ["domain"],
+    "lightning": ["lightningaddress"],
+    "invitations": ["code"],
+    "filetypes": ["original_mime"],
+    "auditlog": ["eventtype", "origintable", "originid"],
 };
 
 const moduleDataIndex: { [key: string]: string } = {
@@ -145,7 +250,13 @@ const moduleDataWhereFields: { [key: string]: [string] } = {
                         "banned.active, " +
                         "banned.originid, " +
                         "banned.origintable, " +
+                        "banned.category, " +
                         "banned.reason, " +
+                        // Searchable so a filing reference finds every object that
+                        // went in with it, which is the question a follow-up from
+                        // the authority arrives as.
+                        "banned.reportref, " +
+                        "banned.reported, " +
                         "banned.createddate"],
     "invites":          ["invitations.id, " +
                         "invitations.originid, " +
@@ -181,6 +292,24 @@ const moduleDataWhereFields: { [key: string]: [string] } = {
                         "filetypes.converted_mime, " +
                         "filetypes.converted_extension, " +
                         "filetypes.comments "
+                        ],
+    "auditlog": [
+                        "auditlog.id, " +
+                        "auditlog.eventtype, " +
+                        "auditlog.origintable, " +
+                        "auditlog.originid, " +
+                        "auditlog.tenant, " +
+                        "auditlog.actor, " +
+                        "auditlog.source, " +
+                        "auditlog.pubkey, " +
+                        "auditlog.ip, " +
+                        "auditlog.filehash, " +
+                        "auditlog.previous_value, " +
+                        "auditlog.new_value, " +
+                        "auditlog.reason, " +
+                        "auditlog.channel, " +
+                        "auditlog.status, " +
+                        "auditlog.lasterror"
                         ]
 };
 
@@ -206,6 +335,7 @@ const moduleDataSelectFields: { [key: string]: string } = {
                         "mediafiles.checked, " +
                         "mediafiles.active, " +
                         "mediafiles.visibility, " +
+                        "mediafiles.nsfw, " +
                         "(SELECT transactions.paid FROM transactions WHERE mediafiles.transactionid = transactions.id LIMIT 1) as paid, " +
                         "(SELECT transactions.satoshi FROM transactions WHERE mediafiles.transactionid = transactions.id LIMIT 1) as satoshi, " +
                         "mediafiles.transactionid, " +
@@ -248,6 +378,7 @@ const moduleDataSelectFields: { [key: string]: string } = {
                         "transactions.comments",
     "banned":           "banned.id, " +
                         "banned.active, " +
+                        "banned.category, " +
                         "banned.originid, " +
                         "banned.origintable, " +
                         "COALESCE(  (SELECT mediafiles.filename FROM mediafiles WHERE mediafiles.id = banned.originid and banned.origintable = 'mediafiles' LIMIT 1), " +
@@ -255,6 +386,16 @@ const moduleDataSelectFields: { [key: string]: string } = {
                         "           (SELECT ips.ip FROM ips WHERE ips.id = banned.originid and banned.origintable = 'ips' LIMIT 1) " +
                         "         ) as originkey, " +
                         "banned.createddate, " +
+                        // Formatted here so the UTC text stored in the column
+                        // travels as text: a raw datetime comes back as a Date and
+                        // gets reinterpreted in the timezone of whoever reads it.
+                        "DATE_FORMAT(banned.reported, '%Y-%m-%d %H:%i') as reported, " +
+                        // The "unreported" filter needs something it can compare.
+                        // dbSelectModuleData concatenates `field = 'value'` into the
+                        // WHERE, so IS NULL has to arrive as a 0/1 column, the same
+                        // trick the banned flag of the other tables uses.
+                        "CASE WHEN banned.reported IS NULL THEN 0 ELSE 1 END as isreported, " +
+                        "banned.reportref, " +
                         "banned.reason ",
     "register":         "invitations.id, " +
                         "invitations.active, " +
@@ -292,15 +433,47 @@ const moduleDataSelectFields: { [key: string]: string } = {
                         "filetypes.original_extension, " +
                         "filetypes.converted_mime, " +
                         "filetypes.converted_extension, " +
-                        "filetypes.comments"
+                        "filetypes.comments",
+    // payload is left out on purpose: it can be a fat JSON blob and the listing
+    // never shows it. createddate / sentdate go out raw, the audit layer owns
+    // their storage format.
+    "auditlog":         "auditlog.id, " +
+                        "auditlog.active, " +
+                        "auditlog.eventtype, " +
+                        "auditlog.origintable, " +
+                        "auditlog.originid, " +
+                        "auditlog.actor, " +
+                        "auditlog.source, " +
+                        "auditlog.previous_value, " +
+                        "auditlog.new_value, " +
+                        "auditlog.reason, " +
+                        "auditlog.tenant, " +
+                        "auditlog.pubkey, " +
+                        "auditlog.ip, " +
+                        "auditlog.filehash, " +
+                        "auditlog.notified, " +
+                        "auditlog.channel, " +
+                        "auditlog.status, " +
+                        "auditlog.attempts, " +
+                        "auditlog.lasterror, " +
+                        "auditlog.createddate, " +
+                        "auditlog.sentdate"
 };
 
-export { allowedTableNames, 
-         allowedFieldNames, 
-         allowedFieldNamesAndValues, 
-         moduleDataReturnMessage, 
-         ModuleDataTables, 
-         moduleDataSelectFields, 
-         moduleDataWhereFields, 
+export { allowedTableNames,
+         allowedFieldNames,
+         allowedFieldNamesAndValues,
+         moduleDataReturnMessage,
+         ModuleDataTables,
+         moduleDataSelectFields,
+         moduleDataWhereFields,
          moduleDataKeys,
-         moduleDataIndex };
+         moduleDataIndex,
+         recordKeyFields,
+         banCategories,
+         banCategoryNames,
+         mediaModerationSelectFields,
+         mediaModerationStatus,
+         mediaModerationNsfwFields,
+         mediaModerationFilters,
+         notificationStatusRow };
