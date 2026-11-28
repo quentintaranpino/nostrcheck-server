@@ -545,15 +545,19 @@ const eventsTableFields: EventsTableStructure = {
 	tenantid: "int(11) NOT NULL",
 	comments: "varchar(150)",
 	_indexes: [
-		"INDEX idx_pubkey (pubkey)",
 		"INDEX idx_pubkey_kind_created (pubkey, kind, created_at)",
 		"INDEX idx_kind_created_at (kind, created_at)",
 		"INDEX idx_active_id (active, id)",
 		"INDEX idx_created_at (created_at)",
-		"INDEX idx_active (active)",
 		"INDEX idx_active_checked (active, checked)",
 		"INDEX idx_received_at (received_at)",
 		"INDEX idx_active_created_event (active, created_at, event_id)"
+	],
+	// idx_pubkey is the prefix of idx_pubkey_kind_created and made the optimizer pick it for
+	// authors + kinds; idx_active (two values) is covered by the three that start with active.
+	_dropIndexes: [
+		"idx_pubkey",
+		"idx_active"
 	],
 	constructor: {
 		name: 'RowDataPacket',
