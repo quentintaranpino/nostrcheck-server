@@ -119,7 +119,9 @@ const persistEvents = async () => {
 
   const events = Array.from(eventStore.pending.values()) as MetadataEvent[];
   const inserted = await storeEvents(events);
-  const newest = eventStore.sharedDBChunks.find(c => c.isActive)!;
+  // No active chunk when memory holds no events yet (empty relay, or nothing newer than the
+  // horizon): everything then goes to `unassigned`, which creates the chunks (#53).
+  const newest = eventStore.sharedDBChunks.find(c => c.isActive);
   const affected = new Set<SharedChunk>();
   const unassigned: MetadataEvent[] = [];
 
@@ -131,7 +133,7 @@ const persistEvents = async () => {
       eventStore.pending.delete(ev.id);
 
       let chunk = findChunkFor(ev.created_at, eventStore.sharedDBChunks);
-      if (!chunk && ev.created_at >= newest.timeRange.min && newest.indexMap.length < CHUNK_SIZE) {
+      if (!chunk && newest && ev.created_at >= newest.timeRange.min && newest.indexMap.length < CHUNK_SIZE) {
         chunk = newest;
         newest.timeRange.max = ev.created_at;
       }
