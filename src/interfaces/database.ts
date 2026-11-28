@@ -576,12 +576,12 @@ const eventTagsTableFields: EventTagsTableStructure = {
 	tag_value: "varchar(512) NOT NULL",
 	position: "int(11) NOT NULL DEFAULT 0",
 	extra_values: "TEXT",
+	// idx_event_id and idx_eventtags_event_id were dropped: idx_event_group starts with event_id
+	// and covers both. A UNIQUE (event_id, position) isn't created here because installs that
+	// ran before 0.7.1.0170 may hold duplicate tag rows and the ALTER would fail at startup.
 	_indexes: [
-		"INDEX idx_event_id (event_id)",
 		"INDEX idx_tag_name_value (tag_name, tag_value(100))",
-		"INDEX idx_eventtags_event_id (event_id)",
 		"INDEX idx_event_group (event_id, tag_name, tag_value(100))"
-
 	],
 	constructor: {
 		name: 'RowDataPacket',
