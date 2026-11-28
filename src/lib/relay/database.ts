@@ -264,6 +264,7 @@ const ARCHIVE_MAX_VALUES = 256;
 // A filter with only tags (no ids or authors) walks eventtags: keep it small.
 const ARCHIVE_MAX_TAG_ONLY_VALUES = 20;
 const ARCHIVE_STATEMENT_SECONDS = 3;
+const NEG_STATEMENT_SECONDS = 5;
 // 4 queries at once, and one per client so a single client can't hold them all.
 const archiveSlots = createSlots(4);
 const archiveClientSlots: Map<string, Slots> = new Map();
@@ -294,31 +295,50 @@ const getArchivedEventsDB = async (filter: Filter, createdBefore: number, limit:
   const safeLimit = Math.min(Math.max(Number(limit) || 0, 0), ARCHIVE_MAX_LIMIT);
   if (safeLimit === 0) return [];
 
+  const clause = buildArchiveWhere(filter, createdBefore, tenantid);
+  if (!clause) return [];
+
+  return withArchiveSlots(client, waitMs, null, async () => {
+    try {
+      return await selectEventsDB(clause.where, clause.params, safeLimit, ARCHIVE_STATEMENT_SECONDS);
+    } catch (error) {
+      logger.debug(`getArchivedEventsDB - Error reading archived events: ${error}`);
+      return null;
+    }
+  });
+};
+
+/**
+ * Turns a filter into the WHERE of an events query (after `e.active = '1'`), for events created
+ * before createdBefore. Null when a list in the filter has no usable value (nothing can match).
+ */
+const buildArchiveWhere = (filter: Filter, createdBefore: number, tenantid?: number): { where: string, params: (string | number)[] } | null => {
+
   let where = "";
   const params: (string | number)[] = [];
 
   if (filter.ids && filter.ids.length > 0) {
     const ids = filter.ids.filter(isHex64).slice(0, ARCHIVE_MAX_VALUES);
-    if (ids.length === 0) return [];
+    if (ids.length === 0) return null;
     where += ` AND e.event_id IN (${ids.map(() => "?").join(",")})`;
     params.push(...ids);
   }
   if (filter.authors && filter.authors.length > 0) {
     const authors = filter.authors.filter(isHex64).slice(0, ARCHIVE_MAX_VALUES);
-    if (authors.length === 0) return [];
+    if (authors.length === 0) return null;
     where += ` AND e.pubkey IN (${authors.map(() => "?").join(",")})`;
     params.push(...authors);
   }
   if (filter.kinds && filter.kinds.length > 0) {
     const kinds = filter.kinds.filter(k => Number.isInteger(k) && k >= 0).slice(0, ARCHIVE_MAX_VALUES);
-    if (kinds.length === 0) return [];
+    if (kinds.length === 0) return null;
     where += ` AND e.kind IN (${kinds.map(() => "?").join(",")})`;
     params.push(...kinds);
   }
   for (const key of Object.keys(filter)) {
     if (!isTagKey(filter, key)) continue;
     const values = ((filter as Record<string, unknown>)[key] as unknown[]).filter(v => typeof v === "string" && v.length <= 512).slice(0, ARCHIVE_MAX_VALUES) as string[];
-    if (values.length === 0) return [];
+    if (values.length === 0) return null;
     where += ` AND e.event_id IN (SELECT et.event_id FROM eventtags et WHERE et.tag_name = ? AND et.tag_value IN (${values.map(() => "?").join(",")}))`;
     params.push(key.substring(1), ...values);
   }
@@ -333,7 +353,11 @@ const getArchivedEventsDB = async (filter: Filter, createdBefore: number, limit:
     where += ` AND e.tenantid = ?`;
     params.push(tenantid);
   }
+  return { where, params };
+};
 
+// Runs fn holding a global archive slot and the client's own; `busy` when none frees up in waitMs.
+const withArchiveSlots = async <T>(client: string, waitMs: number, busy: T, fn: () => Promise<T>): Promise<T> => {
   let clientSlots = archiveClientSlots.get(client);
   if (!clientSlots) {
     clientSlots = createSlots(1);
@@ -341,20 +365,17 @@ const getArchivedEventsDB = async (filter: Filter, createdBefore: number, limit:
   }
   const started = Date.now();
   if (!await clientSlots.acquire(waitMs)) {
-    logger.debug(`getArchivedEventsDB - Client ${client} already has an archive query running, skipping`);
+    logger.debug(`withArchiveSlots - Client ${client} already has an archive query running, skipping`);
     if (clientSlots.idle()) archiveClientSlots.delete(client);
-    return null;
+    return busy;
   }
   try {
     if (!await archiveSlots.acquire(waitMs - (Date.now() - started))) {
-      logger.debug(`getArchivedEventsDB - Too many archive queries running, skipping`);
-      return null;
+      logger.debug(`withArchiveSlots - Too many archive queries running, skipping`);
+      return busy;
     }
     try {
-      return await selectEventsDB(where, params, safeLimit, ARCHIVE_STATEMENT_SECONDS);
-    } catch (error) {
-      logger.debug(`getArchivedEventsDB - Error reading archived events: ${error}`);
-      return null;
+      return await fn();
     } finally {
       archiveSlots.release();
     }
@@ -362,6 +383,30 @@ const getArchivedEventsDB = async (filter: Filter, createdBefore: number, limit:
     clientSlots.release();
     if (clientSlots.idle()) archiveClientSlots.delete(client);
   }
+};
+
+/**
+ * NIP-77: (created_at, id) of the stored events matching a filter, created before createdBefore.
+ * No ORDER BY, so MySQL stops at limit rows; the caller treats limit rows as "too many".
+ * Private kinds (4, 14, 1059) are left out. Null when the query couldn't run.
+ */
+const getArchivedIdsDB = async (filter: Filter, createdBefore: number, limit: number, tenantid: number | undefined, client: string, waitMs: number): Promise<{ id: string, pubkey: string, created_at: number }[] | null> => {
+  const clause = buildArchiveWhere(filter, createdBefore, tenantid);
+  if (!clause) return [];
+  return withArchiveSlots(client, waitMs, null, async () => {
+    try {
+      const query = `SET STATEMENT max_statement_time = ${NEG_STATEMENT_SECONDS} FOR
+        SELECT e.event_id, e.pubkey, e.created_at FROM events e
+        WHERE e.active = '1' AND e.kind NOT IN (4, 14, 1059) ${clause.where}
+        LIMIT ${Number(limit)}`;
+      const rows = await dbSimpleSelect("events", query, "", clause.params);
+      if (!rows) return [];
+      return (JSON.parse(JSON.stringify(rows)) as { event_id: string, pubkey: string, created_at: number }[]).map(row => ({ id: row.event_id, pubkey: row.pubkey, created_at: Number(row.created_at) }));
+    } catch (error) {
+      logger.debug(`getArchivedIdsDB - Error reading event ids: ${error}`);
+      return null;
+    }
+  });
 };
 
 /**
@@ -636,4 +681,4 @@ const deleteEvents = async (eventsInput: MetadataEvent | MetadataEvent[], delete
   return affectedCount;
 };
 
-export { storeEvents, initEvents, deleteEvents, getArchivedEventsDB, getEventsByIdDB, isEventStoredDB, getNewestReplaceableDB, deactivateSupersededDB, vanishPubkeyDB, getMemoryHorizon, indexReplaceable, getReplaceableIds };
+export { storeEvents, initEvents, deleteEvents, getArchivedEventsDB, getArchivedIdsDB, isArchiveFilterSelective, getEventsByIdDB, isEventStoredDB, getNewestReplaceableDB, deactivateSupersededDB, vanishPubkeyDB, getMemoryHorizon, indexReplaceable, getReplaceableIds };

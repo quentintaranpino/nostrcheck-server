@@ -16,6 +16,7 @@ import { validatePow } from "../lib/nostr/NIP13.js";
 import { allowedTags, EventIndex, eventStore, ExtendedWebSocket, MetadataEvent, RelayStatusMessage } from "../interfaces/relay.js";
 import { isBase64 } from "../lib/utils.js";
 import { isRelayHidden } from "../lib/relay/bans.js";
+import { handleNegClose, handleNegMsg, handleNegOpen } from "./nip77.js";
 import { MEMBERSHIP_LIST_KIND, getMembershipList, isRegisteredPubkey, isRelayMember, redeemClaim, setRelayMember } from "../lib/relay/members.js";
 import { AuthEvent } from "../interfaces/nostr.js";
 import { dbUpdate } from "../lib/database/core.js";
@@ -170,6 +171,30 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
           socket.close(1011, "error: internal server error");
         }
       
+        break;
+      }
+
+      // NIP-77 negentropy syncing
+      case "NEG-OPEN": {
+        try {
+          await handleNegOpen(socket, args);
+        } catch (error) {
+          logger.error(`handleWebSocketMessage - Failed to handle NEG-OPEN: ${error}`);
+          if (typeof args[0] === "string") await socketSafeSend(socket, ["NEG-ERR", args[0], "error: internal server error"]);
+        }
+        break;
+      }
+      case "NEG-MSG": {
+        try {
+          await handleNegMsg(socket, args);
+        } catch (error) {
+          logger.error(`handleWebSocketMessage - Failed to handle NEG-MSG: ${error}`);
+          if (typeof args[0] === "string") await socketSafeSend(socket, ["NEG-ERR", args[0], "error: internal server error"]);
+        }
+        break;
+      }
+      case "NEG-CLOSE": {
+        handleNegClose(socket, args);
         break;
       }
 

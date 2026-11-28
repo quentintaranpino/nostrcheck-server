@@ -122,6 +122,7 @@ See multi-tenancy [here](https://github.com/quentintaranpino/nostrcheck-server/w
 - [x] NIP65 - Relay List Metadata
 - [x] NIP70 - Protected Events
 - [x] NIP73 - External Content IDs
+- [x] NIP77 - Negentropy Syncing
 - [x] NIP78 - Arbitrary custom app data
 - [x] NIP86 - Relay Management API
 - [x] NIP94 - File Metadata

@@ -563,6 +563,7 @@ const loadDocsPage = async (req: Request, res: Response, version: string): Promi
         65: "Relay list metadata",
         70: "Protected events",
         73: "External content IDs",
+        77: "Negentropy syncing",
         78: "Application-specific data",
         86: "Relay management API",
         94: "File metadata",
