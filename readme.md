@@ -110,6 +110,7 @@ See multi-tenancy [here](https://github.com/quentintaranpino/nostrcheck-server/w
 - [x] NIP19 - bech32-encoded entities
 - [x] NIP40 - Expiration Timestamp
 - [x] NIP42 - Authentication of clients to relays
+- [x] NIP43 - Relay Access Metadata and Requests
 - [x] NIP44 - Versioned Encryption
 - [x] NIP45 - Event Counts
 - [x] NIP47 - Nostr Wallet Connect (NWC)

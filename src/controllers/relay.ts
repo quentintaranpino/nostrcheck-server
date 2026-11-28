@@ -16,8 +16,9 @@ import { validatePow } from "../lib/nostr/NIP13.js";
 import { allowedTags, EventIndex, eventStore, ExtendedWebSocket, MetadataEvent, RelayStatusMessage } from "../interfaces/relay.js";
 import { isBase64 } from "../lib/utils.js";
 import { isRelayHidden } from "../lib/relay/bans.js";
+import { MEMBERSHIP_LIST_KIND, getMembershipList, isRegisteredPubkey, isRelayMember, redeemClaim, setRelayMember } from "../lib/relay/members.js";
 import { AuthEvent } from "../interfaces/nostr.js";
-import { dbMultiSelect, dbUpdate } from "../lib/database/core.js";
+import { dbUpdate } from "../lib/database/core.js";
 import { enqueueRelayTask, getEvents, getPendingHeavyTasks, getPendingLightTasks, getRelayHeavyWorkerLength, getRelayLightWorkerLength, getRelayQueueLength, relayWorkers } from "../lib/relay/workers.js";
 import { parseAuthHeader } from "../lib/authorization.js";
 import { getConfig, isModuleEnabled } from "../lib/config/core.js";
@@ -37,6 +38,21 @@ const canReadEvent = (socket: ExtendedWebSocket, event: Event): boolean => {
   if (!authed) return false;
   if (event.kind == 4 && event.pubkey == authed) return true;
   return event.tags.some(tag => tag[0] == "p" && tag[1] == authed);
+};
+
+// NIP-43: join (28934) and leave (28936) requests carry their own signature, so they get past
+// auth_required; so do REQs that only ask for the membership list or roles, so a client can see
+// whether it is a member before it authenticates.
+const MEMBERSHIP_REQUEST_KINDS = new Set([28934, 28936]);
+const MEMBERSHIP_INFO_KINDS = new Set([MEMBERSHIP_LIST_KIND, 33534]);
+const MEMBERSHIP_REQUEST_WINDOW = 300;
+const isMembershipMessage = (type: unknown, args: unknown[]): boolean => {
+  if (type === "EVENT") return MEMBERSHIP_REQUEST_KINDS.has((args[0] as Event)?.kind);
+  if (type === "REQ" || type === "COUNT") {
+    const filters = args.slice(1) as Filter[];
+    return filters.length > 0 && filters.every(f => Array.isArray(f?.kinds) && f.kinds.length > 0 && f.kinds.every(kind => MEMBERSHIP_INFO_KINDS.has(kind)));
+  }
+  return false;
 };
 
 const sendAuthChallenge = async (socket: ExtendedWebSocket): Promise<void> => {
@@ -118,7 +134,7 @@ const handleWebSocketMessage = async (socket: ExtendedWebSocket, data: WebSocket
       return;
     }
     const authRequired = getConfig(socket.reqInfo.domain, ["relay","limitation","auth_required"]);
-    if (authRequired === true && !authSessions.has(socket)) {
+    if (authRequired === true && !authSessions.has(socket) && !isMembershipMessage(type, args)) {
       if (!socket.challenge) await sendAuthChallenge(socket);
       const reason = "auth-required: this relay requires authentication";
       if (type === "EVENT" && typeof (args[0] as Event)?.id === "string") await socketSafeSend(socket, ["OK", (args[0] as Event).id, false, reason]);
@@ -210,6 +226,12 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
     logger.debug(`handleEvent - Invalid event: ${event.id}, ${validEvent.message}`);
     await socketSafeSend(socket, ["NOTICE", `invalid: ${validEvent.message}`]);
     await socketSafeSend(socket, ["OK", event.id, false, `invalid: ${validEvent.message}`]);
+    return;
+  }
+
+  // NIP-43 join and leave requests: answered here, never stored or broadcast (the claim is secret).
+  if (MEMBERSHIP_REQUEST_KINDS.has(event.kind)) {
+    await handleMembershipRequest(socket, event);
     return;
   }
 
@@ -629,6 +651,58 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
   
 };
 
+const handleMembershipRequest = async (socket: ExtendedWebSocket, event: Event): Promise<void> => {
+  const reply = (accepted: boolean, message: string) => socketSafeSend(socket, ["OK", event.id, accepted, message]);
+
+  if (Math.abs(Math.floor(Date.now() / 1000) - event.created_at) > MEMBERSHIP_REQUEST_WINDOW) {
+    await reply(false, "invalid: created_at must be within a few minutes of now");
+    return;
+  }
+  if (getConfig(socket.reqInfo.domain, ["relay", "limitation", "auth_required"]) !== true) {
+    await reply(false, "unsupported: this relay is open to everyone, there is no membership");
+    return;
+  }
+
+  try {
+    const member = await isRelayMember(event.pubkey);
+
+    if (event.kind === 28936) {
+      if (!member) {
+        await reply(true, "duplicate: you are not a member of this relay.");
+        return;
+      }
+      if (!await setRelayMember(event.pubkey, false, "nip43 leave")) {
+        await reply(false, "error: could not update the membership");
+        return;
+      }
+      if (authSessions.get(socket) === event.pubkey) authSessions.delete(socket);
+      logger.info(`handleMembershipRequest - ${event.pubkey} left the relay | IP:`, socket.reqInfo.ip);
+      await reply(true, "info: you are no longer a member of this relay.");
+      return;
+    }
+
+    if (member) {
+      await reply(true, "duplicate: you are already a member of this relay.");
+      return;
+    }
+
+    // Registered users are members by default; one who left comes back without a code.
+    const joined = await isRegisteredPubkey(event.pubkey)
+      ? await setRelayMember(event.pubkey, true, "nip43 rejoin")
+      : await redeemClaim(String(event.tags.find(tag => tag[0] === "claim")?.[1] ?? "").trim(), event.pubkey);
+    if (!joined) {
+      logger.debug(`handleMembershipRequest - Invalid claim from ${event.pubkey} | IP:`, socket.reqInfo.ip);
+      await reply(false, "restricted: that is an invalid invite code.");
+      return;
+    }
+    logger.info(`handleMembershipRequest - ${event.pubkey} joined the relay | IP:`, socket.reqInfo.ip);
+    await reply(true, "info: welcome to the relay!");
+  } catch (error) {
+    logger.error(`handleMembershipRequest - Error handling kind ${event.kind} from ${event.pubkey}: ${error}`);
+    await reply(false, "error: could not process the request");
+  }
+};
+
 // Old events accepted but not yet written to the DB (flushed every minute).
 const MAX_PENDING_ARCHIVE = 20000;
 
@@ -824,6 +898,13 @@ const handleReqOrCount = async (socket: ExtendedWebSocket, subId: string, filter
    const withArchive = await addArchivedEvents(clientFilters, memoryEvents, maxLimit, tenantFilter, socket.reqInfo.ip);
    const eventsList = addPendingEvents(clientFilters, withArchive, maxLimit, tenantFilter).filter(event => canReadEvent(socket, event));
 
+   // NIP-43 membership list: generated and signed on request, only on relays that need membership.
+   if (clientFilters.some(f => Array.isArray(f.kinds) && f.kinds.includes(MEMBERSHIP_LIST_KIND)) &&
+       getConfig(socket.reqInfo.domain, ["relay", "limitation", "auth_required"]) === true) {
+     const membershipList = await getMembershipList(socket.reqInfo.domain);
+     if (membershipList && clientFilters.some(f => matchFilter(f, membershipList))) eventsList.unshift(membershipList);
+   }
+
     if (type === "COUNT") {
       await socketSafeSend(socket, ["COUNT", subId, { count: eventsList.length }]);
       return;
@@ -924,13 +1005,13 @@ const handleAuthMessage = async (socket: ExtendedWebSocket, message: ["AUTH", Au
     return;
   }
 
-  // A relay that requires auth is for registered users only. Otherwise AUTH just proves
-  // the pubkey, which is enough to read its own direct messages.
+  // A relay that requires auth is for members only (NIP-43: registered users, allowed pubkeys
+  // and those who joined with an invite code). Otherwise AUTH just proves the pubkey, which is
+  // enough to read its own direct messages.
   if (getConfig(socket.reqInfo.domain, ["relay", "limitation", "auth_required"]) == true) {
-    const registeredData = await dbMultiSelect(["id", "username"],"registered","hex = ?", [authData.pubkey], true);
-    if (registeredData.length === 0) {
-      logger.debug("AUTH failed: pubkey not registered:", authData.id);
-      await authFail("restricted: pubkey not registered");
+    if (!await isRelayMember(authData.pubkey)) {
+      logger.debug("AUTH failed: pubkey is not a member:", authData.id);
+      await authFail("restricted: you are not a member of this relay, join with an invite code (NIP-43)");
       return;
     }
   }

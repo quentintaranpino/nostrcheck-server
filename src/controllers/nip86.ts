@@ -13,6 +13,8 @@ import { dbInsert, dbMultiSelect } from "../lib/database/core.js";
 import { setRelayEventBan, setRelayPubkeyBan } from "../lib/relay/bans.js";
 import { eventStore } from "../interfaces/relay.js";
 import { storeEvents } from "../lib/relay/database.js";
+import { createClaim, deleteClaim, getPubkeyRowId, listAllowedPubkeys, listClaims, setRelayMember } from "../lib/relay/members.js";
+import { generateInviteCode } from "../lib/invitations.js";
 
 type RpcResult = { result?: unknown, error?: string };
 
@@ -24,7 +26,11 @@ const supportedMethods = [
 	"banpubkey", "unbanpubkey", "listbannedpubkeys",
 	"banevent", "unbanevent", "listbannedevents",
 	"blockip", "unblockip", "listblockedips",
+	"allowpubkey", "unallowpubkey", "listallowedpubkeys",
+	"createclaim", "listclaims", "deleteclaim",
 ];
+
+const CLAIM_CODE = /^[A-Za-z0-9_-]{6,32}$/;
 
 const reasonOf = (value: unknown): string => typeof value == "string" ? value.slice(0, 150) : "";
 
@@ -41,12 +47,6 @@ const getAuthPayloadTag = (req: Request): string => {
 	}
 };
 
-// Unregistered pubkeys get a row in `pubkeys` so the ban system has something to point at.
-const getPubkeyRowId = async (hex: string): Promise<number> => {
-	const existing = await dbMultiSelect(["id"], "pubkeys", "hex = ?", [hex], true);
-	if (existing.length > 0) return Number(existing[0].id);
-	return await dbInsert("pubkeys", ["hex", "createddate", "comments"], [hex, Math.floor(Date.now() / 1000), "nip86"]);
-};
 
 const getIpRowId = async (ip: string): Promise<number> => {
 	const existing = await dbMultiSelect(["id"], "ips", "ip = ?", [ip], true);
@@ -63,8 +63,12 @@ const banPubkey = async (params: unknown[], admin: string): Promise<RpcResult> =
 	const registered = await dbMultiSelect(["id"], "registered", "hex = ?", [hex], true);
 	const result = registered.length > 0
 		? await banEntity(Number(registered[0].id), "registered", reasonOf(params[1]), admin, "admin", BAN_CATEGORY)
-		: await banEntity(await getPubkeyRowId(hex), "pubkeys", reasonOf(params[1]), admin, "admin", BAN_CATEGORY);
+		: await banEntity(await getPubkeyRowId(hex, "nip86"), "pubkeys", reasonOf(params[1]), admin, "admin", BAN_CATEGORY);
 	if (result.status != "success") return { error: result.message };
+
+	// A ban also takes the pubkey off the allow list (NIP-86).
+	const allowed = await dbMultiSelect(["id"], "pubkeys", "hex = ? AND relaymember = 1", [hex], true);
+	if (allowed.length > 0) await setRelayMember(hex, false, "nip86");
 
 	setRelayPubkeyBan(hex, true);
 	return { result: true };
@@ -154,6 +158,40 @@ const listBlockedIps = async (): Promise<RpcResult> => {
 	return { result: rows.map(row => ({ ip: row.ip, reason: row.reason || "" })) };
 };
 
+// NIP-43 membership. allowpubkey also lifts a ban, as the spec says; unallowpubkey doesn't ban.
+const allowPubkey = async (params: unknown[], admin: string): Promise<RpcResult> => {
+	const hex = String(params[0] ?? "").toLowerCase();
+	if (!HEX64.test(hex)) return { error: "invalid pubkey" };
+	const unbanned = await unbanPubkey([hex], admin);
+	if (unbanned.error) return unbanned;
+	if (!await setRelayMember(hex, true, reasonOf(params[1]) || "nip86")) return { error: "could not store the pubkey" };
+	return { result: true };
+};
+
+const unallowPubkey = async (params: unknown[]): Promise<RpcResult> => {
+	const hex = String(params[0] ?? "").toLowerCase();
+	if (!HEX64.test(hex)) return { error: "invalid pubkey" };
+	if (!await setRelayMember(hex, false, "nip86")) return { error: "could not store the pubkey" };
+	return { result: true };
+};
+
+// The claim is the invite code. Without one, a random code is created; listclaims shows it.
+const createClaimMethod = async (params: unknown[], admin: string): Promise<RpcResult> => {
+	const code = params[0] === undefined || params[0] === "" ? generateInviteCode() : String(params[0]);
+	if (!CLAIM_CODE.test(code)) return { error: "invalid claim: use 6-32 letters, digits, - or _" };
+	const origin = await dbMultiSelect(["id"], "registered", "hex = ?", [admin], true);
+	if (origin.length == 0) return { error: "the admin pubkey is not registered" };
+	if (!await createClaim(code, Number(origin[0].id))) return { error: "claim already exists" };
+	return { result: true };
+};
+
+const deleteClaimMethod = async (params: unknown[]): Promise<RpcResult> => {
+	const code = String(params[0] ?? "");
+	if (!CLAIM_CODE.test(code)) return { error: "invalid claim" };
+	await deleteClaim(code);
+	return { result: true };
+};
+
 const runMethod = async (method: string, params: unknown[], admin: string): Promise<RpcResult> => {
 	switch (method) {
 		case "supportedmethods": return { result: supportedMethods };
@@ -166,6 +204,12 @@ const runMethod = async (method: string, params: unknown[], admin: string): Prom
 		case "blockip": return blockIp(params, admin);
 		case "unblockip": return unblockIp(params, admin);
 		case "listblockedips": return listBlockedIps();
+		case "allowpubkey": return allowPubkey(params, admin);
+		case "unallowpubkey": return unallowPubkey(params);
+		case "listallowedpubkeys": return { result: await listAllowedPubkeys() };
+		case "createclaim": return createClaimMethod(params, admin);
+		case "listclaims": return { result: await listClaims() };
+		case "deleteclaim": return deleteClaimMethod(params);
 		default: return { error: `unsupported method: ${method}` };
 	}
 };

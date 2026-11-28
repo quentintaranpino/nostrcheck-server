@@ -551,6 +551,7 @@ const loadDocsPage = async (req: Request, res: Response, version: string): Promi
         17: "Private direct messages, served only to their recipients",
         40: "Expiration timestamp",
         42: "Auth on relays",
+        43: "Relay access and membership",
         44: "Encrypted payloads (v2)",
         45: "Event counts",
         47: "Nostr Wallet Connect",

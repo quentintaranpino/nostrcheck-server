@@ -444,10 +444,14 @@ const ipsTableFields: IpsTableStructure = {
 // Pubkeys that aren't registered but still need a row, so the ban system can point at them
 // (NIP-86 banpubkey). A ban on one of these sets the same Redis key as a registered ban, so
 // every isEntityBanned(pubkey, "registered") check covers it.
+// relaymember (NIP-43): 1 = relay member, 0 = left or removed, NULL = the default (registered
+// users are members, everyone else is not).
 interface PubkeysTableStructure extends RowDataPacket {
 	id: string;
 	hex: string;
 	createddate: string;
+	relaymember: string;
+	relaymemberdate: string;
 	comments: string;
 }
 
@@ -455,6 +459,8 @@ const pubkeysTableFields: PubkeysTableStructure = {
 	id: "int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY",
 	hex: "varchar(64) NOT NULL UNIQUE",
 	createddate: "bigint NOT NULL",
+	relaymember: "boolean",
+	relaymemberdate: "bigint",
 	comments: "varchar(150)",
 	constructor: {
 		name: 'RowDataPacket',
