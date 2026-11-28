@@ -37,15 +37,23 @@ const buildSlots = createSlots(2);
 type NegSession = { responder: NegentropyResponder, timer: NodeJS.Timeout };
 const negSessions = new WeakMap<ExtendedWebSocket, Map<string, NegSession>>();
 
-type Records = { id: string, created_at: number }[];
-type Collected = { records: Records } | { error: string };
+type Records = { id: string, created_at: number, pubkey: string }[];
+type Collected = { records: Records } | { error: string, tooBig?: boolean };
 
 const isTagKey = (filter: Filter, key: string): boolean =>
 	key.startsWith("#") && key.length == 2 && Array.isArray((filter as Record<string, unknown>)[key]);
 
-const tooBig = (): Collected => ({ error: `blocked: this query is too big, more than ${NEG_MAX_RECORDS} events. Narrow it with since and until` });
+/**
+ * The (id, created_at, pubkey) of every event a filter matches, from memory, the pending maps
+ * and MySQL, without the REQ limit. Shared by NIP-77 and NIP-45 COUNT.
+ * @param socket - The client connection (tenant and IP).
+ * @param filter - A validated NIP-01 filter.
+ * @param maxRecords - Stops and reports tooBig past this many records.
+ * @returns The records, or an error with a "blocked:" reason.
+ */
+const collectRecords = async (socket: ExtendedWebSocket, filter: Filter, maxRecords: number = NEG_MAX_RECORDS): Promise<Collected> => {
 
-const collectRecords = async (socket: ExtendedWebSocket, filter: Filter): Promise<Collected> => {
+	const tooBig = (): Collected => ({ error: `blocked: this query is too big, more than ${maxRecords} events. Narrow it with since and until`, tooBig: true });
 
 	if (filter.search) return { error: "blocked: search filters can't be synced" };
 
@@ -57,11 +65,11 @@ const collectRecords = async (socket: ExtendedWebSocket, filter: Filter): Promis
 
 	const records: Records = [];
 	const seen = new Set<string>();
-	const add = (id: string, created_at: number): boolean => {
+	const add = (id: string, created_at: number, pubkey: string): boolean => {
 		if (seen.has(id)) return true;
 		seen.add(id);
-		records.push({ id, created_at });
-		return records.length <= NEG_MAX_RECORDS;
+		records.push({ id, created_at, pubkey });
+		return records.length <= maxRecords;
 	};
 	const isExpired = (event: MetadataEvent): boolean => {
 		const tag = event.tags.find(t => t[0] == "expiration");
@@ -74,7 +82,7 @@ const collectRecords = async (socket: ExtendedWebSocket, filter: Filter): Promis
 			if (PRIVATE_KINDS.has(event.kind) || isRelayHidden(event) || isExpired(event)) continue;
 			if (tenantid != undefined && event.tenantid != tenantid) continue;
 			if (!matchFilter(filter, event)) continue;
-			if (!add(event.id, event.created_at)) return false;
+			if (!add(event.id, event.created_at, event.pubkey)) return false;
 		}
 		return true;
 	};
@@ -103,7 +111,7 @@ const collectRecords = async (socket: ExtendedWebSocket, filter: Filter): Promis
 			if (entry.kind != undefined && PRIVATE_KINDS.has(entry.kind)) continue;
 			if (entry.expiration != undefined && entry.expiration < now) continue;
 			if (entry.pubkey && isRelayHidden({ id: entry.id, pubkey: entry.pubkey })) continue;
-			if (!add(entry.id, entry.created_at)) return tooBig();
+			if (!add(entry.id, entry.created_at, entry.pubkey || "")) return tooBig();
 		}
 	} else if (!addPending(eventStore.pending)) {
 		return tooBig();
@@ -113,11 +121,11 @@ const collectRecords = async (socket: ExtendedWebSocket, filter: Filter): Promis
 	if (dbNeeded) {
 		// Tag filters can't be answered from the index, so the DB covers every age for them.
 		const createdBefore = hasTags ? TAG_FILTER_UNTIL : horizon;
-		const rows = await getArchivedIdsDB(filter, createdBefore, NEG_MAX_RECORDS + 1 - records.length, tenantid, socket.reqInfo.ip, NEG_BUILD_WAIT_MS);
+		const rows = await getArchivedIdsDB(filter, createdBefore, maxRecords + 1 - records.length, tenantid, socket.reqInfo.ip, NEG_BUILD_WAIT_MS);
 		if (rows == null) return { error: "blocked: the relay is busy, try again later" };
 		for (const row of rows) {
 			if (isRelayHidden(row)) continue;
-			if (!add(row.id, row.created_at)) return tooBig();
+			if (!add(row.id, row.created_at, row.pubkey)) return tooBig();
 		}
 	}
 
@@ -233,4 +241,4 @@ const handleNegClose = (socket: ExtendedWebSocket, args: unknown[]): void => {
 	if (typeof args[0] == "string") closeSession(socket, args[0]);
 };
 
-export { handleNegOpen, handleNegMsg, handleNegClose };
+export { collectRecords, handleNegOpen, handleNegMsg, handleNegClose };

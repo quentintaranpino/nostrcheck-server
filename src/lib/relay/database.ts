@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { Event, Filter } from "nostr-tools";
 import { ResultSetHeader } from "mysql2/promise";
 import { connect, dbBulkInsert, dbDelete, dbSimpleSelect, dbUpdate} from "../database/core.js";
@@ -6,7 +7,7 @@ import { CHUNK_SIZE, EventIndex, MetadataEvent, eventStore } from "../../interfa
 import { decompressEvent, encodeChunk } from "./utils.js";
 import { createSlots, safeJSONParse, Slots } from "../utils.js";
 import { getConfig, isModuleEnabled } from "../config/core.js";
-import { isReplaceable } from "../nostr/NIP01.js";
+import { isAddressable, isReplaceable } from "../nostr/NIP01.js";
 
 /**
  * created_at below which events live only in the DB: now minus relay.memoryDays, or 0
@@ -17,13 +18,22 @@ const getMemoryHorizon = (): number => {
   return memoryDays > 0 ? Math.floor(Date.now() / 1000) - memoryDays * 86400 : 0;
 };
 
+const getDTag = (tags: string[][]): string => tags.find(tag => tag[0] === "d")?.[1] ?? "";
+
+// Addressable keys include the d tag; they are hashed so the index stays small in memory.
+const replaceableKey = (pubkey: string, kind: number, d: string): string =>
+  isAddressable(kind)
+    ? `${kind}:${crypto.createHash("sha1").update(`${pubkey}:${kind}:${d}`).digest("base64").slice(0, 16)}`
+    : `${pubkey}:${kind}`;
+
 /**
- * Remembers a replaceable event by pubkey + kind, so handleEvent finds the stored version
- * without walking the whole eventIndex. Ids that leave eventIndex are pruned on lookup.
+ * Remembers a replaceable event by pubkey + kind (+ d tag for addressables), so handleEvent
+ * finds the stored version without walking the whole eventIndex. Ids that leave eventIndex
+ * are pruned on lookup.
  */
-const indexReplaceable = (id: string, pubkey: string, kind: number) => {
-  if (!isReplaceable(kind)) return;
-  const key = `${pubkey}:${kind}`;
+const indexReplaceable = (id: string, pubkey: string, kind: number, d: string = "") => {
+  if (!isReplaceable(kind) && !isAddressable(kind)) return;
+  const key = replaceableKey(pubkey, kind, d);
   let ids = eventStore.replaceableIndex.get(key);
   if (!ids) {
     ids = new Set();
@@ -33,10 +43,10 @@ const indexReplaceable = (id: string, pubkey: string, kind: number) => {
 };
 
 /**
- * Ids of the replaceable events of a pubkey + kind still in eventIndex.
+ * Ids of the replaceable events of a pubkey + kind (+ d tag for addressables) still in eventIndex.
  */
-const getReplaceableIds = (pubkey: string, kind: number): string[] => {
-  const key = `${pubkey}:${kind}`;
+const getReplaceableIds = (pubkey: string, kind: number, d: string = ""): string[] => {
+  const key = replaceableKey(pubkey, kind, d);
   const ids = eventStore.replaceableIndex.get(key);
   if (!ids) return [];
   for (const id of ids) {
@@ -107,7 +117,7 @@ const initEvents = async (): Promise<boolean> => {
               tenantid: event.tenantid,
             });
 
-            indexReplaceable(event.id, event.pubkey, event.kind);
+            indexReplaceable(event.id, event.pubkey, event.kind, isAddressable(event.kind) ? getDTag(event.tags) : "");
             eventStore.globalIds.add(event.id);
             if (event.pubkey) {
               eventStore.globalPubkeys.add(event.pubkey);
@@ -681,4 +691,4 @@ const deleteEvents = async (eventsInput: MetadataEvent | MetadataEvent[], delete
   return affectedCount;
 };
 
-export { storeEvents, initEvents, deleteEvents, getArchivedEventsDB, getArchivedIdsDB, isArchiveFilterSelective, getEventsByIdDB, isEventStoredDB, getNewestReplaceableDB, deactivateSupersededDB, vanishPubkeyDB, getMemoryHorizon, indexReplaceable, getReplaceableIds };
+export { getDTag, storeEvents, initEvents, deleteEvents, getArchivedEventsDB, getArchivedIdsDB, isArchiveFilterSelective, getEventsByIdDB, isEventStoredDB, getNewestReplaceableDB, deactivateSupersededDB, vanishPubkeyDB, getMemoryHorizon, indexReplaceable, getReplaceableIds };

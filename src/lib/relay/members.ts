@@ -23,11 +23,28 @@ const getPubkeyRowId = async (hex: string, comment: string): Promise<number> => 
 	return await dbInsert("pubkeys", ["hex", "createddate", "comments"], [hex, Math.floor(Date.now() / 1000), comment]);
 };
 
+// Restricted writes check the author of every event: a short cache keeps that off the DB.
+// Membership changes drop the entry; a new registration shows up within a minute.
+const MEMBER_CACHE_MS = 60 * 1000;
+const MEMBER_CACHE_MAX = 50000;
+const memberCache = new Map<string, { member: boolean, expires: number }>();
+
 const isRelayMember = async (hex: string): Promise<boolean> => {
+	const cached = memberCache.get(hex);
+	if (cached && cached.expires > Date.now()) return cached.member;
+
+	let member: boolean;
 	const row = await dbMultiSelect(["relaymember"], "pubkeys", "hex = ?", [hex], true);
-	if (row.length > 0 && row[0].relaymember !== null && row[0].relaymember !== undefined) return Number(row[0].relaymember) == 1;
-	const registered = await dbMultiSelect(["id"], "registered", "hex = ?", [hex], true);
-	return registered.length > 0;
+	if (row.length > 0 && row[0].relaymember != null) {
+		member = Number(row[0].relaymember) == 1;
+	} else {
+		const registered = await dbMultiSelect(["id"], "registered", "hex = ?", [hex], true);
+		member = registered.length > 0;
+	}
+
+	if (memberCache.size >= MEMBER_CACHE_MAX) memberCache.clear();
+	memberCache.set(hex, { member, expires: Date.now() + MEMBER_CACHE_MS });
+	return member;
 };
 
 const isRegisteredPubkey = async (hex: string): Promise<boolean> =>
@@ -41,6 +58,7 @@ const setRelayMember = async (hex: string, member: boolean, comment: string): Pr
 	if (!rowId) return false;
 	const updated = await dbUpdate("pubkeys", { relaymember: member ? 1 : 0, relaymemberdate: Math.floor(Date.now() / 1000) }, ["id"], [rowId]);
 	if (updated) membershipLists.clear();
+	memberCache.delete(hex);
 	return updated;
 };
 
