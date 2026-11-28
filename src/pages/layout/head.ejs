@@ -1,0 +1,81 @@
+<%#
+	v8 layout, <head>. A page is either on this layout or on partials/head, never both.
+	Optional params: styles  - extra entry sheets, e.g. ['tools.css']
+	                 islands - islands the page mounts, to preload their chunks
+-%>
+<%
+	const brandName = locals.siteName || locals.serverHost || "Nostrcheck Server";
+	const pageTitle = locals.title || brandName;
+	const pageDescription = locals.description || "Self-hosted nostrcheck-server";
+	const proto = (request.headers['x-forwarded-proto'] || request.protocol || 'https');
+	const urlBase = `${proto}://${serverHost}`;
+	const jsonLd = JSON.stringify({
+		"@context": "https://schema.org",
+		"@type": "WebSite",
+		"name": brandName,
+		"url": `${urlBase}/`,
+		"potentialAction": {
+			"@type": "SearchAction",
+			"target": `${urlBase}/directory?q={search_term_string}`,
+			"query-input": "required name=search_term_string"
+		}
+	}).replace(/</g, "\\u003c");
+-%>
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<!-- These two hex values mirror --bg per theme; the build fails if they drift. -->
+	<meta name="theme-color" content="#0c0912">
+	<!-- Before any stylesheet: same localStorage key and attribute as the legacy
+	     pages, so moving between both never flashes the wrong theme. -->
+	<script>
+		(function () {
+			var dark = true;
+			try {
+				var saved = localStorage.getItem('theme');
+				dark = saved === 'dark' || (saved !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+			} catch (e) { /* private mode: follow the default */ }
+			document.documentElement.setAttribute('data-bs-theme', dark ? 'dark' : 'light');
+			if (!dark) document.querySelector('meta[name="theme-color"]').setAttribute('content', '#fcfbfe');
+		})();
+	</script>
+
+	<title><%= pageTitle %></title>
+	<meta name="description" content="<%= pageDescription %>">
+	<% if (locals.noindex) { %><meta name="robots" content="noindex,nofollow"><% } %>
+	<link rel="canonical" href="<%= urlBase + request.originalUrl %>">
+
+	<meta property="og:locale" content="en_US">
+	<meta property="og:type" content="website">
+	<meta property="og:site_name" content="<%= brandName %>">
+	<meta property="og:title" content="<%= pageTitle %>">
+	<meta property="og:description" content="<%= pageDescription %>">
+	<meta property="og:image" content="<%= urlBase %>/static/resources/logo-server.webp">
+	<meta property="og:url" content="<%= urlBase + request.originalUrl %>">
+
+	<meta name="twitter:card" content="summary_large_image">
+	<meta name="twitter:title" content="<%= pageTitle %>">
+	<meta name="twitter:description" content="<%= pageDescription %>">
+	<meta name="twitter:image" content="<%= urlBase %>/static/resources/logo-server.webp">
+	<meta name="twitter:image:alt" content="<%= pageTitle %>">
+
+	<script type="application/ld+json"><%- jsonLd %></script>
+
+	<link rel="stylesheet" href="<%= asset('site.css') %>">
+	<% for (const sheet of (locals.styles || [])) { -%>
+	<link rel="stylesheet" href="<%= asset(sheet) %>">
+	<% } -%>
+	<!-- Tenant overrides for --hue and --accent. After the tokens, so it wins. -->
+	<link rel="stylesheet" href="/static/css/theme.css">
+
+	<link rel="icon" href="/favicon.ico">
+	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+	<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+	<link rel="manifest" href="/site.webmanifest">
+
+	<script type="module" src="<%= asset('base.js') %>"></script>
+	<% for (const island of (locals.islands || [])) { for (const chunk of islandAssets(island)) { -%>
+	<link rel="modulepreload" href="<%= chunk %>">
+	<% } } -%>
+</head>

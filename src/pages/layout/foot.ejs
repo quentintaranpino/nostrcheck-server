@@ -1,0 +1,24 @@
+<%#
+	v8 layout, footer and page-level dialogs. Param: width - same as <main>
+-%>
+<footer class="nc-foot" data-width="<%= locals.width || 'default' %>">
+	<div class="nc-foot-inner">
+		<% if (locals.version) { %><span class="nc-foot-ver">v<%= locals.version %></span><% } %>
+		<a href="https://github.com/quentintaranpino/nostrcheck-server/">Source code</a>
+		<span class="nc-foot-sep" aria-hidden="true">·</span>
+		<a href="/privacy">Privacy</a>
+		<a href="/legal">Legal</a>
+		<a href="/tos">Terms</a>
+		<a class="nc-foot-lic" href="https://mit-license.org/">MIT</a>
+	</div>
+</footer>
+<% if (locals.firstUse) { -%>
+<%# Autologin notice of a fresh install. The text is built by the server (isAutoLoginEnabled), never from user input. -%>
+<dialog class="nc-dialog" data-dialog-autoshow aria-labelledby="first-use-title">
+	<div class="nc-dialog-head">
+		<h2 id="first-use-title">Welcome to your sovereignty</h2>
+		<form method="dialog"><button class="nc-btn">Close</button></form>
+	</div>
+	<div class="nc-dialog-body"><%- locals.firstUse %></div>
+</dialog>
+<% } -%>

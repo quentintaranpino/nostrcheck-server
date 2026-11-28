@@ -1,0 +1,30 @@
+.nc-foot {
+	padding-block: var(--space-5);
+	font-size: var(--text-sm);
+	color: var(--ink-muted);
+}
+.nc-foot-inner {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: var(--space-3);
+	width: 100%;
+	max-width: 48rem;
+	margin-inline: auto;
+	padding-inline: var(--space-5);
+}
+.nc-foot[data-width="wide"] .nc-foot-inner { max-width: 68rem; }
+.nc-foot[data-width="bleed"] .nc-foot-inner { max-width: none; }
+/* padding, not bare text: the links were ~20px tall, under the 24px floor */
+.nc-foot a {
+	color: var(--ink-muted);
+	text-decoration: none;
+	padding: var(--space-2) var(--space-1);
+	border-radius: var(--radius-sm);
+	transition: color var(--dur-fast) var(--ease-out);
+}
+.nc-foot a:hover { color: var(--ink); }
+.nc-foot a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.nc-foot-ver { font-family: var(--font-mono); font-size: var(--text-xs); }
+.nc-foot-lic { margin-left: auto; font-family: var(--font-mono); font-size: var(--text-xs); }
+.nc-foot-sep { opacity: 0.5; }

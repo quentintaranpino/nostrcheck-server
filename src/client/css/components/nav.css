@@ -1,0 +1,188 @@
+/* One visible focus treatment for every control in the chrome. */
+.nc-skip:focus,
+.nc-nav-link:focus-visible,
+.nc-nav-search:focus-visible,
+.nc-nav-cta:focus-visible,
+.nc-nav-icon:focus-visible,
+.nc-nav-menu a:focus-visible,
+.nc-nav-acct summary:focus-visible,
+.nc-nav-burger summary:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
+}
+
+.nc-skip {
+	position: absolute;
+	left: var(--space-3);
+	top: var(--space-3);
+	z-index: var(--z-toast);
+	padding: var(--space-2) var(--space-3);
+	background: var(--surface-raised);
+	color: var(--ink);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+	font-size: var(--text-sm);
+	text-decoration: none;
+	transform: translateY(-200%);
+}
+.nc-skip:focus { transform: none; }
+
+.nc-nav {
+	position: sticky;
+	top: 0;
+	z-index: var(--z-sticky);
+	height: 52px;
+	background: color-mix(in oklch, var(--bg) 88%, transparent);
+	backdrop-filter: blur(8px);
+	border-bottom: 1px solid transparent;
+	transition: border-color var(--dur-base) var(--ease-out);
+}
+/* Hairline appears once the content scrolls under the bar. */
+.nc-nav.is-scrolled { border-bottom-color: var(--border-subtle); }
+
+/* Mirrors main's column exactly, per width mode, so the logo lines up with
+   the h1 and the account menu with the content's right edge. */
+.nc-nav-inner {
+	display: flex;
+	align-items: center;
+	gap: var(--space-5);
+	height: 100%;
+	width: 100%;
+	max-width: 48rem;
+	margin-inline: auto;
+	padding-inline: var(--space-5);
+}
+.nc-nav[data-width="wide"] .nc-nav-inner { max-width: 68rem; }
+.nc-nav[data-width="bleed"] .nc-nav-inner { max-width: none; }
+
+/* One logo per theme, swapped by CSS. If the image ever fails, the alt text
+   stands in as the wordmark. */
+.nc-nav-brand { display: inline-flex; align-items: center; flex-shrink: 0; color: var(--ink); font-weight: 600; text-decoration: none; }
+.nc-nav-logo { display: block; height: 28px; width: auto; }
+.nc-nav-logo-dark { display: none; }
+html[data-bs-theme="dark"] .nc-nav-logo-light { display: none; }
+html[data-bs-theme="dark"] .nc-nav-logo-dark { display: block; }
+
+/* Icon buttons in the bar: theme toggle, account, burger. */
+.nc-nav-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	background: none;
+	border: 0;
+	padding: var(--space-1);
+	color: var(--ink-muted);
+	font-size: 17px;
+	cursor: pointer;
+	border-radius: var(--radius-sm);
+	transition: color var(--dur-fast) var(--ease-out);
+}
+.nc-nav-icon:hover { color: var(--ink); }
+.nc-nav-icon .nc-icon-moon { display: none; }
+html[data-bs-theme="dark"] .nc-nav-icon .nc-icon-sun { display: none; }
+html[data-bs-theme="dark"] .nc-nav-icon .nc-icon-moon { display: block; }
+
+.nc-nav-links { display: flex; align-items: center; gap: var(--space-1); margin-right: auto; }
+.nc-nav-link {
+	color: var(--ink-muted);
+	text-decoration: none;
+	font-size: var(--text-sm);
+	font-weight: 500;
+	padding: var(--space-1) var(--space-2);
+	border-radius: var(--radius-sm);
+	transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+.nc-nav-link:hover { color: var(--ink); }
+.nc-nav-link[aria-current="page"] { color: var(--ink); background: var(--surface); }
+
+.nc-nav-actions { display: flex; align-items: center; gap: var(--space-3); flex-shrink: 0; }
+
+.nc-nav-search {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+	color: var(--ink-muted);
+	font-size: 15px;
+	text-decoration: none;
+	padding: var(--space-1) var(--space-2);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+	transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+.nc-nav-search:hover { color: var(--ink); border-color: var(--ink-muted); }
+.nc-nav-search kbd { font-size: var(--text-xs); color: var(--ink-muted); }
+
+.nc-nav-cta {
+	color: var(--bg);
+	background: var(--accent);
+	text-decoration: none;
+	font-size: var(--text-sm);
+	font-weight: 600;
+	padding: var(--space-1) var(--space-4);
+	border-radius: var(--radius-sm);
+	transition: background var(--dur-fast) var(--ease-out);
+}
+.nc-nav-cta:hover { background: var(--accent-hover); }
+
+/* Account + burger share the same native <details> dropdown. */
+.nc-nav-acct, .nc-nav-burger { position: relative; }
+.nc-nav-acct summary, .nc-nav-burger summary {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--ink-muted);
+	font-size: 19px;
+	cursor: pointer;
+	list-style: none;
+	padding: var(--space-1);
+	border-radius: var(--radius-sm);
+	transition: color var(--dur-fast) var(--ease-out);
+}
+.nc-nav-acct summary::-webkit-details-marker, .nc-nav-burger summary::-webkit-details-marker { display: none; }
+.nc-nav-acct summary:hover, .nc-nav-burger summary:hover { color: var(--ink); }
+.nc-nav-menu {
+	position: absolute;
+	right: 0;
+	top: calc(100% + var(--space-2));
+	z-index: var(--z-dropdown);
+	display: flex;
+	flex-direction: column;
+	min-width: 168px;
+	padding: var(--space-2);
+	background: var(--surface-raised);
+	/* The shadow and the raised fill already say 'panel'; a 3:1 stroke on
+	   top of them just makes it heavy. */
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius-md);
+	box-shadow: var(--shadow-menu);
+}
+.nc-nav-menu a {
+	color: var(--ink-muted);
+	text-decoration: none;
+	font-size: var(--text-sm);
+	padding: var(--space-2) var(--space-3);
+	border-radius: var(--radius-sm);
+	transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+.nc-nav-menu a:hover, .nc-nav-menu a[aria-current="page"] { color: var(--ink); background: var(--bg); }
+.nc-nav-menu-sep { height: 1px; background: var(--border-subtle); margin: var(--space-2) 0; }
+
+.nc-nav-burger { display: none; }
+
+/* Tablet and small laptops: the whole row (6 links + search + both auth
+   actions) needs ~950px, so drop the search widget before it collides. */
+@media (max-width: 960px) {
+	.nc-nav-search { display: none; }
+}
+
+/* Mobile: links and account fold into the burger. Register stays in the
+   bar, it's the primary action. Login goes: it's already in the burger and
+   the bar can't fit both at 320px. */
+@media (max-width: 720px) {
+	.nc-nav-links, .nc-nav-acct, .nc-nav-actions > .nc-nav-link { display: none; }
+	.nc-nav-actions { margin-left: auto; }
+	.nc-nav-burger { display: block; }
+	/* Comfortable thumb targets once there's no mouse. */
+	.nc-nav-icon, .nc-nav-burger summary { min-width: 44px; min-height: 44px; }
+	.nc-nav-cta { padding-block: var(--space-2); }
+}

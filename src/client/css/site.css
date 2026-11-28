@@ -1,0 +1,10 @@
+/* Everything a page on the v8 layout needs: fonts, tokens, element styles
+   and the chrome. Page-specific sheets (tools.css) are linked on top. */
+@import "@fontsource-variable/geist/wght.css";
+@import "@fontsource-variable/geist-mono/wght.css";
+@import "./tokens.css";
+@import "./base.css";
+@import "./components/nav.css";
+@import "./components/foot.css";
+@import "./components/prose.css";
+@import "./components/dialog.css";

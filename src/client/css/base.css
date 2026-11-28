@@ -1,0 +1,69 @@
+/* Reset and element styles. Only for pages on the v8 layout: a legacy page
+   that loaded this would have Bootstrap's own element styles fought over. */
+*, *::before, *::after { box-sizing: border-box; }
+
+/* Reserve the scrollbar always. Without this a short page and a long one
+   centre their column ~7px apart, so the logo and the content jump sideways
+   as you move between them. */
+html { scrollbar-gutter: stable; }
+
+/* Footer sits at the bottom without hardcoding the chrome heights. */
+body {
+	margin: 0;
+	display: flex;
+	flex-direction: column;
+	min-height: 100vh;
+	background: var(--bg);
+	color: var(--ink);
+	font-family: var(--font-ui);
+	line-height: 1.5;
+	-webkit-font-smoothing: antialiased;
+}
+
+/* One heading scale for the whole site. Pages set margins, never sizes. */
+h1, h2, h3, h4 {
+	text-wrap: balance;
+	font-weight: 600;
+	line-height: var(--leading-tight);
+}
+h1 { font-size: var(--text-2xl); letter-spacing: var(--tracking-tight); }
+h2 { font-size: var(--text-xl); letter-spacing: var(--tracking-snug); }
+h3 { font-size: var(--text-lg); line-height: var(--leading-snug); }
+h4 { font-size: var(--text-base); line-height: var(--leading-snug); }
+
+code, kbd, .nc-mono { font-family: var(--font-mono); }
+
+[hidden] { display: none !important; }
+
+.nc-icon {
+	width: 1em;
+	height: 1em;
+	flex-shrink: 0;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 2;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+.nc-main {
+	flex: 1;
+	width: 100%;
+	max-width: 48rem;
+	margin: 0 auto;
+	padding: var(--space-6) var(--space-5) var(--space-8);
+}
+/* Reference pages and tools need more room than a reading column. */
+.nc-main[data-width="wide"] { max-width: 68rem; }
+/* Full-bleed: the page owns the width and its own inner column. */
+.nc-main[data-width="bleed"] { max-width: none; padding: 0; }
+@media (max-width: 480px) {
+	.nc-main { padding-inline: var(--space-4); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*, *::before, *::after {
+		animation-duration: 0.01ms !important;
+		transition-duration: 0.01ms !important;
+	}
+}

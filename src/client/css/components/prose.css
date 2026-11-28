@@ -1,0 +1,100 @@
+/* Long-form document body (tos / privacy / legal, and docs later). The HTML
+   comes from operator-authored markdown, already converted on the server,
+   so everything hangs off .nc-prose and nothing leaks. */
+.nc-prose {
+	/* Prose wants a narrower measure than a form does: ~68ch keeps lines
+	   inside the comfortable 65-75 range at this size. */
+	max-width: 68ch;
+	/* narrower than main, so centre it or the block reads off-axis */
+	margin-inline: auto;
+	color: var(--ink);
+	font-size: var(--text-base);
+	line-height: var(--leading-relaxed);
+	overflow-wrap: break-word;
+}
+
+.nc-prose > :first-child { margin-top: 0; }
+.nc-prose > :last-child { margin-bottom: 0; }
+
+/* Sizes come from the global scale; prose only owns its rhythm.
+   Headings hug the text they introduce: big gap above, small below. */
+.nc-prose h1 { margin: 0 0 var(--space-5); }
+.nc-prose h2 { margin: var(--space-7) 0 var(--space-3); }
+.nc-prose h3 { margin: var(--space-6) 0 var(--space-2); }
+.nc-prose h4 { margin: var(--space-5) 0 var(--space-2); }
+
+.nc-prose p {
+	margin: 0 0 var(--space-4);
+	text-wrap: pretty;
+}
+
+.nc-prose ul, .nc-prose ol {
+	margin: 0 0 var(--space-4);
+	padding-left: var(--space-5);
+}
+.nc-prose li { margin-bottom: var(--space-2); }
+.nc-prose li::marker { color: var(--ink-muted); }
+.nc-prose ul ul, .nc-prose ol ol { margin: var(--space-2) 0 0; }
+
+.nc-prose strong { font-weight: 600; }
+
+/* Underlined, not colour-only: these sit inside running text. */
+.nc-prose a {
+	color: var(--accent);
+	text-decoration: underline;
+	text-decoration-thickness: 1px;
+	text-underline-offset: 2px;
+	border-radius: 2px;
+}
+.nc-prose a:hover { text-decoration-thickness: 2px; }
+.nc-prose a:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
+	text-decoration: none;
+}
+
+.nc-prose code {
+	font-size: 0.875em;
+	background: var(--surface);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius-sm);
+	padding: 0.1em 0.35em;
+	word-break: break-word;
+}
+.nc-prose pre {
+	margin: 0 0 var(--space-4);
+	padding: var(--space-3) var(--space-4);
+	background: var(--surface);
+	border-radius: var(--radius-md);
+	overflow-x: auto;
+}
+.nc-prose pre code { background: none; border: 0; padding: 0; word-break: normal; }
+
+.nc-prose blockquote {
+	margin: 0 0 var(--space-4);
+	padding: var(--space-3) var(--space-4);
+	background: var(--surface);
+	border-radius: var(--radius-md);
+	color: var(--ink-muted);
+}
+
+.nc-prose hr {
+	border: 0;
+	border-top: 1px solid var(--border-subtle);
+	margin: var(--space-7) 0;
+}
+
+.nc-prose img { max-width: 100%; height: auto; }
+
+.nc-prose table {
+	width: 100%;
+	border-collapse: collapse;
+	margin: 0 0 var(--space-4);
+	font-size: var(--text-base);
+}
+.nc-prose th, .nc-prose td {
+	text-align: left;
+	padding: var(--space-2) var(--space-3);
+	border-bottom: 1px solid var(--border-subtle);
+}
+.nc-prose th { color: var(--ink-muted); font-weight: 600; }

@@ -7,6 +7,7 @@ import { generateAuthToken, generateOTC, isPubkeyAllowed, isPubkeyValid, isUserP
 import { countPubkeyFiles, generateSitemap, getLegalText, getResource, isAutoLoginEnabled, replaceTokens, setAuthCookie } from "../lib/frontend.js";
 import { hextoNpub, npubToHex } from "../lib/nostr/NIP19.js";
 import { dynamicbackgroundThemes, particles} from "../interfaces/appearance.js";
+import { themeTokensCss } from "../lib/frontend/theme.js";
 import { getUsernames } from "../lib/register.js";
 import { getLightningAddress } from "../lib/lightning.js";
 import { getClientInfo, isIpAllowed } from "../lib/security/ips.js";
@@ -1170,11 +1171,14 @@ const loadTheme = async (req: Request, res: Response): Promise<void> => {
         }
     `;
 
+    // v8 tokens: the tenant's hue and a contrast-safe accent, from the same colour.
+    const tokens = themeTokensCss(theme.color1 || "");
+
     res.setHeader("Content-Type", "text/css");
     // Cacheable: it only changes when an admin edits appearance settings.
     // Express's auto-ETag turns revalidations into cheap 304s after max-age.
     res.setHeader("Cache-Control", "public, max-age=300, must-revalidate");
-    res.send(css);
+    res.send(css + tokens);
 };
 
 const loadSitemap = async (req: Request, res: Response): Promise<void> => {

@@ -1,0 +1,94 @@
+<%#
+	v8 layout, top bar. Params: active - page key of the current page
+	                            width  - 'default' | 'wide' | 'bleed', same as <main>
+-%>
+<%
+	// Gated by the same modules the legacy navbar checks.
+	const hasModule = (name) => (locals.activeModules || []).some(mod => mod.name == name);
+	const loggedIn = !!(request.session && request.session.identifier);
+	const isAdmin = loggedIn && request.session.allowed == true;
+	const current = locals.active || "";
+	const navWidth = locals.width || "default";
+	const icons = asset('icons.svg');
+	const navItems = [
+		{ label: "Gallery", href: "/gallery", page: "gallery", on: hasModule("media") },
+		{ label: "Upload", href: "/media", page: "media", on: hasModule("media") },
+		{ label: "Directory", href: "/directory", page: "directory", on: hasModule("register") },
+		{ label: "Relay", href: "/relay", page: "relay", on: hasModule("relay") },
+		{ label: "Docs", href: "/documentation", page: "documentation", on: true },
+		{ label: "Tools", href: "/tools", page: "tools", on: true },
+	].filter(item => item.on);
+-%>
+<a href="#main" class="nc-skip">Skip to content</a>
+<!-- The bar spans, its contents sit on the same column as the page. -->
+<header class="nc-nav" data-nav data-width="<%= navWidth %>">
+	<div class="nc-nav-inner">
+		<a href="/" class="nc-nav-brand">
+			<img class="nc-nav-logo nc-nav-logo-light" src="/static/resources/appearance-server-logo-light.png" alt="<%= locals.siteName || locals.serverHost %>" height="28">
+			<img class="nc-nav-logo nc-nav-logo-dark" src="/static/resources/appearance-server-logo-dark.png" alt="<%= locals.siteName || locals.serverHost %>" height="28">
+		</a>
+
+		<nav class="nc-nav-links" aria-label="Primary">
+			<% for (const item of navItems) { -%>
+			<a href="<%= item.href %>" class="nc-nav-link"<% if (current == item.page) { %> aria-current="page"<% } %>><%= item.label %></a>
+			<% } -%>
+		</nav>
+
+		<div class="nc-nav-actions">
+			<button type="button" class="nc-nav-icon" data-theme-toggle aria-pressed="false" aria-label="Switch theme">
+				<svg class="nc-icon nc-icon-sun" aria-hidden="true"><use href="<%= icons %>#sun"/></svg>
+				<svg class="nc-icon nc-icon-moon" aria-hidden="true"><use href="<%= icons %>#moon"/></svg>
+			</button>
+
+			<% if (hasModule("register")) { -%>
+			<a href="/directory" class="nc-nav-search" data-search aria-label="Search">
+				<svg class="nc-icon" aria-hidden="true"><use href="<%= icons %>#search"/></svg>
+				<kbd>Ctrl K</kbd>
+			</a>
+			<% } -%>
+
+			<% if (!loggedIn) { -%>
+			<a href="/login" class="nc-nav-link"<% if (current == "login") { %> aria-current="page"<% } %>>Login</a>
+			<% if (hasModule("register")) { %><a href="/register" class="nc-nav-cta">Register</a><% } %>
+			<% } else { -%>
+			<details class="nc-nav-acct" data-menu>
+				<summary aria-label="Account">
+					<svg class="nc-icon" aria-hidden="true"><use href="<%= icons %>#user"/></svg>
+				</summary>
+				<div class="nc-nav-menu">
+					<a href="/profile">Profile</a>
+					<% if (isAdmin) { -%>
+					<a href="/dashboard">Dashboard</a>
+					<a href="/settings">Settings</a>
+					<% } -%>
+					<div class="nc-nav-menu-sep"></div>
+					<a href="/api/v2/logout" data-logout>Log out</a>
+				</div>
+			</details>
+			<% } -%>
+
+			<details class="nc-nav-burger" data-menu>
+				<summary aria-label="Menu">
+					<svg class="nc-icon" aria-hidden="true"><use href="<%= icons %>#menu"/></svg>
+				</summary>
+				<div class="nc-nav-menu">
+					<% for (const item of navItems) { -%>
+					<a href="<%= item.href %>"<% if (current == item.page) { %> aria-current="page"<% } %>><%= item.label %></a>
+					<% } -%>
+					<div class="nc-nav-menu-sep"></div>
+					<% if (!loggedIn) { -%>
+					<a href="/login">Login</a>
+					<% if (hasModule("register")) { %><a href="/register">Register</a><% } %>
+					<% } else { -%>
+					<a href="/profile">Profile</a>
+					<% if (isAdmin) { -%>
+					<a href="/dashboard">Dashboard</a>
+					<a href="/settings">Settings</a>
+					<% } -%>
+					<a href="/api/v2/logout" data-logout>Log out</a>
+					<% } -%>
+				</div>
+			</details>
+		</div>
+	</div>
+</header>

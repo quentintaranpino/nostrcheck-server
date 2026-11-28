@@ -1,0 +1,98 @@
+/* nostrcheck v8 design tokens. Variables only: safe to load on any page,
+   legacy ones included.
+   Dark is the base; [data-bs-theme="light"] overrides it, the same attribute
+   the legacy pages use, so the saved preference carries across both.
+   --hue and --accent are the two knobs a tenant moves: /static/css/theme.css
+   overrides them from appearance.dynamicbackground.color1.
+   Every pair here is gated by scripts/check-contrast.mjs, for every hue. */
+:root {
+	/* tenant knobs (defaults = nostrcheck purple) */
+	--hue: 300;
+	--accent: oklch(0.6736 0.1977 296.8);
+
+	/* color */
+	--bg: oklch(0.15 0.02 var(--hue));
+	--surface: oklch(0.225 0.025 var(--hue));
+	--surface-raised: oklch(0.235 0.03 var(--hue));
+	--ink: oklch(0.95 0.01 var(--hue));
+	--ink-muted: oklch(0.76 0.02 var(--hue));
+	/* Hover goes darker, never lighter. */
+	--accent-hover: color-mix(in oklch, var(--accent) 90%, black);
+	--danger: oklch(0.72 0.17 25);
+	/* state colours: check marks and badges today, admin states later */
+	--success: oklch(0.62 0.14 150);
+	--warning: oklch(0.64 0.15 75);
+	--info: oklch(0.64 0.15 250);
+	/* --border outlines interactive components, so WCAG 1.4.11 wants 3:1
+	   against every surface it sits on. --border-subtle is for decorative
+	   rules (nav hairline, menu separators), which that rule doesn't cover. */
+	--border: oklch(0.52 0.012 var(--hue));
+	--border-subtle: oklch(0.32 0.03 var(--hue));
+	--shadow-menu: 0 12px 32px oklch(0 0 0 / 0.4);
+
+	/* stacking: named steps, so nothing has to guess a number later */
+	--z-sticky: 100;
+	--z-dropdown: 200;
+	--z-modal: 400;
+	--z-toast: 600;
+
+	/* type */
+	--font-ui: 'Geist Variable', system-ui, sans-serif;
+	--font-mono: 'Geist Mono Variable', ui-monospace, 'Cascadia Mono', monospace;
+
+	/* Type scale, 7 steps at roughly 1.2. Pages use these, never their own
+	   numbers. --text-hero is reserved for the home claim box. */
+	--text-xs: 0.75rem;
+	--text-sm: 0.875rem;
+	--text-base: 1rem;
+	--text-lg: 1.25rem;
+	--text-xl: 1.5rem;
+	--text-2xl: 2rem;
+	--text-hero: 2.75rem;
+
+	--leading-tight: 1.2;
+	--leading-snug: 1.4;
+	--leading-normal: 1.6;
+	--leading-relaxed: 1.7;
+
+	--tracking-tight: -0.02em;
+	--tracking-snug: -0.01em;
+
+	/* space (4px scale) */
+	--space-1: 0.25rem;
+	--space-2: 0.5rem;
+	--space-3: 0.75rem;
+	--space-4: 1rem;
+	--space-5: 1.5rem;
+	--space-6: 2rem;
+	--space-7: 3rem;
+	--space-8: 4rem;
+
+	/* shape */
+	--radius-sm: 4px;
+	--radius-md: 6px;
+
+	/* motion */
+	--dur-fast: 120ms;
+	--dur-base: 200ms;
+	--ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Light: the neutrals stay tinted toward the tenant hue. The accent goes
+   darker than its dark-mode twin because the primary button paints --bg over
+   it, and near-white needs a dark enough field. */
+html[data-bs-theme="light"] {
+	--accent: oklch(0.5 0.21 296.8);
+	--bg: oklch(0.99 0.004 var(--hue));
+	--surface: oklch(0.95 0.008 var(--hue));
+	--surface-raised: oklch(1 0 0);
+	--ink: oklch(0.22 0.02 var(--hue));
+	--ink-muted: oklch(0.46 0.02 var(--hue));
+	--danger: oklch(0.5 0.19 25);
+	--success: oklch(0.51 0.14 150);
+	--warning: oklch(0.53 0.15 75);
+	--info: oklch(0.52 0.15 250);
+	--border: oklch(0.62 0.012 var(--hue));
+	--border-subtle: oklch(0.88 0.008 var(--hue));
+	--shadow-menu: 0 12px 32px oklch(0.3 0.03 var(--hue) / 0.14);
+}

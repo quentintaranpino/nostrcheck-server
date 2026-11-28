@@ -8,5 +8,20 @@
       "eslint:recommended",
       "plugin:@typescript-eslint/eslint-recommended",
       "plugin:@typescript-eslint/recommended"
+    ],
+    "overrides": [
+      {
+        "files": ["src/client/**/*.ts", "src/client/**/*.tsx"],
+        "rules": {
+          "no-restricted-properties": ["error",
+            { "property": "innerHTML", "message": "No HTML strings in src/client: use textContent, server templates or Preact." },
+            { "property": "outerHTML", "message": "No HTML strings in src/client: use textContent, server templates or Preact." },
+            { "property": "insertAdjacentHTML", "message": "No HTML strings in src/client: use textContent, server templates or Preact." }
+          ],
+          "no-restricted-syntax": ["error",
+            { "selector": "JSXAttribute[name.name='dangerouslySetInnerHTML']", "message": "No HTML strings in src/client." }
+          ]
+        }
+      }
     ]
   }
