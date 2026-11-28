@@ -573,6 +573,7 @@ const loadDocsPage = async (req: Request, res: Response, version: string): Promi
         59: "Gift wrap",
         62: "Request to vanish",
         65: "Relay list metadata",
+        67: "EOSE completeness hint",
         70: "Protected events",
         73: "External content IDs",
         77: "Negentropy syncing",

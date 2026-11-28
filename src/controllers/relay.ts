@@ -4,7 +4,7 @@ import { Request, Response } from "express";
 
 import { subscriptions, addSubscription, removeAllSubscriptions, removeSubscription, socketSafeSend, checkWSConnectionRate } from "../lib/relay/core.js";
 import { compressEvent, fillEventMetadata, getEventById, getEventsByTimerange, validateFilter, parseRelayMessage, getChunkSize, filterEarlyDiscard } from "../lib/relay/utils.js";
-import { getDTag, deactivateSupersededDB, deleteAddressDB, isEventDeletedDB, getArchivedEventsDB, getEventsByIdDB, getNewestReplaceableDB, getReplaceableIds, indexReplaceable, initEvents, isEventStoredDB, vanishPubkeyDB, getVanishedUntil } from "../lib/relay/database.js";
+import { ARCHIVE_MAX_LIMIT, isArchiveFilterExact, getDTag, deactivateSupersededDB, deleteAddressDB, isEventDeletedDB, getArchivedEventsDB, getEventsByIdDB, getNewestReplaceableDB, getReplaceableIds, indexReplaceable, initEvents, isEventStoredDB, vanishPubkeyDB, getVanishedUntil } from "../lib/relay/database.js";
 
 import { isEventValid } from "../lib/nostr/core.js";
 import { logger } from "../lib/logger.js";
@@ -18,7 +18,7 @@ import { getDeletionTargets, getEventAddress } from "../lib/nostr/NIP09.js";
 import { rememberDeletion } from "../lib/relay/deletions.js";
 import { isVanishForRelay } from "../lib/nostr/NIP62.js";
 import { rememberVanish } from "../lib/relay/vanish.js";
-import { allowedTags, EventIndex, eventStore, ExtendedWebSocket, MetadataEvent, RelayStatusMessage } from "../interfaces/relay.js";
+import { allowedTags, EventIndex, eventStore, ExtendedWebSocket, MetadataEvent, RelayStatusMessage, StoredEventsResult } from "../interfaces/relay.js";
 import { isBase64 } from "../lib/utils.js";
 import { isRelayHidden } from "../lib/relay/bans.js";
 import { handleNegClose, handleNegMsg, handleNegOpen } from "./nip77.js";
@@ -793,11 +793,18 @@ const collapseReplaceable = (events: Event[]): Event[] => {
  * Completes the in-memory results with events older than the memory horizon, read from the DB.
  * The worker scans memory from max(since, now - 90 days); everything older than that and
  * the horizon comes from the DB, as long as the filter is selective and still wants events.
+ * Keeps track of whether anything was left out, for the NIP-67 hint.
  */
-const addArchivedEvents = async (filters: Filter[], memoryEvents: Event[], maxLimit: number, tenantid: number | undefined, client: string): Promise<Event[]> => {
+const addArchivedEvents = async (filters: Filter[], memory: StoredEventsResult, maxLimit: number, tenantid: number | undefined, client: string): Promise<StoredEventsResult> => {
+
+  const memoryEvents = memory.events;
+  let { more, complete } = memory;
 
   const horizon = eventStore.memoryHorizon;
-  if (!horizon) return memoryEvents;
+  if (!horizon) {
+    // Everything is in memory, but a filter without since is only scanned 90 days back.
+    return { events: memoryEvents, more, complete: complete && filters.every(f => f.since !== undefined) };
+  }
 
   const now = Math.floor(Date.now() / 1000);
   const seen = new Set(memoryEvents.map(e => e.id));
@@ -812,39 +819,59 @@ const addArchivedEvents = async (filters: Filter[], memoryEvents: Event[], maxLi
 
     const filterLimit = Math.min(filter.limit !== undefined ? filter.limit : maxLimit, maxLimit);
     let wanted = filterLimit - memoryEvents.filter(e => matchFilter(filter, e)).length;
-    if (filter.ids && filter.ids.length > 0) {
-      wanted = Math.min(wanted, filter.ids.filter(id => !seen.has(id)).length);
+    const idsLeft = filter.ids && filter.ids.length > 0 ? filter.ids.filter(id => !seen.has(id)).length : -1;
+    if (idsLeft >= 0) wanted = Math.min(wanted, idsLeft);
+    if (wanted <= 0) {
+      // Limit reached with what memory had: the DB may hold more. Not so when every id was found.
+      if (idsLeft !== 0) complete = false;
+      continue;
     }
-    if (wanted <= 0) continue;
 
     const waitMs = deadline - Date.now();
     if (waitMs <= 0) {
       logger.debug(`addArchivedEvents - REQ time budget spent, skipping the remaining filters | ${client}`);
+      complete = false;
       break;
     }
-    const rows = await getArchivedEventsDB(filter, createdBefore, wanted, tenantid, client, waitMs);
-    if (rows === null) continue;
+    if (!isArchiveFilterExact(filter)) complete = false;
+    // One more than wanted, to know whether the DB holds more.
+    const rows = await getArchivedEventsDB(filter, createdBefore, wanted + 1, tenantid, client, waitMs);
+    if (rows === null) {
+      complete = false;
+      continue;
+    }
+    let taken = 0;
     for (const row of rows) {
       if (seen.has(row.id) || isExpiredEvent(row, now)) continue;
+      if (taken >= wanted) {
+        more = true;
+        break;
+      }
+      taken++;
       seen.add(row.id);
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { metadata, tenantid: _tenantid, ...event } = row;
       archived.push(event);
     }
+    if (rows.length >= Math.min(wanted + 1, ARCHIVE_MAX_LIMIT) && taken <= wanted) complete = false;
   }
 
-  if (archived.length === 0) return memoryEvents;
-  return collapseReplaceable([...memoryEvents, ...archived]).slice(0, maxLimit);
+  if (archived.length === 0) return { events: memoryEvents, more, complete: complete && !more };
+  const events = collapseReplaceable([...memoryEvents, ...archived]);
+  if (events.length > maxLimit) more = true;
+  return { events: events.slice(0, maxLimit), more, complete: complete && !more };
 };
 
 // Accepted events wait in `pending` until the next flush (every minute, or until the store has
 // loaded after a restart), and the workers don't scan it. Selective filters look there too, so
 // a client can read what was just published.
 const PENDING_SCAN_MAX = 20000;
-const addPendingEvents = (filters: Filter[], events: Event[], maxLimit: number, tenantid: number | undefined): Event[] => {
+const addPendingEvents = (filters: Filter[], stored: StoredEventsResult, maxLimit: number, tenantid: number | undefined): StoredEventsResult => {
+  const events = stored.events;
   const pending = eventStore.pending;
-  if (!pending || pending.size === 0) return events;
+  if (!pending || pending.size === 0) return stored;
 
+  let { more, complete } = stored;
   const now = Math.floor(Date.now() / 1000);
   const seen = new Set(events.map(e => e.id));
   const extra: Event[] = [];
@@ -863,12 +890,18 @@ const addPendingEvents = (filters: Filter[], events: Event[], maxLimit: number, 
       continue;
     }
     const selective = (filter.authors && filter.authors.length > 0) || Object.keys(filter).some(k => k.startsWith("#"));
-    if (!selective || pending.size > PENDING_SCAN_MAX) continue;
+    if (!selective || pending.size > PENDING_SCAN_MAX) {
+      // Not scanned: what was published in the last minute may be missing.
+      complete = false;
+      continue;
+    }
     for (const e of pending.values()) take(e, filter);
   }
 
-  if (extra.length === 0) return events;
-  return collapseReplaceable([...extra, ...events].sort((a, b) => b.created_at - a.created_at)).slice(0, maxLimit);
+  if (extra.length === 0) return { events, more, complete: complete && !more };
+  const merged = collapseReplaceable([...extra, ...events].sort((a, b) => b.created_at - a.created_at));
+  if (merged.length > maxLimit) more = true;
+  return { events: merged.slice(0, maxLimit), more, complete: complete && !more };
 };
 
 // Handle REQ or COUNT
@@ -942,10 +975,21 @@ const handleReqOrCount = async (socket: ExtendedWebSocket, subId: string, filter
   if (type === "COUNT" && await handleCount(socket, subId, clientFilters)) return;
 
   try {
-   const memoryEvents = memoryDiscard ? [] : await getEvents(filters, maxLimit, eventStore.sharedDBChunks);
+   // A discard is only the whole answer for filters by ids or authors.
+   const memory: StoredEventsResult = memoryDiscard
+     ? { events: [], more: false, complete: clientFilters.every(f => (f.ids && f.ids.length > 0) || (f.authors && f.authors.length > 0)) }
+     : await getEvents(filters, maxLimit, eventStore.sharedDBChunks);
    const tenantFilter = isIsolated ? socket.reqInfo.domainId : undefined;
-   const withArchive = await addArchivedEvents(clientFilters, memoryEvents, maxLimit, tenantFilter, socket.reqInfo.ip);
-   const eventsList = addPendingEvents(clientFilters, withArchive, maxLimit, tenantFilter).filter(event => canReadEvent(socket, event));
+   const withArchive = await addArchivedEvents(clientFilters, memory, maxLimit, tenantFilter, socket.reqInfo.ip);
+   const stored = addPendingEvents(clientFilters, withArchive, maxLimit, tenantFilter);
+   const eventsList = stored.events.filter(event => canReadEvent(socket, event));
+
+   // NIP-67 hint for the EOSE: "more" when a limit left matching events out, "finish" when
+   // every one was sent. Nothing when it can't be told (time budget spent, store still
+   // loading, filters the archive isn't read for), and clients paginate as usual.
+   const hintable = eventStore.relayEventsLoaded && clientFilters.every(f => !f.search && f.limit !== 0);
+   const hiddenPrivate = stored.events.some(event => PRIVATE_KINDS.has(event.kind) && !canReadEvent(socket, event));
+   let eoseHint: string | null = !hintable ? null : stored.more ? "more" : (stored.complete && !hiddenPrivate) ? "finish" : null;
 
    // NIP-43 membership list: generated and signed on request, only on relays that need membership.
    if (clientFilters.some(f => Array.isArray(f.kinds) && f.kinds.includes(MEMBERSHIP_LIST_KIND)) &&
@@ -953,6 +997,7 @@ const handleReqOrCount = async (socket: ExtendedWebSocket, subId: string, filter
      const membershipList = await getMembershipList(socket.reqInfo.domain);
      if (membershipList && clientFilters.some(f => matchFilter(f, membershipList))) eventsList.unshift(membershipList);
    }
+   if (hintable && eventsList.length > maxLimit) eoseHint = "more";
 
     if (type === "COUNT") {
       await socketSafeSend(socket, ["COUNT", subId, { count: eventsList.length }]);
@@ -978,7 +1023,7 @@ const handleReqOrCount = async (socket: ExtendedWebSocket, subId: string, filter
     }
 
     if (type === "REQ" && !aborted && socket.readyState === WebSocket.OPEN) {
-      await socketSafeSend(socket, ["EOSE", subId]);
+      await socketSafeSend(socket, eoseHint ? ["EOSE", subId, [eoseHint]] : ["EOSE", subId]);
     }
 
     if (type === "REQ") {

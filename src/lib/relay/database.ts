@@ -296,6 +296,14 @@ const isArchiveFilterSelective = (filter: Filter): boolean => {
 };
 
 /**
+ * Whether the archive query for a filter reads everything the filter asks for: it reaches
+ * the DB at all (selective) and none of its lists is cut to ARCHIVE_MAX_VALUES.
+ */
+const isArchiveFilterExact = (filter: Filter): boolean =>
+  isArchiveFilterSelective(filter) &&
+  Object.values(filter).every(value => !Array.isArray(value) || value.length <= ARCHIVE_MAX_VALUES);
+
+/**
  * Reads from the DB the events matching a filter that the in-memory store can't answer.
  * Only selective filters (ids, authors or a few tag values) reach the DB, with a capped
  * limit and a statement timeout. Slots are global and per client; waits up to waitMs for
@@ -823,4 +831,4 @@ const deleteEvents = async (eventsInput: MetadataEvent | MetadataEvent[], delete
   return affectedCount;
 };
 
-export { getDTag, storeEvents, initEvents, deleteEvents, getArchivedEventsDB, getArchivedIdsDB, isArchiveFilterSelective, getEventsByIdDB, isEventStoredDB, getNewestReplaceableDB, deactivateSupersededDB, isEventDeletedDB, deleteAddressDB, vanishPubkeyDB, getVanishedUntil, getMemoryHorizon, indexReplaceable, getReplaceableIds };
+export { getDTag, storeEvents, initEvents, deleteEvents, getArchivedEventsDB, getArchivedIdsDB, isArchiveFilterSelective, isArchiveFilterExact, ARCHIVE_MAX_LIMIT, getEventsByIdDB, isEventStoredDB, getNewestReplaceableDB, deactivateSupersededDB, isEventDeletedDB, deleteAddressDB, vanishPubkeyDB, getVanishedUntil, getMemoryHorizon, indexReplaceable, getReplaceableIds };

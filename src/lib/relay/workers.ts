@@ -4,7 +4,7 @@ import workerpool from "workerpool";
 import path from "path";
 
 import { logger } from "../logger.js";
-import { CHUNK_SIZE, eventStore, MetadataEvent, PendingGetEventsTask, RelayJob, SharedChunk } from "../../interfaces/relay.js";
+import { CHUNK_SIZE, eventStore, MetadataEvent, PendingGetEventsTask, RelayJob, SharedChunk, StoredEventsResult } from "../../interfaces/relay.js";
 import { deleteEvents, getMemoryHorizon, storeEvents } from "./database.js";
 import { decodeChunk, dynamicTimeout, encodeChunk, getEventById, updateChunk } from "./utils.js";
 
@@ -378,7 +378,7 @@ const getPendingHeavyTasks = (): PendingGetEventsTask[] => {
 }
 
 let workersRecycling = false;
-const getEvents = async (filters: any, maxLimit: number, chunks: SharedChunk[]): Promise<any> => {
+const getEvents = async (filters: any, maxLimit: number, chunks: SharedChunk[]): Promise<StoredEventsResult> => {
   const isHeavy = isHeavyFilter(filters);
   const taskId = Math.random().toString(36).substring(7);
 
@@ -401,7 +401,7 @@ const getEvents = async (filters: any, maxLimit: number, chunks: SharedChunk[]):
 
     await getEventsWorker.exec("initWorker", []);
 
-    const result =  await getEventsWorker.exec("_getEvents", [
+    const result: StoredEventsResult = await getEventsWorker.exec("_getEvents", [
       JSON.parse(JSON.stringify(filters)),
       maxLimit,
       chunks,
@@ -411,7 +411,7 @@ const getEvents = async (filters: any, maxLimit: number, chunks: SharedChunk[]):
     
   } catch (error) {
     logger.error(`getEventsWorker - Error: ${error instanceof Error ? error.message : String(error)}`);
-    return [];
+    return { events: [], more: false, complete: false };
   } finally {
     isHeavy ? pendingHeavyTasks.delete(taskId) : pendingLightTasks.delete(taskId);
   }

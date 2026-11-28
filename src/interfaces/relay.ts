@@ -207,6 +207,14 @@ const eventStore: RelayEvents = {
   replaceableIndex: new Map<string, Set<string>>(),
 };
 
+// What a stored-events lookup returned, and what it knows about the rest (NIP-67):
+// `more` when matching events were left out for sure, `complete` when there are none left.
+interface StoredEventsResult {
+  events: Event[];
+  more: boolean;
+  complete: boolean;
+}
+
 type WSConnectionBucket = { 
   tokens: number; 
   lastRefill: number; 
@@ -222,7 +230,8 @@ export {  ExtendedWebSocket,
           RelayStatusMessage, 
           MetadataEvent, 
           EventIndex, 
-          RelayEvents, 
+          RelayEvents,
+          StoredEventsResult,
           eventStore, 
           CHUNK_SIZE,
           WSConnectionBucket };

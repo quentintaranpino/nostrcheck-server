@@ -2,7 +2,7 @@ import { Filter, matchFilter, Event } from "nostr-tools";
 import workerpool from "workerpool";
 
 import { createFilterHash, decodeChunkHeaders, decodeEvent } from "../utils.js";
-import { MetadataEvent, SharedChunk } from "../../../interfaces/relay.js";
+import { MetadataEvent, SharedChunk, StoredEventsResult } from "../../../interfaces/relay.js";
 import { RedisService } from "../../redis/core.js";
 import { initGlobalConfig } from "../../config/core.js";
 import { initRedis } from "../../redis/client.js";
@@ -234,16 +234,17 @@ const processSegment = async (
 * @param chunks - Array of SharedChunk objects.
 * @param isHeavy - Indicates whether the operation is heavy or not.
 * @param redisConfig - Configuration to connect to Redis.
-* @returns A promise that resolves to an array of events.
+* @returns The events, whether matching events were left out by a limit (`more`) and whether
+* memory was read to the end for every filter (`complete`), for the NIP-67 EOSE hint.
 */
 const _getEvents = async (
   filters: Filter[], 
   maxLimit: number,
   chunks: SharedChunk[], 
   timeout: number 
-): Promise<Event[]> => {
+): Promise<StoredEventsResult> => {
 
-  if (!redisWorker) return [];
+  if (!redisWorker) return { events: [], more: false, complete: false };
 
   let tenantId: number | undefined;
   const tenantFilterIndex = filters.findIndex((f: any) => (f as any).tenantid !== undefined);
@@ -257,9 +258,12 @@ const _getEvents = async (
   const startTimeMs = Date.now();
   const checkTimeout = () => Date.now() - startTimeMs > timeout;
   let incompleteResults = false;
+  let more = false;
+  let complete = true;
   for (const filter of filters) {
     if (checkTimeout()) {
       incompleteResults = true;
+      complete = false;
       break;
     }
 
@@ -291,6 +295,9 @@ const _getEvents = async (
         cachedFiltered = cachedResults;
       }
       const combined = [...freshEvents, ...cachedFiltered].slice(0, effectiveLimit);
+      if (freshEvents.length + cachedFiltered.length > filterLimit) more = true;
+      // A cached list that reached the cap may have stopped before the end.
+      else if (cachedResults.length >= effectiveLimit) complete = false;
       finalResults.push(...combined.slice(0, filterLimit));
       continue;
     }
@@ -305,15 +312,25 @@ const _getEvents = async (
     }
 
     let accumulatedResults: { event: MetadataEvent; score: number }[] = [];
-    for (const seg of segments) {
+    // No segments (since >= until) means nothing was read at all.
+    let scannedAll = segments.length > 0;
+    for (const [index, seg] of segments.entries()) {
       if (checkTimeout()) {
         incompleteResults = true;
+        scannedAll = false;
         break;
       }
       const segResults = await processSegment(filter, chunks, seg.segmentSince, seg.segmentUntil, searchQuery, tenantId);
       accumulatedResults = accumulatedResults.concat(segResults);
-      if (accumulatedResults.length >= effectiveLimit) break;
+      if (accumulatedResults.length >= effectiveLimit) {
+        if (index < segments.length - 1) scannedAll = false;
+        break;
+      }
     }
+
+    // Counted by id: an event on a segment boundary is read twice.
+    if (new Set(accumulatedResults.map(({ event }) => event.id)).size > filterLimit) more = true;
+    else if (!scannedAll) complete = false;
 
     if (searchQuery) {
       accumulatedResults.sort((a, b) => a.score - b.score);
@@ -339,7 +356,9 @@ const _getEvents = async (
     }
   }
 
-  return Array.from(new Map(finalResults.map(event => [event.id, event])).values()).slice(0, maxLimit);
+  const unique = Array.from(new Map(finalResults.map(event => [event.id, event])).values());
+  if (unique.length > maxLimit) more = true;
+  return { events: unique.slice(0, maxLimit), more, complete: complete && !more };
 };
 
 const cleanRedis = async (): Promise<boolean> => {

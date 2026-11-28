@@ -120,6 +120,7 @@ See multi-tenancy [here](https://github.com/quentintaranpino/nostrcheck-server/w
 - [x] NIP59 - Gift Wrap
 - [x] NIP62 - Request to Vanish
 - [x] NIP65 - Relay List Metadata
+- [x] NIP67 - EOSE Completeness Hint
 - [x] NIP70 - Protected Events
 - [x] NIP73 - External Content IDs
 - [x] NIP77 - Negentropy Syncing
