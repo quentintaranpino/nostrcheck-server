@@ -30,6 +30,9 @@
 - New Tools page (`/tools`): key converter, keypair generator, event verifier and blob hash, all in the browser. `/converter` redirects to it.
 - Frontend refactor, phase 1: Tools, Terms, Privacy and Legal run on the new layout with no third-party requests. 72 legacy templates left.
 - The frontend now has a build step. `npm run build` does everything; after a plain `git pull` run it again, the server will not start without `dist/client`.
+- Installer hardened: run as root it creates a `nostrcheck` system user and installs into `/opt/nostrcheck-server`, the app listens on `127.0.0.1` (new `server.listenHost`), and nginx no longer passes on a client's `CF-Connecting-IP` (`--cloudflare` when the server is behind Cloudflare). Existing installs are kept as they are; the readme says how to bring them over.
+- Updater: checks that the update can be applied before stopping the server, keeps the previous commit as `refs/nostrcheck/pre-update-<date>`, `--backup-db`. Installer and updater logs moved to `/var/log`.
+- Docker: multi-stage image that runs as `node` with a healthcheck; `compose.yml` publishes the app on `127.0.0.1:3000` and waits for MariaDB.
 
 ## 0.7.0
 

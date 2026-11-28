@@ -70,21 +70,46 @@ For an unattended install pass everything as flags (`bash install.sh --help` lis
 bash install.sh -y --host example.com --email you@example.com
 ```
 
-Running the installer again is safe: an existing `config/local.json`, its database and the TLS setup are kept.
+The server never runs as root. Run as a normal user, the installer puts it in `./nostrcheck-server` and the service runs as that user. Run as root, it creates a system user `nostrcheck` and installs into `/opt/nostrcheck-server`. The app listens on `127.0.0.1` only (`server.listenHost` in `config/local.json`) and nginx is the only way in.
+
+If the server sits behind Cloudflare, add `--cloudflare`: nginx then takes the visitor's address from `CF-Connecting-IP`, for connections that come from Cloudflare's ranges only. Without it nginx drops that header, since anyone can send it, and every visitor would show up with a Cloudflare address.
+
+Running the installer again is safe: it finds the existing install wherever it is and keeps its `config/local.json`, its database, the systemd unit and an nginx site that already has TLS. `--rewrite-nginx` and `--rewrite-unit` replace those two with the current templates and keep a copy of the old ones. An install made as root by an older installer keeps running as root from where it is. To hand it to an unprivileged user:
+
+```bash
+sudo systemctl stop nostrcheck
+sudo useradd --system --user-group --home-dir /var/lib/nostrcheck --create-home --shell /usr/sbin/nologin nostrcheck
+sudo mv /root/nostrcheck-server /opt/nostrcheck-server
+sudo rm -rf /opt/nostrcheck-server/.venv    # tied to the old path and user, the installer rebuilds it
+sudo chown -R nostrcheck: /opt/nostrcheck-server
+sudo /opt/nostrcheck-server/scripts/install.sh --rewrite-unit
+```
+
+Media kept outside the install directory has to be given to `nostrcheck` too. In an older `config/local.json`, set `server.listenHost` to `"127.0.0.1"` and restart, unless something other than the local nginx talks to port 3000.
+
+The install log is `/var/log/nostrcheck-install.log`.
 
 To update a standalone install:
 
 ```bash
-cd nostrcheck-server && ./scripts/update.sh
+sudo /opt/nostrcheck-server/scripts/update.sh    # or ./scripts/update.sh in your own checkout
 ```
 
-It pulls the latest code, rebuilds and restarts the service. Configuration, database and media are not touched.
+It pulls the latest code, rebuilds and restarts the service. Configuration, database and media are not touched, and nothing is stopped until it knows the update can be applied. The previous commit is kept as `refs/nostrcheck/pre-update-<date>` and the command to go back to it is printed if anything fails. `--backup-db` dumps the database to `backups/` first. The log is `/var/log/nostrcheck-update.log`.
+
+> Installs from before 0.7.1 have an updater that no longer works. Bring the new one in by hand once, as the owner of the checkout:
+>
+> ```bash
+> cd nostrcheck-server && git pull --ff-only && ./scripts/update.sh -y --force
+> ```
 
 ### Installation (docker)
 
 ```bash
 git clone https://github.com/quentintaranpino/nostrcheck-server.git && cd nostrcheck-server && sudo docker compose up -d
 ```
+
+The app is published on `127.0.0.1:3000` only: put a reverse proxy with TLS in front of it (`compose.yml` says how to open the port instead). The container runs as the unprivileged user `node` (uid 1000); `compose.yml` hands `files/`, `config/` and `logs/` over to it on start, also when they were created by an older, root-running image. With plain `docker run`, do that yourself: `sudo chown -R 1000:1000 files config logs`.
 
 To update a docker install:
 

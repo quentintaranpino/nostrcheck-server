@@ -6,6 +6,7 @@ on:
     paths:
       - 'scripts/install.sh'
       - 'scripts/update.sh'
+      - 'scripts/docker-entrypoint.sh'
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/installer-test.yml'
@@ -13,6 +14,7 @@ on:
     paths:
       - 'scripts/install.sh'
       - 'scripts/update.sh'
+      - 'scripts/docker-entrypoint.sh'
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/installer-test.yml'
@@ -21,8 +23,16 @@ on:
   workflow_dispatch:
 
 jobs:
+  shellcheck:
+    name: shellcheck
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: shellcheck scripts/install.sh scripts/update.sh scripts/docker-entrypoint.sh
+
+  # As a normal user with sudo, inside the checkout: the server runs as that user.
   install:
-    name: Install on ${{ matrix.os }}
+    name: Install as user on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     strategy:
@@ -33,8 +43,23 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      # GitHub-hosted runners ship MySQL preinstalled, which conflicts with the
-      # mariadb-server the installer expects. Drop it so we start from a known state.
+      # GitHub-hosted runners ship Oracle MySQL, which cannot live next to the
+      # MariaDB the installer sets up: it has to refuse, and change nothing.
+      - name: Installer refuses to run next to Oracle MySQL
+        run: |
+          if ! dpkg -s mysql-server >/dev/null 2>&1 && ! dpkg -s mysql-server-8.0 >/dev/null 2>&1; then
+            echo "no mysql-server on this runner image, nothing to check"
+            exit 0
+          fi
+          if ./scripts/install.sh --non-interactive --host nostrcheck.test --no-ssl >refuse.txt 2>&1; then
+            cat refuse.txt
+            echo "::error::the installer went ahead with Oracle MySQL installed"
+            exit 1
+          fi
+          cat refuse.txt
+          grep -q 'Oracle MySQL is installed' refuse.txt
+          [ ! -e config/local.json ]
+
       - name: Remove pre-installed MySQL
         run: |
           sudo systemctl stop mysql.service 2>/dev/null || true
@@ -44,14 +69,13 @@ jobs:
 
       - name: Run installer (non-interactive, no SSL)
         run: |
-          chmod +x scripts/install.sh
           ./scripts/install.sh \
             --non-interactive \
             --verbose \
             --host nostrcheck.test \
             --no-ssl
 
-      - name: Verify systemd service is active
+      - name: Verify the service
         run: |
           if ! sudo systemctl is-active --quiet nostrcheck; then
             echo "::error::nostrcheck service is not active"
@@ -59,45 +83,157 @@ jobs:
             sudo journalctl -u nostrcheck --no-pager -n 200 || true
             exit 1
           fi
-          echo "nostrcheck service is active"
+          [ "$(systemctl show -p User --value nostrcheck)" = "$(id -un)" ]
+          curl --fail --silent --max-time 5 --output /dev/null http://127.0.0.1:3000/
+          # Loopback only: nginx is the way in.
+          sudo ss -ltnH 'sport = :3000' | tee listen.txt
+          grep -q '127.0.0.1:3000' listen.txt
+          if grep -Eq '(0\.0\.0\.0|\*|\[::\]):3000' listen.txt; then echo "::error::port 3000 is open beyond loopback"; exit 1; fi
+          [ "$(stat -c '%a' /var/log/nostrcheck-install.log)" = "600" ]
 
-      - name: Verify HTTP endpoint responds
+      - name: Run installer again (must change nothing)
         run: |
-          for i in $(seq 1 6); do
-            if curl --fail --silent --max-time 5 --output /dev/null http://localhost:3000/ ; then
-              echo "Server is responding on port 3000"
-              exit 0
-            fi
-            echo "Attempt $i: not yet, sleeping 5s..."
-            sleep 5
-          done
-          echo "::error::server did not respond on port 3000 after 30s"
-          sudo systemctl status nostrcheck --no-pager || true
-          echo ""
-          echo "=== journalctl -u nostrcheck (last 200 lines) ==="
-          sudo journalctl -u nostrcheck --no-pager -n 200 || true
-          exit 1
-
-      - name: Run installer again (must keep the config)
-        run: |
-          before=$(sha256sum config/local.json)
+          before=$(sudo sha256sum config/local.json /etc/systemd/system/nostrcheck.service /etc/nginx/sites-available/nostrcheck.test.conf)
           ./scripts/install.sh --non-interactive --host nostrcheck.test --no-ssl
-          [ "$before" = "$(sha256sum config/local.json)" ]
+          [ "$before" = "$(sudo sha256sum config/local.json /etc/systemd/system/nostrcheck.service /etc/nginx/sites-available/nostrcheck.test.conf)" ]
+          curl --fail --silent --max-time 5 --output /dev/null http://127.0.0.1:3000/
 
       - name: Run updater
         run: |
           before=$(sha256sum config/local.json)
           ./scripts/update.sh --yes --no-pull
           [ "$before" = "$(sha256sum config/local.json)" ]
-          curl --fail --silent --max-time 5 --output /dev/null http://localhost:3000/
+          curl --fail --silent --max-time 5 --output /dev/null http://127.0.0.1:3000/
 
-      - name: Upload install log
+      - name: Collect logs
+        if: always()
+        run: |
+          mkdir -p ci-logs
+          sudo cp /var/log/nostrcheck-install.log /var/log/nostrcheck-update.log ci-logs/ 2>/dev/null || true
+          sudo journalctl -u nostrcheck --no-pager -n 300 > ci-logs/journal.txt 2>&1 || true
+          sudo chmod -R a+r ci-logs
+
+      - name: Upload logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: install-log-${{ matrix.os }}
-          path: |
-            install.log
-            update.log
-            /tmp/nostrcheck-install.log
+          name: install-user-${{ matrix.os }}
+          path: ci-logs
+          if-no-files-found: ignore
+
+  # As root from a root-owned checkout: the server must end up in
+  # /opt/nostrcheck-server, running as the system user nostrcheck.
+  install-root:
+    name: Install as root on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Remove pre-installed MySQL
+        run: |
+          sudo systemctl stop mysql.service 2>/dev/null || true
+          sudo apt-get purge -y 'mysql-*' 'libmysql*' 2>/dev/null || true
+          sudo apt-get autoremove -y
+          sudo rm -rf /var/lib/mysql /etc/mysql
+
+      # What an admin does: clone as root, run the installer from the clone.
+      - name: Root-owned checkout
+        run: |
+          sudo cp -a "$GITHUB_WORKSPACE" /root/nostrcheck-src
+          sudo chown -R root:root /root/nostrcheck-src
+          sudo git -C /root/nostrcheck-src checkout -q -B ci-test
+
+      - name: Run installer as root
+        run: |
+          sudo /root/nostrcheck-src/scripts/install.sh \
+            --non-interactive \
+            --verbose \
+            --host nostrcheck.test \
+            --no-ssl
+
+      - name: Verify user, directory and listener
+        run: |
+          if ! sudo systemctl is-active --quiet nostrcheck; then
+            echo "::error::nostrcheck service is not active"
+            sudo journalctl -u nostrcheck --no-pager -n 200 || true
+            exit 1
+          fi
+          [ "$(systemctl show -p User --value nostrcheck)" = "nostrcheck" ]
+          [ "$(systemctl show -p WorkingDirectory --value nostrcheck)" = "/opt/nostrcheck-server" ]
+          pid=$(systemctl show -p MainPID --value nostrcheck)
+          [ "$(ps -o user= -p "$pid" | tr -d ' ')" = "nostrcheck" ]
+          # Nothing in the install belongs to root, and nothing was installed in the source checkout.
+          [ -z "$(sudo find /opt/nostrcheck-server -user root -print -quit)" ]
+          sudo test ! -e /root/nostrcheck-src/config/local.json
+          sudo test ! -e /root/nostrcheck-src/node_modules
+          curl --fail --silent --max-time 5 --output /dev/null http://127.0.0.1:3000/
+          sudo ss -ltnH 'sport = :3000' | tee listen.txt
+          grep -q '127.0.0.1:3000' listen.txt
+          if grep -Eq '(0\.0\.0\.0|\*|\[::\]):3000' listen.txt; then echo "::error::port 3000 is open beyond loopback"; exit 1; fi
+          [ "$(sudo stat -c '%U %a' /var/log/nostrcheck-install.log)" = "root 600" ]
+          [ "$(sudo stat -c '%a' /opt/nostrcheck-server/config/local.json)" = "600" ]
+
+      # nginx must not pass a client's CF-Connecting-IP on to the app.
+      - name: Spoofed client address is dropped by nginx
+        run: |
+          sudo grep -c 'proxy_set_header CF-Connecting-IP "";' /etc/nginx/sites-available/nostrcheck.test.conf
+          sudo apt-get install -y -qq netcat-openbsd >/dev/null
+          sudo systemctl stop nostrcheck
+          ( timeout 10 nc -l 127.0.0.1 3000 > seen.txt || true ) &
+          sleep 1
+          curl -s -m 5 -o /dev/null -H 'Host: nostrcheck.test' -H 'CF-Connecting-IP: 203.0.113.7' \
+            -H 'X-Real-IP: 203.0.113.8' -H 'X-Forwarded-For: 203.0.113.9' http://127.0.0.1/ || true
+          wait
+          cat seen.txt
+          grep -qi '^X-Real-IP: 127.0.0.1' seen.txt
+          grep -qi '^X-Forwarded-For: 127.0.0.1' seen.txt
+          if grep -q '203\.0\.113\.' seen.txt; then echo "::error::nginx passed a spoofed client address on"; exit 1; fi
+          sudo systemctl start nostrcheck
+
+      - name: Run installer again as root (must change nothing)
+        run: |
+          files="/opt/nostrcheck-server/config/local.json /etc/systemd/system/nostrcheck.service /etc/nginx/sites-available/nostrcheck.test.conf"
+          before=$(sudo sha256sum $files)
+          sudo /root/nostrcheck-src/scripts/install.sh --non-interactive --host nostrcheck.test --no-ssl | tee rerun.txt
+          grep -q '/opt/nostrcheck-server' rerun.txt
+          [ "$before" = "$(sudo sha256sum $files)" ]
+          [ "$(systemctl show -p User --value nostrcheck)" = "nostrcheck" ]
+          sudo test ! -e /root/nostrcheck-src/config/local.json
+          for i in $(seq 1 12); do
+            curl --fail --silent --max-time 5 --output /dev/null http://127.0.0.1:3000/ && exit 0
+            sleep 5
+          done
+          exit 1
+
+      - name: Run updater as root
+        run: |
+          before=$(sudo sha256sum /opt/nostrcheck-server/config/local.json)
+          sudo /opt/nostrcheck-server/scripts/update.sh --yes --no-pull --backup-db
+          [ "$before" = "$(sudo sha256sum /opt/nostrcheck-server/config/local.json)" ]
+          # git, npm and the build ran as nostrcheck: still nothing owned by root.
+          [ -z "$(sudo find /opt/nostrcheck-server -user root -print -quit)" ]
+          sudo sh -c 'ls /opt/nostrcheck-server/backups/db-*.sql.gz'
+          [ "$(sudo stat -c '%U %a' /var/log/nostrcheck-update.log)" = "root 600" ]
+          curl --fail --silent --max-time 5 --output /dev/null http://127.0.0.1:3000/
+
+      - name: Collect logs
+        if: always()
+        run: |
+          mkdir -p ci-logs
+          sudo cp /var/log/nostrcheck-install.log /var/log/nostrcheck-update.log ci-logs/ 2>/dev/null || true
+          sudo journalctl -u nostrcheck --no-pager -n 300 > ci-logs/journal.txt 2>&1 || true
+          sudo chmod -R a+r ci-logs
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: install-root-${{ matrix.os }}
+          path: ci-logs
           if-no-files-found: ignore
