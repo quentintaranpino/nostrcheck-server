@@ -21,7 +21,8 @@ import { deleteFile, getFilePath } from "../lib/storage/core.js";
 import { saveTmpFile } from "../lib/storage/local.js";
 import { getRemoteFile } from "../lib/storage/remote.js";
 import { Transaction } from "../interfaces/payments.js";
-import { checkTransaction, collectInvoice, getInvoice, updateAccountId } from "../lib/payments/core.js";
+import { checkTransaction, updateAccountId } from "../lib/payments/core.js";
+import { checkLightningProof } from "../lib/blossom/BUD07.js";
 import { BlobDescriptor, BUDKinds } from "../interfaces/blossom.js";
 import { prepareBlobDescriptor } from "../lib/blossom/BUD02.js";
 import { loadCdnPage } from "./frontend.js";
@@ -454,8 +455,9 @@ const uploadMedia = async (req: Request, res: Response, version: string, mode: U
 	// Payment engine
 	if (isModuleEnabled("payments", req.hostname)) {
 
-		// Get preimage from header
-		const preimage = req.headers["x-lightning"]?.toString().length == 64 ? req.headers["x-lightning"]?.toString() : undefined;
+		// Get preimage from header (BUD-07 proof). A malformed value is rejected below.
+		const lightningHeader = req.headers["x-lightning"]?.toString();
+		const preimage = lightningHeader && /^[0-9a-fA-F]{64}$/.test(lightningHeader.trim()) ? lightningHeader.trim().toLowerCase() : undefined;
 
 		// Find transaction_id from mediafiles table
 		filedata.transaction_id = (await dbMultiSelect(["transactionid"], "mediafiles", filedata.no_transform ? "hash = ?" : "original_hash = ?", [filedata.hash], true))[0]?.transactionid || "";
@@ -481,12 +483,15 @@ const uploadMedia = async (req: Request, res: Response, version: string, mode: U
 									filedata.pubkey
 									);
 
-		// If we have a preimage, compare the paymenthash with the transaction paymenthash and update the invoice status
-		if (preimage != undefined) {
-			const receivedInvoice = await getInvoice(req.hostname, await hashString(preimage, "preimage"));
-			if (receivedInvoice.paymentHash != "" && receivedInvoice.transactionid.toString() == filedata.transaction_id){
-				if (receivedInvoice.isPaid != true) await collectInvoice(req.hostname, receivedInvoice, false, true);
-				transaction.isPaid = true; // Update transaction object
+		// If we have a preimage, compare the paymenthash with the transaction paymenthash and update the invoice status.
+		// BUD-07: a proof that can't be accepted gets a 400 with X-Reason, not another 402.
+		if (transaction.isPaid == false) {
+			const lightningProof = await checkLightningProof(req.hostname, lightningHeader, transaction.transactionid.toString());
+			if (lightningProof.status == "valid") transaction.isPaid = true;
+			if (lightningProof.status == "invalid") {
+				logger.info(`uploadMedia - 400 Bad request - ${lightningProof.reason}`, "|", reqInfo.ip);
+				res.setHeader("X-Reason", lightningProof.reason);
+				return res.status(400).send({"status": "error", "message": lightningProof.reason});
 			}
 		}
 
@@ -1288,13 +1293,16 @@ const getMediabyURL = async (req: Request, res: Response) => {
 			req.params.pubkey ? req.params.pubkey : filedata[0].pubkey
 		);
 		
-		const preimage = req.headers["x-lightning"]?.toString().length == 64 ? req.headers["x-lightning"]?.toString() : undefined;
-		if (preimage && preimage != "") {
-			const receivedInvoice = await getInvoice(req.hostname, await hashString(preimage, "preimage"));
-			if (receivedInvoice.paymentHash != "" && receivedInvoice.transactionid.toString() == filedata[0].transaction_id){
-				await collectInvoice(req.hostname, receivedInvoice, false, true); 
-				transaction.isPaid = true;
-			} 
+		// BUD-07: a preimage in X-Lightning unlocks the file; a proof that can't be accepted gets a 400 with X-Reason.
+		if (isModuleEnabled("payments", req.hostname) && transaction.isPaid == false && adminRequest == false) {
+			const lightningProof = await checkLightningProof(req.hostname, req.headers["x-lightning"]?.toString(), transaction.transactionid.toString());
+			if (lightningProof.status == "valid") transaction.isPaid = true;
+			if (lightningProof.status == "invalid") {
+				logger.debug(`getMediabyURL - 400 Bad request - ${lightningProof.reason} ${req.url}`, "|", reqInfo.ip);
+				res.setHeader("Content-Type", "text/plain");
+				res.setHeader("X-Reason", lightningProof.reason);
+				return res.status(400).send(lightningProof.reason);
+			}
 		}
 
 		// If the GET request has no authorization, we return a QR code with the payment request.
