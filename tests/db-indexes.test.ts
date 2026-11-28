@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { buildAddIndexStatement, buildDropIndexStatement, isOnlineIndex, parseIndexName, pickIndexJob, IndexJob } from "../src/lib/database/tables.js";
+import { buildAddIndexStatement, buildDropIndexStatement, isCompleteIndex, isOnlineIndex, parseDropEntry, parseIndexName, pickIndexJob, requiredFreeBytes, IndexJob } from "../src/lib/database/tables.js";
 import { databaseTables } from "../src/interfaces/database.js";
 
 const job = (overrides: Partial<IndexJob>): IndexJob => ({
-	table: "events", name: "idx_a", action: "add", statement: "", afterJob: "", attempts: 0, nextTry: 0, ...overrides,
+	table: "events", name: "idx_a", action: "add", statement: "", afterJob: "", afterIndex: "", attempts: 0, nextTry: 0, ...overrides,
 });
 
 describe("startup index statements", () => {
@@ -48,13 +48,46 @@ describe("background index queue", () => {
 	});
 });
 
+describe("conditional index drop", () => {
+	it("reads plain and conditional entries", () => {
+		expect(parseDropEntry("idx_pubkey")).toEqual({ name: "idx_pubkey", when: "" });
+		expect(parseDropEntry({ name: "idx_tag_name_value", when: "idx_tag_created" })).toEqual({ name: "idx_tag_name_value", when: "idx_tag_created" });
+		expect(parseDropEntry(null)).toEqual({ name: "", when: "" });
+		expect(parseDropEntry({ when: "idx_a" }).name).toBe("");
+	});
+	it("holds the drop until the index that takes over is whole", () => {
+		const jobs = [job({ table: "eventtags", name: "idx_tag_name_value", action: "drop", afterIndex: "idx_tag_created" })];
+		expect(pickIndexJob(jobs, 1000, new Set())).toBe(null);
+		expect(pickIndexJob(jobs, 1000, new Set(), new Set(["events.idx_tag_created"]))).toBe(null);
+		expect(pickIndexJob(jobs, 1000, new Set(), new Set(["eventtags.idx_tag_created"]))?.name).toBe("idx_tag_name_value");
+	});
+	it("only takes an index that exists, has no prefix and is not ignored", () => {
+		expect(isCompleteIndex([])).toBe(false);
+		expect(isCompleteIndex([{ Sub_part: null }, { Sub_part: null }, { Sub_part: null }])).toBe(true);
+		expect(isCompleteIndex([{ Sub_part: null }, { Sub_part: 100 }, { Sub_part: null }])).toBe(false);
+		expect(isCompleteIndex([{ Sub_part: null, Ignored: "YES" }])).toBe(false);
+		expect(isCompleteIndex([{ Sub_part: null, Ignored: "NO" }])).toBe(true);
+	});
+	it("asks for 15 GB of free disk, or twice the index when that is more", () => {
+		const gb = 1024 * 1024 * 1024;
+		expect(requiredFreeBytes(0)).toBe(15 * gb);
+		expect(requiredFreeBytes(5.5 * gb)).toBe(15 * gb);
+		expect(requiredFreeBytes(10 * gb)).toBe(20 * gb);
+	});
+});
+
 describe("declared schema", () => {
 	it("never declares an index and drops it at the same time", () => {
 		for (const table of databaseTables) {
 			for (const [name, fields] of Object.entries(table)) {
 				const declared = ((fields as Record<string, unknown>)["_indexes"] as string[] | undefined || []).map(parseIndexName);
-				const dropped = (fields as Record<string, unknown>)["_dropIndexes"] as string[] | undefined || [];
-				for (const index of dropped) expect(declared, `${name}.${index}`).not.toContain(index);
+				const dropped = ((fields as Record<string, unknown>)["_dropIndexes"] as unknown[] | undefined || []).map(parseDropEntry);
+				for (const index of dropped) {
+					expect(index.name, name).not.toBe("");
+					expect(declared, `${name}.${index.name}`).not.toContain(index.name);
+					// An index is only dropped in favour of one the table still declares.
+					if (index.when != "") expect(declared, `${name}.${index.name}`).toContain(index.when);
+				}
 				expect(declared, name).not.toContain(null);
 				expect(new Set(declared).size, name).toBe(declared.length);
 			}

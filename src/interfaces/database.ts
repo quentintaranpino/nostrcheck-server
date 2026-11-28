@@ -587,10 +587,10 @@ const eventTagsTableFields: EventTagsTableStructure = {
 	// on tag rows whose event is gone.
 	created_at: "BIGINT",
 	// idx_event_id and idx_eventtags_event_id were dropped: idx_event_group starts with event_id
-	// and covers both. A UNIQUE (event_id, position) isn't created here because installs that
+	// and covers both. idx_tag_name_value (tag_name, tag_value(100)) is the start of
+	// idx_tag_created and goes away once that one is built (see _dropIndexes). A UNIQUE (event_id, position) isn't created here because installs that
 	// ran before 0.7.1.0170 may hold duplicate tag rows and the ALTER would fail at startup.
 	_indexes: [
-		"INDEX idx_tag_name_value (tag_name, tag_value(100))",
 		"INDEX idx_event_group (event_id, tag_name, tag_value(100))",
 		"INDEX idx_tag_created (tag_name, tag_value, created_at)"
 	],
@@ -602,6 +602,11 @@ const eventTagsTableFields: EventTagsTableStructure = {
 	_indexAfterJob: {
 		idx_tag_created: "eventtags_created_at"
 	},
+	// Every query by tag_name (+ tag_value) is served by the start of idx_tag_created, but
+	// only once it exists whole: until then idx_tag_name_value is what they run on.
+	_dropIndexes: [
+		{ name: "idx_tag_name_value", when: "idx_tag_created" }
+	],
 	constructor: {
 		name: 'RowDataPacket',
 	},

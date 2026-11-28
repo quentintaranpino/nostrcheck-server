@@ -1,3 +1,4 @@
+import fs from "fs";
 import { logger } from "../logger.js";
 
 const migrateOldFields = async (table:string, oldField:string, newField:string): Promise<boolean> => {
@@ -51,6 +52,10 @@ const INDEX_LOCK_WAIT_SECONDS = 30;
 const INDEX_RETRY_MS = 2 * 60 * 1000;
 const INDEX_MAX_ATTEMPTS = 15;
 const INDEX_POLL_MS = 60 * 1000;
+// A background index build wants this much free disk where MariaDB keeps its data: the sort
+// files and the index itself. Under it the build is put off and tried again later.
+const INDEX_MIN_FREE_BYTES = 15 * 1024 * 1024 * 1024;
+const INDEX_DISK_RETRY_MS = 30 * 60 * 1000;
 // ER_ALTER_OPERATION_NOT_SUPPORTED and ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 const ALTER_NOT_SUPPORTED = [1845, 1846];
 
@@ -66,6 +71,8 @@ interface IndexJob {
 	statement: string;
 	// Name of the jobstate row that has to be done before this runs; empty for none.
 	afterJob: string;
+	// Index of the same table that has to exist, whole, before this runs; empty for none.
+	afterIndex: string;
 	attempts: number;
 	nextTry: number;
 }
@@ -106,19 +113,45 @@ const buildDropIndexStatement = (table: string, indexName: string, online: boole
 
 /**
  * Picks the next background index job: the first one whose retry time has come and whose
- * gate (the job it waits for) is open. Null when every job has to wait.
+ * gates (the job or the index it waits for) are open. Null when every job has to wait.
  * @param jobs - Queue, in order.
  * @param now - Date.now().
  * @param doneJobs - Names of the jobstate rows that are done.
+ * @param completeIndexes - "table.index" of the awaited indexes that exist and are whole.
  */
-const pickIndexJob = (jobs: IndexJob[], now: number, doneJobs: Set<string>): IndexJob | null => {
+const pickIndexJob = (jobs: IndexJob[], now: number, doneJobs: Set<string>, completeIndexes: Set<string> = new Set()): IndexJob | null => {
 	for (const job of jobs) {
 		if (job.nextTry > now) continue;
 		if (job.afterJob != "" && !doneJobs.has(job.afterJob)) continue;
+		if (job.afterIndex != "" && !completeIndexes.has(`${job.table}.${job.afterIndex}`)) continue;
 		return job;
 	}
 	return null;
 }
+
+/**
+ * Reads a `_dropIndexes` entry: a name, or { name, when } to drop the index only once the
+ * index `when` of the same table is in place.
+ */
+const parseDropEntry = (entry: unknown): { name: string, when: string } => {
+	if (typeof entry === "string") return { name: entry, when: "" };
+	const item = (entry || {}) as { name?: unknown, when?: unknown };
+	return { name: typeof item.name === "string" ? item.name : "", when: typeof item.when === "string" ? item.when : "" };
+}
+
+/**
+ * Whether the rows SHOW INDEXES gives for an index describe one that can take over from
+ * another: it exists, covers its columns whole (no prefix) and is not ignored.
+ */
+const isCompleteIndex = (rows: { Sub_part?: number | null, Ignored?: string | null }[]): boolean =>
+	rows.length > 0 && rows.every(row => row.Sub_part == null && String(row.Ignored || "NO").toUpperCase() != "YES");
+
+/**
+ * Free disk a background index build asks for: twice the size the index is expected to take
+ * (sort files plus the index), and never less than INDEX_MIN_FREE_BYTES.
+ */
+const requiredFreeBytes = (estimatedIndexBytes: number): number =>
+	Math.max(INDEX_MIN_FREE_BYTES, 2 * Math.max(0, estimatedIndexBytes));
 
 /**
  * Whether a background index build or drop is running on a table right now (any table when
@@ -143,6 +176,44 @@ const indexExists = async (table: string, indexName: string): Promise<boolean> =
 	const pool = await connect(`indexExists | table: ${table}`);
 	const [rows] = await pool.execute(`SHOW INDEXES FROM \`${table}\` WHERE Key_name = ?`, [indexName]);
 	return Array.isArray(rows) && rows.length > 0;
+}
+
+const isIndexComplete = async (table: string, indexName: string): Promise<boolean> => {
+	const { connect } = await import("./core.js");
+	const pool = await connect(`isIndexComplete | table: ${table}`);
+	const [rows] = await pool.execute(`SHOW INDEXES FROM \`${table}\` WHERE Key_name = ?`, [indexName]);
+	return Array.isArray(rows) && isCompleteIndex(rows as { Sub_part?: number | null, Ignored?: string | null }[]);
+}
+
+// Whether there is room to build an index on a table: free space on the disk of MariaDB's
+// datadir against requiredFreeBytes of the average size of the table's indexes. When the
+// datadir can't be looked at from here (DB on another host or in a container), it goes ahead.
+const checkDiskForIndex = async (table: string): Promise<{ ok: boolean, detail: string }> => {
+	try {
+		const { connect } = await import("./core.js");
+		const pool = await connect(`checkDiskForIndex | table: ${table}`);
+		const [rows] = await pool.execute(
+			`SELECT @@datadir AS datadir, t.INDEX_LENGTH AS indexLength,
+			 (SELECT COUNT(DISTINCT s.INDEX_NAME) FROM INFORMATION_SCHEMA.STATISTICS s WHERE s.TABLE_SCHEMA = t.TABLE_SCHEMA AND s.TABLE_NAME = t.TABLE_NAME AND s.INDEX_NAME <> 'PRIMARY') AS indexes
+			 FROM INFORMATION_SCHEMA.TABLES t WHERE t.TABLE_SCHEMA = DATABASE() AND t.TABLE_NAME = ?`, [table]);
+		const row = (rows as { datadir: string, indexLength: number | null, indexes: number | null }[])[0];
+		if (!row?.datadir) return { ok: true, detail: "datadir unknown" };
+		const estimate = Number(row.indexLength || 0) / Math.max(1, Number(row.indexes || 0));
+		const needed = requiredFreeBytes(estimate);
+		let free = 0;
+		try {
+			const stats = await fs.promises.statfs(row.datadir);
+			free = Number(stats.bavail) * Number(stats.bsize);
+		} catch (error) {
+			logger.debug(`checkDiskForIndex - Can't read the free space of ${row.datadir}, going ahead: ${error}`);
+			return { ok: true, detail: "free space not readable from here" };
+		}
+		const gb = (bytes: number) => (bytes / 1073741824).toFixed(1);
+		return { ok: free >= needed, detail: `${gb(free)} GB free on ${row.datadir}, ${gb(needed)} GB wanted (index estimated at ${gb(estimate)} GB)` };
+	} catch (error) {
+		logger.debug(`checkDiskForIndex - Error checking the disk for ${table}: ${error}`);
+		return { ok: true, detail: "check failed" };
+	}
 }
 
 // Runs an ALTER on its own connection with a short metadata lock wait, so a long query on the
@@ -182,7 +253,16 @@ const runIndexJobs = async (): Promise<void> => {
 	try {
 		while (indexJobs.length > 0) {
 			const gated = indexJobs.some(job => job.afterJob != "");
-			const job = pickIndexJob(indexJobs, Date.now(), gated ? await getDoneJobs() : new Set());
+			const completeIndexes = new Set<string>();
+			for (const waiting of indexJobs) {
+				if (waiting.afterIndex == "") continue;
+				try {
+					if (await isIndexComplete(waiting.table, waiting.afterIndex)) completeIndexes.add(`${waiting.table}.${waiting.afterIndex}`);
+				} catch (error) {
+					logger.debug(`runIndexJobs - Error looking for ${waiting.afterIndex} on ${waiting.table}: ${error}`);
+				}
+			}
+			const job = pickIndexJob(indexJobs, Date.now(), gated ? await getDoneJobs() : new Set(), completeIndexes);
 			if (!job) {
 				await new Promise(resolve => setTimeout(resolve, INDEX_POLL_MS));
 				continue;
@@ -194,6 +274,20 @@ const runIndexJobs = async (): Promise<void> => {
 				if (exists == (job.action == "add")) {
 					if (job.attempts > 0) logger.info(`runIndexJobs - ${label}: already done`);
 					remove();
+					continue;
+				}
+				if (job.action == "add") {
+					const disk = await checkDiskForIndex(job.table);
+					if (!disk.ok) {
+						logger.warn(`runIndexJobs - ${label}: not enough free disk, put off for ${INDEX_DISK_RETRY_MS / 60000} min (${disk.detail})`);
+						job.nextTry = Date.now() + INDEX_DISK_RETRY_MS;
+						continue;
+					}
+					logger.info(`runIndexJobs - ${label}: disk check: ${disk.detail}`);
+				}
+				// Looked at again right before the drop: the index that takes over must be there.
+				if (job.afterIndex != "" && !await isIndexComplete(job.table, job.afterIndex)) {
+					job.nextTry = Date.now() + INDEX_POLL_MS;
 					continue;
 				}
 				job.attempts++;
@@ -225,7 +319,7 @@ const runIndexJobs = async (): Promise<void> => {
 const enqueueIndexJob = (job: Omit<IndexJob, "attempts" | "nextTry">): void => {
 	if (indexJobs.some(j => j.table == job.table && j.name == job.name && j.action == job.action)) return;
 	indexJobs.push({ ...job, attempts: 0, nextTry: 0 });
-	logger.info(`enqueueIndexJob - ${job.action} index ${job.name} on ${job.table} queued for the background${job.afterJob != "" ? ` (after job ${job.afterJob})` : ""}`);
+	logger.info(`enqueueIndexJob - ${job.action} index ${job.name} on ${job.table} queued for the background${job.afterJob != "" ? ` (after job ${job.afterJob})` : ""}${job.afterIndex != "" ? ` (once ${job.afterIndex} is in place)` : ""}`);
 	runIndexJobs().catch(error => logger.error(`runIndexJobs - Background index runner stopped: ${error}`));
 }
 
@@ -269,7 +363,7 @@ async function checkAndCreateIndexes(tableName: string, indexes: string[], after
 			const online = isOnlineIndex(stats.engine, indexDef);
 			const statement = buildAddIndexStatement(tableName, indexDef, online);
 			if (stats.rows > BIG_TABLE_ROWS) {
-				enqueueIndexJob({ table: tableName, name: indexName, action: "add", statement, afterJob: afterJob[indexName] || "" });
+				enqueueIndexJob({ table: tableName, name: indexName, action: "add", statement, afterJob: afterJob[indexName] || "", afterIndex: "" });
 				continue;
 			}
 			logger.info(`checkAndCreateIndexes - Creating index on table ${tableName} => ${statement}`);
@@ -285,20 +379,23 @@ async function checkAndCreateIndexes(tableName: string, indexes: string[], after
 /**
  * Drops the indexes a table declares obsolete (`_dropIndexes`), if they are still there.
  * Same rules as checkAndCreateIndexes: online, in the background on big tables, never fatal.
- * An index that `_indexes` still declares is left alone.
+ * An index that `_indexes` still declares is left alone. An entry { name, when } is only
+ * dropped once the index `when` exists, whole and usable: until then it is kept (small
+ * table: looked at again on the next start; big table: the queued drop waits for it).
  * @param {string} tableName - The name of the table.
- * @param {string[]} indexNames - Names of the indexes to drop.
+ * @param {(string | { name: string, when: string })[]} entries - Indexes to drop.
  * @param {string[]} declared - The `_indexes` definitions of the table.
  * @returns {Promise<boolean>} False when some index could not be dropped.
  * @async
  */
-async function checkAndDropIndexes(tableName: string, indexNames: string[], declared: string[] = []): Promise<boolean> {
+async function checkAndDropIndexes(tableName: string, entries: unknown[], declared: string[] = []): Promise<boolean> {
 
 	let allOk = true;
 	let stats: TableStats | null = null;
 	const declaredNames = declared.map(parseIndexName);
-	for (const indexName of indexNames) {
-		if (!/^\w+$/.test(indexName) || indexName.toUpperCase() == "PRIMARY") {
+	for (const entry of entries) {
+		const { name: indexName, when } = parseDropEntry(entry);
+		if (!/^\w+$/.test(indexName) || indexName.toUpperCase() == "PRIMARY" || (when != "" && !/^\w+$/.test(when))) {
 			logger.warn(`checkAndDropIndexes - Skipping invalid index name '${indexName}' on table '${tableName}'`);
 			continue;
 		}
@@ -311,7 +408,11 @@ async function checkAndDropIndexes(tableName: string, indexNames: string[], decl
 			if (!stats) stats = await getTableStats(tableName);
 			const statement = buildDropIndexStatement(tableName, indexName, isOnlineIndex(stats.engine));
 			if (stats.rows > BIG_TABLE_ROWS) {
-				enqueueIndexJob({ table: tableName, name: indexName, action: "drop", statement, afterJob: "" });
+				enqueueIndexJob({ table: tableName, name: indexName, action: "drop", statement, afterJob: "", afterIndex: when });
+				continue;
+			}
+			if (when != "" && !await isIndexComplete(tableName, when)) {
+				logger.info(`checkAndDropIndexes - Keeping index ${indexName} on table ${tableName} until ${when} is in place`);
 				continue;
 			}
 			logger.info(`checkAndDropIndexes - Dropping obsolete index on table ${tableName} => ${statement}`);
@@ -433,7 +534,7 @@ async function populateTables(): Promise<boolean> {
 				if (key === "_dropIndexes") {
 					const tableName = Object.keys(table).toString();
 					const declared = ((structure as Record<string, unknown>)["_indexes"] || []) as string[];
-					const result = await checkAndDropIndexes(tableName, value as string[], declared);
+					const result = await checkAndDropIndexes(tableName, value as unknown[], declared);
 					if (!result) logger.error("Failed dropping obsolete indexes on table:", tableName);
 					continue;
 				}
@@ -744,5 +845,5 @@ const initDatabase = async (): Promise<void> => {
 }
 
 
-export { initDatabase, parseIndexName, isOnlineIndex, buildAddIndexStatement, buildDropIndexStatement, pickIndexJob, isIndexJobRunning, BIG_TABLE_ROWS };
+export { initDatabase, parseIndexName, isOnlineIndex, buildAddIndexStatement, buildDropIndexStatement, pickIndexJob, parseDropEntry, isCompleteIndex, requiredFreeBytes, isIndexJobRunning, BIG_TABLE_ROWS };
 export type { IndexJob };
