@@ -32,6 +32,7 @@ const defaultConfig = {
 	"server": {
 		"host": "localhost",
 		"port": 3000,
+		"listenHost": "",
 		"pubkey": "",
 		"secretKey": "",
 		"tosFilePath" : "resources/tos.md",

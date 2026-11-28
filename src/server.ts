@@ -28,7 +28,11 @@ const startServer = async () => {
 
     // Start server
     const { getConfig } = await import("./lib/config/core.js");
-    const server = app.listen(getConfig(null, ["server", "port"]));
+    // server.listenHost empty keeps Node's default (every interface). The
+    // installer sets 127.0.0.1 so only the reverse proxy reaches the app.
+    const listenPort = getConfig(null, ["server", "port"]);
+    const listenHost = process.env.SERVER_LISTENHOST || getConfig(null, ["server", "listenHost"]);
+    const server = listenHost ? app.listen(listenPort, listenHost) : app.listen(listenPort);
 
     // Initialise API modules
     const { loadAPIs } = await import("./routes/routes.js");

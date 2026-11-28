@@ -16,6 +16,16 @@ process.on("unhandledRejection", (reason) => {
     }
 });
 
+// npm sets npm_package_version; started as plain "node dist/init.js" (systemd
+// unit, Docker) the version comes from package.json instead.
+if (!process.env.npm_package_version) {
+    try {
+        process.env.npm_package_version = JSON.parse(fs.readFileSync(path.resolve("package.json")).toString()).version;
+    } catch (err) {
+        console.warn("init - Could not read the version from package.json", err);
+    }
+}
+
 console.log("Starting Nostrcheck server", );
 (async () => {
     if (!fs.existsSync(localPath)){
