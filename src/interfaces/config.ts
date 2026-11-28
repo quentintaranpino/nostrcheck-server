@@ -304,6 +304,8 @@ const defaultConfig = {
 			"max_content_length": 20000,
 			"min_pow_difficulty": 0,
 			"auth_required": false,
+			// Only accept events whose author is a relay member (registered, allowed or joined).
+			"restricted_writes": false,
 			"created_at_lower_limit": 94608000,
 			"created_at_upper_limit": 300,
 			"max_time_range": 5184000,

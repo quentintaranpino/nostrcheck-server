@@ -260,6 +260,14 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
     return;
   }
 
+  // Restricted writes (#59): AUTH proves who is connected, not who signed the event, so a
+  // member could otherwise upload anyone's events. Here the author has to be a member too.
+  if (getConfig(socket.reqInfo.domain, ["relay", "limitation", "restricted_writes"]) === true && !await isRelayMember(event.pubkey)) {
+    logger.debug(`handleEvent - Blocked event from a non-member author: ${event.id}`);
+    await socketSafeSend(socket, ["OK", event.id, false, "restricted: the author of this event is not a member of this relay"]);
+    return;
+  }
+
   // Check if the event has more tags than allowed
   if (event.tags.length > getConfig(socket.reqInfo.domain, ["relay", "limitation", "max_event_tags"])) {
     logger.debug(`handleEvent - Blocked event with too many tags: ${event.id}`);

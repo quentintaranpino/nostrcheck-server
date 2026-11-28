@@ -25,7 +25,8 @@ const getNIP11file = (hostname: string): NIP11File => {
       max_content_length: Number(getConfig(hostname, ["relay", "limitation", "max_content_length"])),
       min_pow_difficulty: Number(getConfig(hostname, ["relay", "limitation", "min_pow_difficulty"])),
       auth_required: getConfig(hostname, ["relay", "limitation", "auth_required"]),
-      restricted_writes: getConfig(hostname, ["relay", "limitation", "restricted_writes"]),
+      restricted_writes: getConfig(hostname, ["relay", "limitation", "restricted_writes"]) == true || getConfig(hostname, ["relay", "limitation", "auth_required"]) == true,
+
       created_at_lower_limit: Number(getConfig(hostname, ["relay", "limitation", "created_at_lower_limit"])),
       created_at_upper_limit: Number(getConfig(hostname, ["relay", "limitation", "created_at_upper_limit"]))
 
