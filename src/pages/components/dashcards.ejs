@@ -95,13 +95,14 @@
     <% if(locals.activeModules.some(mod => mod.name === 'relay')) { %>
         <%- include('./dashcard', { 
         dashcardId: 'relayEventsDB', 
-        dashcardName: 'Synced events',
+        dashcardName: 'Relay events',
         dashcardDataKey: 'relay', 
         icon: 'doughnut', 
         link: '', 
         action: 'countSynced', 
         field: 'synced', 
         showField: true, 
+        fieldLabel: 'in memory',
         timeout: 15000,
         }); %>
 

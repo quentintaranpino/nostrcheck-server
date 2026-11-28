@@ -146,6 +146,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const field = "<%- field %>";
   const timeout = Number("<%= typeof timeout !== 'undefined' ? timeout : 60000 %>");
   const showField = "<%- showField %>";
+  // With a fieldLabel the total is the headline and the field goes underneath, labelled.
+  const fieldLabel = "<%= typeof fieldLabel !== 'undefined' ? fieldLabel : '' %>";
 
     $('#' + dashcardId + '-name').text(dashcardName)
     const iconElement = $('#' + dashcardId + '-icon');
@@ -244,7 +246,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         // information_schema estimate. Say so with a ~ instead of showing a
         // figure that looks exact and isn't.
         const approx = countData.approximate === true ? '~' : '';
-        if (showField == "true"){
+        if (showField == "true" && fieldLabel != ""){
+          $('#' + dashcardId + '-text-field').text(`${approx}${Number(countData.total).toLocaleString()}`);
+          $('#' + dashcardId + '-text-total').text(`${Number(countData.field).toLocaleString()} ${fieldLabel}`);
+        }else if (showField == "true"){
           $('#' + dashcardId + '-text-field').text(countData.field);
           $('#' + dashcardId + '-text-total').text(`of ${approx}${countData.total}`);
         }else{
