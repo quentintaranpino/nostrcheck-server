@@ -732,20 +732,21 @@ const storeEvents = async (eventsInput: MetadataEvent | MetadataEvent[]): Promis
     }
   
     // Store tags
-    const allTagValues: [string, string, string, number, string | null][] = [];
+    const allTagValues: [string, string, string, number, string | null, number][] = [];
     eventsToStore.forEach(e => {
       if (e.tags && e.tags.length > 0) {
         e.tags.forEach((tag: string[], index: number) => {
           const tagName = tag[0];
           const tagValue = tag[1] || "";
           const extraValues = tag.length > 2 ? JSON.stringify(tag.slice(2)) : null;
-          allTagValues.push([e.id, tagName, tagValue, index, extraValues]);
+          allTagValues.push([e.id, tagName, tagValue, index, extraValues, e.created_at]);
         });
       }
     });
   
     if (allTagValues.length > 0) {
-      const tagColumns = ["event_id", "tag_name", "tag_value", "position", "extra_values"];
+      // created_at is copied to every tag row: idx_tag_created reads the newest events of a tag from it.
+      const tagColumns = ["event_id", "tag_name", "tag_value", "position", "extra_values", "created_at"];
       const insertedTagRows = await dbBulkInsert("eventtags", tagColumns, allTagValues);
       if (insertedTagRows !== allTagValues.length) {
         logger.error(`storeEvents - Failed to insert all event tags. Expected: ${allTagValues.length}, Inserted: ${insertedTagRows}`);
