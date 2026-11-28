@@ -40,6 +40,9 @@ const authSessions: WeakMap<WebSocket, string> = new WeakMap();
 const PRIVATE_KINDS = new Set([4, 14, 1059]);
 const canReadEvent = (socket: ExtendedWebSocket, event: Event): boolean => {
   if (isRelayHidden(event)) return false;
+  // Deletions (NIP-09/62, replaced versions) wait in pendingDelete for the worker, which
+  // doesn't run while the store loads after a restart: hide them from the moment they land.
+  if (eventStore.pendingDelete?.has(event.id)) return false;
   if (!PRIVATE_KINDS.has(event.kind)) return true;
   const authed = authSessions.get(socket);
   if (!authed) return false;

@@ -68,6 +68,8 @@ const collectRecords = async (socket: ExtendedWebSocket, filter: Filter, maxReco
 	const add = (id: string, created_at: number, pubkey: string): boolean => {
 		if (seen.has(id)) return true;
 		seen.add(id);
+		// Deleted but not yet removed by the worker.
+		if (eventStore.pendingDelete?.has(id)) return true;
 		records.push({ id, created_at, pubkey });
 		return records.length <= maxRecords;
 	};
