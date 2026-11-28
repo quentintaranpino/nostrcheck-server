@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { logger } from "../logger.js";
-import { collectInvoice, getInvoice } from "../payments/core.js";
+import { collectInvoice, getInvoice, getTransactionByArkAddress, redeemArkPayment } from "../payments/core.js";
 
 /**
  * Result of checking a BUD-07 payment proof sent by a client.
@@ -55,4 +55,50 @@ const checkLightningProof = async (tenant: string, header: string | undefined, t
 	return { status: "valid" };
 };
 
-export { checkLightningProof, PaymentProof };
+/**
+ * Checks the `X-Ark` proof of a BUD-07 request: the Ark address from the X-Ark 402 response.
+ * Draft spec: https://github.com/hzrd149/blossom/pull/116
+ *
+ * The address is unique to one unpaid file. It pays for the request when the settled payments
+ * to it in the server's wallet cover the quoted amount. It is redeemed once: the transaction is
+ * then marked as paid, which unlocks the file for everyone.
+ *
+ * @param tenant - The tenant (hostname) of the request.
+ * @param header - The raw value of the `X-Ark` request header, if any.
+ * @param transactionId - The transaction the request has to be paid with ("" if none yet).
+ */
+const checkArkProof = async (tenant: string, header: string | undefined, transactionId: string): Promise<PaymentProof> => {
+
+	if (header == undefined || header.trim() == "") return { status: "none" };
+
+	const address = header.trim();
+	const transaction = await getTransactionByArkAddress(tenant, address);
+	if (transaction.transactionid == 0) {
+		return { status: "invalid", reason: "Unknown Ark payment address" };
+	}
+
+	if (transactionId == "" || transaction.transactionid.toString() != transactionId.toString()) {
+		return { status: "invalid", reason: "Ark payment address was issued for a different request" };
+	}
+
+	if (transaction.isPaid) {
+		return { status: "valid" };
+	}
+
+	const { received, paid } = await redeemArkPayment(tenant, transaction);
+	if (paid) return { status: "valid" };
+
+	if (received < 0) {
+		logger.error(`checkArkProof - Could not check Ark payments for transaction: ${transactionId}`);
+		return { status: "invalid", reason: "Ark payment could not be checked, try again" };
+	}
+	if (received == 0) {
+		return { status: "invalid", reason: "No settled Ark payment to this address yet" };
+	}
+	if (received < transaction.satoshi) {
+		return { status: "invalid", reason: `Ark payment incomplete: ${received} of ${transaction.satoshi} sats received` };
+	}
+	return { status: "invalid", reason: "Ark payment address already redeemed" };
+};
+
+export { checkLightningProof, checkArkProof, PaymentProof };

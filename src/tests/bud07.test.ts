@@ -3,7 +3,7 @@ import crypto from "crypto";
 
 // Unit tests: no running server or database needed. The payments core is mocked.
 vi.mock("../lib/logger.js", () => ({ logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
-vi.mock("../lib/payments/core.js", () => ({ getInvoice: vi.fn(), collectInvoice: vi.fn() }));
+vi.mock("../lib/payments/core.js", () => ({ getInvoice: vi.fn(), collectInvoice: vi.fn(), getTransactionByArkAddress: vi.fn(), redeemArkPayment: vi.fn() }));
 
 import { checkLightningProof } from "../lib/blossom/BUD07.js";
 import { collectInvoice, getInvoice } from "../lib/payments/core.js";

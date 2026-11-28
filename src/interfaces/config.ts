@@ -242,6 +242,11 @@ const defaultConfig = {
 			"nwc": {
 				"url": "",
 			},
+			"barkd": {
+				"url": "http://127.0.0.1:3535",
+				"authToken": "",
+				"ark": true,
+			},
 		}
 
 	},
