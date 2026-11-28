@@ -3,6 +3,7 @@
 .github
 .claude
 .vscode
+.env*
 node_modules
 dist
 .venv
@@ -13,8 +14,10 @@ files
 logs
 tmp
 data
+backups
 coverage
 tests
+frontend
 *.log
 compose*.yml
 Dockerfile*

@@ -1,5 +1,18 @@
 # syntax=docker/dockerfile:1.7
-FROM node:24-bookworm
+
+# --- Build: dev dependencies, TypeScript and the client bundle ----------------
+FROM node:24-bookworm AS build
+WORKDIR /usr/src/app
+
+COPY package.json package-lock.json .npmrc ./
+RUN npm ci --include=optional --no-audit --no-fund
+
+# Everything the build may need; .dockerignore keeps data and local state out.
+COPY . .
+RUN npm run build && npm prune --omit=dev --no-audit --no-fund
+
+# --- Runtime: no compilers, no dev dependencies, not root ---------------------
+FROM node:24-bookworm-slim
 ARG TARGETPLATFORM
 ENV DEBIAN_FRONTEND=noninteractive \
     VENV_DIR=/usr/src/app/.venv
@@ -8,7 +21,7 @@ WORKDIR /usr/src/app
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-      ffmpeg ca-certificates curl nano \
+      ffmpeg ca-certificates curl tini \
       python3 python3-venv \
     && rm -rf /var/lib/apt/lists/*
 
@@ -24,12 +37,29 @@ RUN python3 -m venv "$VENV_DIR" && \
     fi && \
     pip install --no-cache-dir transformers==4.44.2 Flask==3.0.3 Pillow==10.4.0
 
-COPY package.json package-lock.json .npmrc ./
-RUN npm ci --include=optional --no-audit --no-fund
-
-# Everything the build may need; .dockerignore keeps data and local state out.
+# Code and dependencies stay root-owned; the server runs as "node" (uid 1000)
+# and owns only what it writes: its data directories, the tenant assets under
+# src/pages and the working directory itself (models/, tmp/).
+COPY --from=build /usr/src/app/node_modules ./node_modules
+COPY --from=build /usr/src/app/dist ./dist
 COPY . .
-RUN npm run build
+RUN mkdir -p files config logs tmp models resources plugins src/pages/static/resources/tenants && \
+    chown -R node:node files config logs tmp models resources plugins src/pages/static/resources/tenants && \
+    chown node:node . && \
+    chmod 755 scripts/docker-entrypoint.sh
 
+# CMD starts node itself, so it has to say what "npm start" says.
+RUN node -e "const want = 'node ' + process.argv.slice(1).join(' '); const have = require('./package.json').scripts.start; if (have !== want) { console.error('scripts.start changed, update CMD in Dockerfile.build: ' + have); process.exit(1); }" \
+    -- -r ./scripts/threadpool.cjs --max-old-space-size=6144 --enable-source-maps ./dist/init.js
+
+USER node
 EXPOSE 3000
-CMD ["npm", "start"]
+
+# The first start writes the config and restarts once, hence the long start period.
+HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
+    CMD curl -fsS -o /dev/null http://127.0.0.1:3000/ || exit 1
+
+# tini is PID 1: it forwards signals to node and reaps what ffmpeg and the
+# moderation engine leave behind.
+ENTRYPOINT ["/usr/bin/tini", "--", "./scripts/docker-entrypoint.sh"]
+CMD ["node", "-r", "./scripts/threadpool.cjs", "--max-old-space-size=6144", "--enable-source-maps", "./dist/init.js"]

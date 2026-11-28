@@ -1,11 +1,42 @@
+# nostrcheck-server with MariaDB and Redis:  docker compose up -d
+#
+# The app is published on 127.0.0.1:3000 only. Put a reverse proxy with TLS
+# (nginx, Caddy, Traefik) in front of it, and make that proxy overwrite the
+# X-Real-IP, X-Forwarded-For and CF-Connecting-IP headers: the server takes the
+# client address from them. To publish the port on every interface instead,
+# change the "ports" line of the app to "3000:3000".
+
 services:
+  # The app runs as the unprivileged user "node" (uid 1000). Docker creates
+  # missing bind mounts as root, and so did the app before 0.7.1: this one-shot
+  # hands the data directories over before the app starts.
+  permissions:
+    image: nostrcheckme/nostrcheck-server:0.7.1
+    user: root
+    network_mode: none
+    restart: "no"
+    entrypoint:
+      - sh
+      - -c
+      - |
+        cd /usr/src/app
+        [ "$$(stat -c %u files)" = 1000 ] || chown -R 1000:1000 files
+        find config logs ! -user 1000 -exec chown 1000:1000 {} +
+    volumes:
+      - ./files:/usr/src/app/files
+      - ./config:/usr/src/app/config
+      - ./logs:/usr/src/app/logs
   app:
     networks:
     - localnet
-    image: nostrcheckme/nostrcheck-server:testing
+    image: nostrcheckme/nostrcheck-server:0.7.1
     depends_on:
-      - mariadb
-      - redis
+      permissions:
+        condition: service_completed_successfully
+      mariadb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     volumes:
       - ./files:/usr/src/app/files
       - ./resources:/usr/src/app/resources
@@ -14,7 +45,7 @@ services:
       - ./plugins:/usr/src/app/plugins
 
     restart: always
-    environment: 
+    environment:
       DATABASE_HOST: "mariadb"
       DATABASE_USER: "nostrcheck"
       DATABASE_PASSWORD: "nostrcheck"
@@ -23,9 +54,11 @@ services:
       REDIS_PORT: "6379"
       REDIS_USER: "default"
       REDIS_PASSWORD: ""
-    command: "npm run start"
+      # Inside the container the app has to listen on every interface, whatever
+      # server.listenHost says; what is reachable from outside is set by "ports".
+      SERVER_LISTENHOST: "0.0.0.0"
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
   mariadb:
     networks:
      - localnet
@@ -38,6 +71,14 @@ services:
       MYSQL_DATABASE: nostrcheck
       MYSQL_USER: nostrcheck
       MYSQL_PASSWORD: nostrcheck
+    # Over TCP on purpose: while the image initialises a new database, its
+    # temporary server only listens on the socket.
+    healthcheck:
+      test: ["CMD-SHELL", "mariadb-admin ping -h 127.0.0.1 --silent || mysqladmin ping -h 127.0.0.1 --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
   redis:
     networks:
      - localnet
