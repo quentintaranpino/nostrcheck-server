@@ -13,6 +13,7 @@ import { isEntityBanned } from "../lib/security/banned.js";
 import { isAddressable, isEphemeral, isReplaceable } from "../lib/nostr/NIP01.js";
 import { executePlugins } from "../lib/plugins/core.js";
 import { validatePow } from "../lib/nostr/NIP13.js";
+import { hasCommentRootScope } from "../lib/nostr/NIP22.js";
 import { allowedTags, EventIndex, eventStore, ExtendedWebSocket, MetadataEvent, RelayStatusMessage } from "../interfaces/relay.js";
 import { isBase64 } from "../lib/utils.js";
 import { isRelayHidden } from "../lib/relay/bans.js";
@@ -584,17 +585,13 @@ const handleEvent = async (socket: ExtendedWebSocket, event: MetadataEvent) => {
 
   }
 
-  // NIP-7D (Threads)
-  if (event.kind === 11 || event.kind === 1111) {
-    const hasTitleTag = event.tags.some(tag => tag[0] === "title" && typeof tag[1] === "string" && tag[1].trim().length > 0);
-    const hasK11Tag = event.tags.some(tag => tag[0] === "K" && tag[1] === "11");
-    const hasEtag = event.tags.some(tag => tag[0] === "E" && tag[1] !== "");
-    if ((!hasTitleTag && event.kind === 11) || ((!hasK11Tag || !hasEtag) && event.kind === 1111)) {
-      logger.debug(`handleEvent - Rejected kind:${event.kind} event ${event.id} due to missing required tags.`);
-      await socketSafeSend(socket, ["NOTICE", "invalid: missing required tags"]);
-      await socketSafeSend(socket, ["OK", event.id, false, "invalid: missing required tags"]);
-      return;
-    }
+  // NIP-22 comments need a root scope (K plus E, A or I); the root can be an article, a URL
+  // or a file, not only a NIP-7D thread. Kind 11 has no required tags: its title is a SHOULD.
+  if (event.kind === 1111 && !hasCommentRootScope(event.tags)) {
+    logger.debug(`handleEvent - Rejected kind:1111 event ${event.id} due to missing root scope tags.`);
+    await socketSafeSend(socket, ["NOTICE", "invalid: missing root scope tags (K and E, A or I)"]);
+    await socketSafeSend(socket, ["OK", event.id, false, "invalid: missing root scope tags (K and E, A or I)"]);
+    return;
   }
 
   // NIP-B0 (Bookmarks)
